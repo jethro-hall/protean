@@ -1,0 +1,21 @@
+# Secrets — NEVER commit (the one security rule that holds during the POC)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+**/secrets/**
+**/credentials*.json
+claude_desktop_config*.json
+
+# Node / build
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+*.log
+.DS_Store
+
+# Do NOT ignore APP/ARTEFACTS or APP/LLMBUILD_DATA — owner wants the full build data in the repo
+# (only the secrets above are excluded).

@@ -1,0 +1,41 @@
+# .cursorrules — Protean (enforced coding laws for Cursor)
+#
+# This is the machine-facing mirror of AGENTS.md. Cursor: obey these on every edit.
+# Full reasoning lives in docs/PROJECT_CHARTER.md. Do not violate a law to "get it working".
+
+## PROJECT
+Protean: a lightweight, fast, cross-device enterprise conversational GUI with Claude-Desktop-grade
+dynamic workflows, on a provider-agnostic LLM engine, engineered for low latency and low token cost.
+First domain: Ride Electric finance. Must shape-shift to medical/education/generic via config only.
+
+## THE 8 LAWS (hard constraints)
+1. NO WORKAROUNDS. Fix root causes. No silent try/catch, no fake stubs that hide failures.
+   If you can't fix it now, STOP and log a blocking issue in docs/CHAT/BUILD_LOG.md.
+2. NOTHING HARDCODED. No magic numbers/strings/colours/model-names/thresholds/prompts/endpoints
+   in logic. Put them in src/config, src/contracts, or a Domain Pack (src/domains/<domain>).
+3. SMALL NAMED FUNCTIONS in the correct module (agent/gateway/watcher/logging/contracts/config/domains).
+   One job per function. No files over ~300 lines. No god-functions.
+4. DETERMINISTIC BEFORE GENERATIVE. If code can compute it, code computes it — not an LLM.
+5. PROVIDER-AGNOSTIC. Never import a vendor SDK outside its adapter (gateway/ or agent/).
+   Core logic depends on interfaces only.
+6. LOG FULL LINEAGE for every turn: input, assembled prompt, rewrite, model, tokens, cache, tools,
+   output, per-stage timings. Use the structured logger in src/logging — never bare console.log.
+7. SAAS-READY SEAMS: tenant-scoped config, no global mutable state. Do NOT build multi-tenancy now.
+8. BEST PRACTICE OR AN ADR: deviate only with a one-page ADR in docs/DECISIONS/.
+
+## STACK (see ADRs before changing)
+- Frontend: React + Vite + TypeScript + Tailwind. Theme tokens ONLY in GUI/src/theme (Law 2).
+- Backend: Node + TypeScript. Streaming: SSE first.
+- Agent loop: Claude Agent SDK behind an AgentCore interface. VERIFY SDK APIs against current docs.
+- Types/validation: zod (or TS types) in src/contracts. Nothing crosses a boundary untyped.
+
+## SECURITY (POC posture)
+Security is deferred EXCEPT: never commit secrets; load from env/secret-store; redact secrets in logs.
+
+## EVERY CHANGE
+Plan → write as small typed functions → run lint+tests (must pass) → append to docs/CHAT/BUILD_LOG.md
+(user request + change + response) → commit with a conventional message → push.
+
+## WHEN UNSURE
+Mark unverifiable facts [VERIFY], check official docs, and if still blocked, LOG IT. Never guess,
+never fabricate an API, never hide a gap behind a stub.

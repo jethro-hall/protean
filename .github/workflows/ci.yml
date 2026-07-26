@@ -1,0 +1,30 @@
+# Protean CI — the gate. Red = not mergeable (Law 1: no workarounds to force green).
+# [VERIFY] adjust Node version + commands once package.json exists in Phase 0.
+name: ci
+on:
+  push:
+    branches: [main, "phase/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install
+        run: npm ci || echo "no package.json yet (pre-Phase-0 scaffold)"
+      - name: Typecheck
+        run: npm run typecheck --if-present
+      - name: Lint
+        run: npm run lint --if-present
+      - name: Test
+        run: npm test --if-present
+      - name: Guard — no secrets committed
+        run: |
+          if git grep -nE "(ANTHROPIC_API_KEY|AWS_BEARER_TOKEN|sk-[A-Za-z0-9]{20,})" -- ':!*.example' ':!.github/*' ; then
+            echo "::error::Possible secret committed"; exit 1; fi
