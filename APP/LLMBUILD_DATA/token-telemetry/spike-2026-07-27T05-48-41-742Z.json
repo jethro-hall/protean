@@ -1,0 +1,37 @@
+{
+  "ts": "2026-07-27T05:48:41.742Z",
+  "model": "au.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "domainId": "generic",
+  "prompt": "In two sentences, what is time-to-first-token and why does it matter for a chat UI?",
+  "acceptance": {
+    "cacheHitBudgetMs": 300,
+    "passed": true
+  },
+  "runs": [
+    {
+      "run": 1,
+      "cacheHit": false,
+      "timings": {
+        "assembleMs": 0.14,
+        "budgetMs": 0.11,
+        "cacheCheckMs": 0.84,
+        "ttftMs": 7169.7,
+        "modelMs": 4644,
+        "totalMs": 7950.65
+      },
+      "outputChars": 412
+    },
+    {
+      "run": 2,
+      "cacheHit": true,
+      "timings": {
+        "assembleMs": 0.04,
+        "budgetMs": 0.01,
+        "cacheCheckMs": 0.27,
+        "ttftMs": 0.52,
+        "totalMs": 0.56
+      },
+      "outputChars": 412
+    }
+  ]
+}

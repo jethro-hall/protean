@@ -412,3 +412,41 @@ SSE test proving artefact events + saved file + no `<h1>` leakage into text even
 **Outstanding for full sign-off (blocked on owner AWS re-auth, login still pending):** live
 Phase 0 spike (TTFT + cache < 300 ms), live Phase 2 A/B eval, live Phase 3 artefact run with a
 real model.
+
+---
+
+## 2026-07-27 — LIVE acceptance: Phases 0–3 signed off (AWS restored)
+
+**User request:** owner completed the remote AWS login (pasted the confirmation code); run the
+outstanding live acceptance checks.
+
+**Model IDs pinned (from `aws bedrock list-inference-profiles --region ap-southeast-2`, both
+ACTIVE, au.* = in-region):** strong `au.anthropic.claude-sonnet-5`, fast
+`au.anthropic.claude-haiku-4-5-20251001-v1:0`. Set in `.env` (never committed).
+
+**Phase 0 acceptance — PASS (evidence `LLMBUILD_DATA/token-telemetry/spike-2026-07-27T05-48-41-742Z.json`):**
+- run 1 (live Bedrock haiku-4.5): TTFT **7,169.7 ms** · total 7,950.65 ms · cache miss — this is
+  the honest baseline the phase exists to measure; dominated by Agent SDK spin-up, it is the
+  number later optimisation attacks.
+- run 2 (identical prompt): TTFT 0.52 ms · total **0.56 ms** · cache hit — **< 300 ms gate: PASS**.
+
+**Phase 2 A/B — first run was INVALID and the harness now says so.** The first live eval reported
+A=1.000 B=0.800, but `rewriteMs` was null on every B item: the "bloated" prompts (~250 est.
+tokens) never crossed the 600-token gate, so both arms ran identical prompts and the delta was
+model noise. Root fixes (no massaged verdicts): (1) `runEval.ts` now counts `rewritesApplied` and
+declares the verdict **INVALID** when arm B never rewrote; (2) the three bloated prompts in
+`eval-sets/baseline.json` were extended past the gate (629–667 est. tokens), factual asks and
+checks unchanged.
+**Valid re-run (3/3 rewrites fired, evidence `eval-results/baseline-2026-07-27T05-54-16-530Z.json`):**
+A score 0.900 vs B 0.800; mean total 8,709 ms (A) vs **17,052 ms** (B) — each rewrite costs an
+extra 11–17 s model call. **Verdict: rewrite does NOT pay for itself — stays OFF (per charter,
+cut it).**
+
+**Phase 3 live run — PASS (real browser, real model):** asked for a Ride Electric Q2 summary
+page; Sonnet-5 streamed `Ride Electric – Q2 Summary` HTML into the preview pane (sandboxed
+iframe), status Complete, saved truthfully to
+`APP/ARTEFACTS/9f79743c-…/a6205341-…-a1.html` (verified on disk). TTFT 4,568 ms · total
+9,118 ms · cache miss. The mid-stream *Building…* badge sequence was captured in the earlier
+harness click-through; this run proves the same pipeline end-to-end against Bedrock.
+
+**Phases 0–3 are now fully signed off — built, tested, browser-verified, and live-accepted.**

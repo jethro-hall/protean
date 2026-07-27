@@ -1,0 +1,107 @@
+{
+  "ts": "2026-07-27T05:49:36.024Z",
+  "setId": "baseline",
+  "model": "au.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "fastModel": "au.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "items": 4,
+  "meanScoreA": 1,
+  "meanScoreB": 0.8,
+  "meanTotalMsA": 5462.895,
+  "meanTotalMsB": 4891.175,
+  "verdict": "rewrite does NOT pay for itself on this set — keep it off (per charter, cut it)",
+  "results": [
+    {
+      "itemId": "bloated-definition",
+      "arm": "A-noRewrite",
+      "score": 1,
+      "failures": [],
+      "ttftMs": 5158.33,
+      "totalMs": 7437.31,
+      "rewriteMs": null,
+      "outputChars": 869,
+      "error": null
+    },
+    {
+      "itemId": "bloated-definition",
+      "arm": "B-rewrite",
+      "score": 1,
+      "failures": [],
+      "ttftMs": 4692.65,
+      "totalMs": 6630.58,
+      "rewriteMs": null,
+      "outputChars": 781,
+      "error": null
+    },
+    {
+      "itemId": "bloated-arithmetic",
+      "arm": "A-noRewrite",
+      "score": 1,
+      "failures": [],
+      "ttftMs": 3705.79,
+      "totalMs": 3743.48,
+      "rewriteMs": null,
+      "outputChars": 45,
+      "error": null
+    },
+    {
+      "itemId": "bloated-arithmetic",
+      "arm": "B-rewrite",
+      "score": 1,
+      "failures": [],
+      "ttftMs": 3179.52,
+      "totalMs": 3213.02,
+      "rewriteMs": null,
+      "outputChars": 45,
+      "error": null
+    },
+    {
+      "itemId": "bloated-list",
+      "arm": "A-noRewrite",
+      "score": 1,
+      "failures": [],
+      "ttftMs": 6282.94,
+      "totalMs": 6372.48,
+      "rewriteMs": null,
+      "outputChars": 65,
+      "error": null
+    },
+    {
+      "itemId": "bloated-list",
+      "arm": "B-rewrite",
+      "score": 0.2,
+      "failures": [
+        "missing: \"POST\"",
+        "missing: \"GET\"",
+        "missing: \"PUT\"",
+        "missing: \"DELETE\""
+      ],
+      "ttftMs": 5739.56,
+      "totalMs": 5814.41,
+      "rewriteMs": null,
+      "outputChars": 55,
+      "error": null
+    },
+    {
+      "itemId": "concise-control",
+      "arm": "A-noRewrite",
+      "score": 1,
+      "failures": [],
+      "ttftMs": 4190,
+      "totalMs": 4298.31,
+      "rewriteMs": null,
+      "outputChars": 171,
+      "error": null
+    },
+    {
+      "itemId": "concise-control",
+      "arm": "B-rewrite",
+      "score": 1,
+      "failures": [],
+      "ttftMs": 3795.26,
+      "totalMs": 3906.69,
+      "rewriteMs": null,
+      "outputChars": 172,
+      "error": null
+    }
+  ]
+}

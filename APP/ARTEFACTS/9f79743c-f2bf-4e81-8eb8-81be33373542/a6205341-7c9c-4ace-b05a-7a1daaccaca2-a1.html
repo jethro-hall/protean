@@ -1,0 +1,116 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ride Electric – Q2 Summary</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            padding: 60px 40px;
+        }
+        header {
+            margin-bottom: 50px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 30px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a1a;
+            letter-spacing: -0.5px;
+        }
+        .period {
+            font-size: 14px;
+            color: #666;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+        .metric {
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 48px;
+            font-weight: 700;
+            color: #2563eb;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .metric-label {
+            font-size: 13px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        footer {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid #f0f0f0;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 40px 20px;
+            }
+            .metrics {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            .metric-value {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Ride Electric</div>
+            <div class="period">Q2 2026 Summary</div>
+        </header>
+        
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value">$1.24M</div>
+                <div class="metric-label">Revenue</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">38%</div>
+                <div class="metric-label">Gross Margin</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">99.2%</div>
+                <div class="metric-label">Fleet Uptime</div>
+            </div>
+        </div>
+        
+        <footer>
+            Ride Electric – Q2 2026
+        </footer>
+    </div>
+</body>
+</html>

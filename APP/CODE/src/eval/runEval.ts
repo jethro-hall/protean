@@ -135,13 +135,19 @@ async function main(): Promise<void> {
     meanScoreB: mean(armB.map((r) => r.score)),
     meanTotalMsA: mean(armA.map((r) => r.totalMs ?? 0)),
     meanTotalMsB: mean(armB.map((r) => r.totalMs ?? 0)),
+    rewritesApplied: armB.filter((r) => r.rewriteMs !== null).length,
     verdict: '' as string,
     results,
   };
+  // A verdict is only evidence if arm B actually rewrote something; otherwise
+  // both arms ran identical prompts and any delta is model nondeterminism.
   summary.verdict =
-    summary.meanScoreB > summary.meanScoreA
-      ? 'B (rewrite) improves the score — consider enabling PROTEAN_REWRITE_ENABLED=1'
-      : 'rewrite does NOT pay for itself on this set — keep it off (per charter, cut it)';
+    summary.rewritesApplied === 0
+      ? 'INVALID — rewrite gate never fired on this set (arms were identical); ' +
+        'fix the set to exceed the bloat threshold before drawing any conclusion'
+      : summary.meanScoreB > summary.meanScoreA
+        ? 'B (rewrite) improves the score — consider enabling PROTEAN_REWRITE_ENABLED=1'
+        : 'rewrite does NOT pay for itself on this set — keep it off (per charter, cut it)';
 
   mkdirSync(config.paths.evalResultsDir, { recursive: true });
   const outPath = join(
