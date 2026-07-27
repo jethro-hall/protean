@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -43,10 +43,11 @@ const fakeGateway: LlmGateway = {
 
 let server: ReturnType<typeof startServer>;
 let baseUrl: string;
+let dataDir: string;
 
 beforeAll(async () => {
   const config = loadConfig();
-  const dataDir = mkdtempSync(join(tmpdir(), 'protean-server-test-'));
+  dataDir = mkdtempSync(join(tmpdir(), 'protean-server-test-'));
   const deps: AppDeps = {
     config: {
       ...config,
@@ -58,6 +59,7 @@ beforeAll(async () => {
         promptHistoryDir: join(dataDir, 'prompt-history'),
         tokenTelemetryDir: join(dataDir, 'token-telemetry'),
         artefactsDir: join(dataDir, 'artefacts'),
+        uploadsDir: join(dataDir, 'uploads'),
       },
     },
     logger: createLogger('error', () => {}),
@@ -145,6 +147,37 @@ describe('engine HTTP surface', () => {
     expect(end.complete).toBe(true);
     if (end.savedPath === null) throw new Error('artefact was not saved');
     expect(readFileSync(end.savedPath, 'utf8')).toBe('<h1>Hi</h1>');
+  });
+
+  it('accepts an attachment, saves the upload, and emits a stage activity', async () => {
+    const res = await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: 'summarise this file',
+        sessionId: 'server-test-upload',
+        attachments: [{ name: 'spec.json', mimeType: 'application/json', textContent: '{"nodes":[]}' }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const raw = await res.text();
+    expect(raw).toContain('event: activity-start');
+    expect(raw).toContain('spec.json');
+    const uploadDir = join(dataDir, 'uploads', 'server-test-upload');
+    const files = readdirSync(uploadDir);
+    expect(files.some((name) => name.endsWith('spec.json'))).toBe(true);
+  });
+
+  it('rejects an oversized attachment with 400', async () => {
+    const res = await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: 'too big',
+        attachments: [{ name: 'big.txt', mimeType: 'text/plain', textContent: 'x'.repeat(600 * 1024) }],
+      }),
+    });
+    expect(res.status).toBe(400);
   });
 
   it('serves the identical prompt from cache on the second request', async () => {

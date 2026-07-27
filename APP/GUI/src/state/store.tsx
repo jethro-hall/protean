@@ -5,7 +5,16 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react';
-import type { ArtefactType, ModelTier, TurnDone } from '../lib/api';
+import type { ActivityKind, ArtefactType, ModelTier, TurnDone } from '../lib/api';
+
+/** One real working step of a turn (thinking, tool run, engine stage). */
+export interface Activity {
+  id: string;
+  kind: ActivityKind;
+  label: string;
+  text: string;
+  done: boolean;
+}
 
 export interface Artefact {
   id: string;
@@ -23,6 +32,10 @@ export interface ChatMessage {
   /** Streaming truth (UX law: honest states). */
   streaming?: boolean;
   stats?: TurnDone;
+  /** Names of files the user attached to this message. */
+  attachmentNames?: string[];
+  /** The turn's real working steps, shown Claude-Desktop-style above the answer. */
+  activities?: Activity[];
 }
 
 export type ConversationStatus = 'idle' | 'waiting' | 'streaming' | 'error';
@@ -57,6 +70,22 @@ export type Action =
   | { type: 'assistantStart'; conversationId: string; messageId: string }
   | { type: 'assistantDelta'; conversationId: string; messageId: string; text: string }
   | { type: 'assistantDone'; conversationId: string; messageId: string; stats: TurnDone }
+  | {
+      type: 'activityStart';
+      conversationId: string;
+      messageId: string;
+      activityId: string;
+      kind: ActivityKind;
+      label: string;
+    }
+  | {
+      type: 'activityDelta';
+      conversationId: string;
+      messageId: string;
+      activityId: string;
+      text: string;
+    }
+  | { type: 'activityEnd'; conversationId: string; messageId: string; activityId: string }
   | {
       type: 'artefactStart';
       conversationId: string;
@@ -195,6 +224,36 @@ export function reducer(state: AppState, action: Action): AppState {
         })),
         status: 'idle',
       }));
+    case 'activityStart':
+      return updateConversation(state, action.conversationId, (conversation) =>
+        updateMessage(conversation, action.messageId, (message) => ({
+          ...message,
+          activities: [
+            ...(message.activities ?? []),
+            { id: action.activityId, kind: action.kind, label: action.label, text: '', done: false },
+          ],
+        })),
+      );
+    case 'activityDelta':
+      return updateConversation(state, action.conversationId, (conversation) =>
+        updateMessage(conversation, action.messageId, (message) => ({
+          ...message,
+          activities: (message.activities ?? []).map((activity) =>
+            activity.id === action.activityId
+              ? { ...activity, text: activity.text + action.text }
+              : activity,
+          ),
+        })),
+      );
+    case 'activityEnd':
+      return updateConversation(state, action.conversationId, (conversation) =>
+        updateMessage(conversation, action.messageId, (message) => ({
+          ...message,
+          activities: (message.activities ?? []).map((activity) =>
+            activity.id === action.activityId ? { ...activity, done: true } : activity,
+          ),
+        })),
+      );
     case 'artefactStart': {
       const next = updateConversation(state, action.conversationId, (conversation) => ({
         ...conversation,
@@ -240,9 +299,16 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'turnError':
       return updateConversation(state, action.conversationId, (conversation) => ({
         ...conversation,
-        // drop the assistant placeholder if nothing streamed; keep partial output honestly
+        // drop the assistant placeholder if nothing streamed; keep partial output/steps honestly
         messages: conversation.messages
-          .filter((message) => !(message.id === action.messageId && message.content === ''))
+          .filter(
+            (message) =>
+              !(
+                message.id === action.messageId &&
+                message.content === '' &&
+                (message.activities === undefined || message.activities.length === 0)
+              ),
+          )
           .map((message) =>
             message.id === action.messageId ? { ...message, streaming: false } : message,
           ),

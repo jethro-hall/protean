@@ -13,6 +13,9 @@ export interface GatewayRequest {
 
 export type GatewayEvent =
   | { type: 'text'; text: string }
+  | { type: 'activity-start'; activityId: string; kind: 'thinking' | 'tool'; label: string }
+  | { type: 'activity-delta'; activityId: string; text: string }
+  | { type: 'activity-end'; activityId: string }
   | {
       type: 'done';
       model: string;

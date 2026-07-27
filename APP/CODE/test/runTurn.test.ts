@@ -59,6 +59,53 @@ const successAgent = fakeAgent(async function* () {
 });
 
 describe('runTurn pipeline', () => {
+  it('forwards agent activity events and records thinking in lineage', async () => {
+    const thinkingAgent = fakeAgent(async function* () {
+      yield { type: 'activity-start' as const, activityId: 't-b0', kind: 'thinking' as const, label: 'Thought process' };
+      yield { type: 'activity-delta' as const, activityId: 't-b0', text: 'let me reason' };
+      yield { type: 'activity-end' as const, activityId: 't-b0' };
+      yield { type: 'text' as const, text: 'answer' };
+      yield {
+        type: 'done' as const,
+        model: 'test-model',
+        usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheCreationTokens: 0 },
+        costUsd: 0,
+        providerDurationMs: 1,
+      };
+    });
+    const deps = makeDeps(thinkingAgent);
+    const events = await collect(runTurn(request, deps));
+    expect(events.map((e) => e.type)).toEqual([
+      'activity-start',
+      'activity-delta',
+      'activity-end',
+      'text',
+      'done',
+    ]);
+    const lineageFile = readdirSync(join(deps.dataDir, 'prompt-history'))[0];
+    if (lineageFile === undefined) throw new Error('no lineage written');
+    const row = JSON.parse(
+      readFileSync(join(deps.dataDir, 'prompt-history', lineageFile), 'utf8').trim().split('\n')[0] ?? '',
+    ) as { thinking: string | null };
+    expect(row.thinking).toBe('let me reason');
+  });
+
+  it('emits a stage activity per attachment and keeps the file in session history', async () => {
+    const deps = makeDeps(successAgent);
+    const sessions = createMemorySessionStore();
+    const withFile: TurnRequest = {
+      ...request,
+      attachments: [{ name: 'data.json', mimeType: 'application/json', textContent: '{"x":2}' }],
+    };
+    const events = await collect(runTurn(withFile, { ...deps, sessions }));
+    const stage = events.find((e) => e.type === 'activity-start');
+    if (stage?.type !== 'activity-start') throw new Error('expected stage activity');
+    expect(stage.kind).toBe('stage');
+    expect(stage.label).toContain('data.json');
+    const userRow = sessions.history(request.sessionId).find((m) => m.role === 'user');
+    expect(userRow?.content).toContain('{"x":2}');
+  });
+
   it('streams text, reports a miss, then serves the identical turn from cache', async () => {
     const deps = makeDeps(successAgent);
     const first = await collect(runTurn(request, deps));

@@ -1,0 +1,214 @@
+
+{
+  "name": "Stripe Payment to CRM and Notifications",
+  "description": "Upsert HubSpot contact on Stripe payment_intent.succeeded, post to Slack, email CFO if > $5000",
+  "nodes": [
+    {
+      "parameters": {
+        "events": "payment_intent.succeeded"
+      },
+      "id": "stripe-webhook",
+      "name": "Stripe Payment Succeeded",
+      "type": "n8n-nodes-base.stripeWebhookTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "stripe_payment_succeeded"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "assignments": [
+          {
+            "name": "amountCents",
+            "value": "={{ $json.data.object.amount }}"
+          },
+          {
+            "name": "amountUSD",
+            "value": "={{ ($json.data.object.amount / 100).toFixed(2) }}"
+          },
+          {
+            "name": "customerEmail",
+            "value": "={{ $json.data.object.billing_details?.email || $json.data.object.receipt_email }}"
+          },
+          {
+            "name": "customerName",
+            "value": "={{ $json.data.object.billing_details?.name || 'Unknown' }}"
+          },
+          {
+            "name": "productDescription",
+            "value": "={{ $json.data.object.metadata?.product || 'Premium Subscription' }}"
+          },
+          {
+            "name": "paymentId",
+            "value": "={{ $json.data.object.id }}"
+          }
+        ]
+      },
+      "id": "extract-payment",
+      "name": "Extract Payment Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "upsert",
+        "email": "={{ $json.customerEmail }}",
+        "additionalFields": {
+          "properties": [
+            {
+              "name": "firstname",
+              "value": "={{ $json.customerName.split(' ')[0] }}"
+            },
+            {
+              "name": "lastname",
+              "value": "={{ $json.customerName.split(' ').slice(1).join(' ') || '' }}"
+            },
+            {
+              "name": "hs_lead_status",
+              "value": "customer"
+            },
+            {
+              "name": "lifecyclestage",
+              "value": "customer"
+            }
+          ]
+        }
+      },
+      "id": "hubspot-upsert",
+      "name": "HubSpot Upsert Contact (Retry 3×)",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [750, 300],
+      "retryOnFail": true,
+      "maxRetries": 3,
+      "waitBetweenTries": 2,
+      "credentials": {
+        "hubspotApi": "hubspot-oauth-connection"
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#finance",
+        "text": "💳 **Payment Received**\n\n💰 *Amount:* $${{ $json.amountUSD }}\n👤 *Customer:* ${{ $json.customerName }}\n📦 *Product:* ${{ $json.productDescription }}\n🆔 *Payment ID:* `${{ $json.paymentId }}`",
+        "otherOptions": {}
+      },
+      "id": "slack-notify",
+      "name": "Post to Slack #finance",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [1000, 300],
+      "credentials": {
+        "slackApi": "slack-webhook-or-oauth"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.amountCents }}",
+              "value2": 500000,
+              "operation": ">"
+            }
+          ]
+        }
+      },
+      "id": "check-amount-5000",
+      "name": "Is amount > $5,000?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "protocol": "smtp",
+        "host": "smtp.office365.com",
+        "port": 587,
+        "user": "={{ $env.OFFICE365_EMAIL }}",
+        "password": "={{ $env.OFFICE365_PASSWORD }}",
+        "toEmail": "={{ $env.CFO_EMAIL }}",
+        "subject": "🚨 High-Value Payment: $${{ $json.amountUSD }} from ${{ $json.customerName }}",
+        "textOnly": false,
+        "html": true,
+        "htmlMessage": "<h2>High-Value Payment Alert</h2><p><strong>Amount:</strong> $${{ $json.amountUSD }}</p><p><strong>Customer:</strong> ${{ $json.customerName }} (${{ $json.customerEmail }})</p><p><strong>Product:</strong> ${{ $json.productDescription }}</p><p><strong>Payment ID:</strong> ${{ $json.paymentId }}</p><p>Please review in HubSpot for further action.</p>",
+        "tlsOption": "require"
+      },
+      "id": "email-cfo",
+      "name": "Email CFO via Office 365 SMTP",
+      "type": "n8n-nodes-base.emailSendSMTP",
+      "typeVersion": 1,
+      "position": [1500, 200],
+      "credentials": {
+        "smtp": "office365-smtp"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "end-node",
+      "name": "Workflow Complete",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1500, 400]
+    }
+  ],
+  "connections": {
+    "Stripe Payment Succeeded": [
+      {
+        "node": "Extract Payment Data",
+        "type": "main",
+        "index": [0, 0]
+      }
+    ],
+    "Extract Payment Data": [
+      {
+        "node": "HubSpot Upsert Contact (Retry 3×)",
+        "type": "main",
+        "index": [0, 0]
+      }
+    ],
+    "HubSpot Upsert Contact (Retry 3×)": [
+      {
+        "node": "Post to Slack #finance",
+        "type": "main",
+        "index": [0, 0]
+      }
+    ],
+    "Post to Slack #finance": [
+      {
+        "node": "Is amount > $5,000?",
+        "type": "main",
+        "index": [0, 0]
+      }
+    ],
+    "Is amount > $5,000?": [
+      {
+        "node": "Email CFO via Office 365 SMTP",
+        "type": "main",
+        "index": [0, 0]
+      },
+      {
+        "node": "Workflow Complete",
+        "type": "main",
+        "index": [0, 1]
+      }
+    ],
+    "Email CFO via Office 365 SMTP": [
+      {
+        "node": "Workflow Complete",
+        "type": "main",
+        "index": [0, 0]
+      }
+    ]
+  },
+  "settings": {
+    "saveManualExecutions": true,
+    "executionOrder": "v1",
+    "errorHandler": {
+      "type": "simple"
+    }
+  },
+  "versionId": "1"
+}

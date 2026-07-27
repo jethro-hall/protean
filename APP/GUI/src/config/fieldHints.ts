@@ -24,6 +24,16 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'Protean shape-shifts per domain \u2014 switching packs changes how answers are framed, with no code change.',
     example: 'Finance / CFO\u2019s-CFO analyst',
   },
+  attachFile: {
+    what: 'Attach text files (JSON, Markdown, CSV\u2026) to your message.',
+    why: 'The file content is read into the turn and stays in the conversation, so follow-ups can keep working on it.',
+    example: 'Upload an n8n workflow spec and ask Protean to build the workflow JSON.',
+  },
+  agentActivity: {
+    what: 'The real working steps of this turn \u2014 reasoning, file reads, tool runs.',
+    why: 'Protean shows what actually happened, as it happens \u2014 never a cosmetic spinner.',
+    example: 'Thought process \u00b7 Read spec.json (3.2 KB) into context',
+  },
   chatStream: {
     what: 'The assistant\u2019s reply, streamed as it is generated.',
     why: 'Streaming shows progress honestly \u2014 you can read, and stop trusting, an answer as it forms.',

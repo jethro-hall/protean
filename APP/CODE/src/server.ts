@@ -3,10 +3,20 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { z } from 'zod';
 import type { AgentCore } from './agent/AgentCore.js';
 import { createClaudeSdkAgentCore } from './agent/adapters/claudeSdk.js';
-import { DEFAULT_DOMAIN_ID, SSE_HEADERS } from './config/defaults.js';
+import {
+  DEFAULT_DOMAIN_ID,
+  MAX_ATTACHMENTS_PER_TURN,
+  MAX_ATTACHMENT_BYTES,
+  SSE_HEADERS,
+} from './config/defaults.js';
 import { listDomainPacks, loadDomainPack } from './config/domainPacks.js';
 import { loadConfig, requireModel, type ProteanConfig } from './config/loadConfig.js';
-import { modelTierSchema, type TurnEvent, type TurnRequest } from './contracts/turn.js';
+import {
+  attachmentSchema,
+  modelTierSchema,
+  type TurnEvent,
+  type TurnRequest,
+} from './contracts/turn.js';
 import type { LlmGateway } from './gateway/LlmGateway.js';
 import { createClaudeGateway } from './gateway/adapters/claude.js';
 import { createLogger, type Logger } from './logging/logger.js';
@@ -14,6 +24,7 @@ import { createMemoryCacheStore, type CacheStore } from './watcher/cache.js';
 import { resolveTier } from './watcher/assemble.js';
 import { runTurn } from './watcher/runTurn.js';
 import { createFileSessionStore, type SessionStore } from './watcher/sessionStore.js';
+import { saveUpload } from './watcher/uploads.js';
 
 /** What the GUI/CLI actually posts — session/domain default server-side. */
 const turnBodySchema = z.object({
@@ -21,6 +32,14 @@ const turnBodySchema = z.object({
   sessionId: z.string().min(1).optional(),
   domainId: z.string().min(1).optional(),
   tier: modelTierSchema.optional(),
+  attachments: z
+    .array(
+      attachmentSchema.refine((file) => file.textContent.length <= MAX_ATTACHMENT_BYTES, {
+        message: `attachment exceeds ${MAX_ATTACHMENT_BYTES} bytes`,
+      }),
+    )
+    .max(MAX_ATTACHMENTS_PER_TURN)
+    .optional(),
 });
 
 export interface AppDeps {
@@ -81,7 +100,22 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
     domainId: body.domainId ?? DEFAULT_DOMAIN_ID,
     input: body.input,
     ...(body.tier !== undefined ? { tier: body.tier } : {}),
+    ...(body.attachments !== undefined ? { attachments: body.attachments } : {}),
   };
+
+  // uploads land on disk with the rest of the turn's lineage (Law 6)
+  for (const file of request.attachments ?? []) {
+    const savedPath = saveUpload(
+      deps.config.paths.uploadsDir,
+      request.sessionId,
+      new Date().toISOString().replace(/[:.]/g, '-'),
+      file,
+    );
+    log.info('server.upload.saved', `Upload "${file.name}" (${file.textContent.length} bytes) saved`, {
+      sessionId: request.sessionId,
+      data: { savedPath },
+    });
+  }
 
   let pack;
   let model: string;

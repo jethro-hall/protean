@@ -32,6 +32,10 @@ export const ARTEFACT_PROTOCOL_PROMPT =
   'keep the artefact complete and self-contained inside them, and when asked to modify an ' +
   'artefact, re-emit the FULL updated artefact in the same tags.';
 
+/** Upload limits: text attachments only for now; caps keep prompts inside the token budget. */
+export const MAX_ATTACHMENT_BYTES = 512 * 1024;
+export const MAX_ATTACHMENTS_PER_TURN = 5;
+
 /** SSE wire constants (the internal stream protocol to the GUI). */
 export const SSE_HEADERS = {
   'Content-Type': 'text/event-stream',

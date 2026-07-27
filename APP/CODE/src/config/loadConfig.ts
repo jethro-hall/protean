@@ -40,6 +40,7 @@ export interface ProteanConfig {
     sessionsDir: string;
     evalSetsDir: string;
     evalResultsDir: string;
+    uploadsDir: string;
     artefactsDir: string;
   };
 }
@@ -102,6 +103,7 @@ export function loadConfig(): ProteanConfig {
       sessionsDir: join(dataDir, 'sessions'),
       evalSetsDir: join(dataDir, 'eval-sets'),
       evalResultsDir: join(dataDir, 'eval-results'),
+      uploadsDir: join(dataDir, 'uploads'),
       artefactsDir: process.env[ENV.artefactsDir] ?? join(root, 'APP', 'ARTEFACTS'),
     },
   };

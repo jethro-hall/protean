@@ -14,12 +14,24 @@ export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export const modelTierSchema = z.enum(['fast', 'strong']);
 export type ModelTier = z.infer<typeof modelTierSchema>;
 
+/**
+ * A text file the user attached to a turn. Text-only for now — binary
+ * (images/PDF) arrives with a later phase and its own contract.
+ */
+export const attachmentSchema = z.object({
+  name: z.string().min(1),
+  mimeType: z.string().min(1),
+  textContent: z.string().min(1),
+});
+export type Attachment = z.infer<typeof attachmentSchema>;
+
 /** What the outside world (GUI/CLI) sends to start a turn. */
 export const turnRequestSchema = z.object({
   sessionId: z.string().min(1),
   domainId: z.string().min(1),
   input: z.string().min(1),
   tier: modelTierSchema.optional(),
+  attachments: z.array(attachmentSchema).optional(),
 });
 export type TurnRequest = z.infer<typeof turnRequestSchema>;
 
@@ -54,9 +66,15 @@ export interface TurnTimings {
   totalMs?: number;
 }
 
+/** What kind of real work an activity event reports. Never cosmetic (UX law: truthful states). */
+export type ActivityKind = 'thinking' | 'tool' | 'stage';
+
 /** Events streamed back to the caller while a turn runs. */
 export type TurnEvent =
   | { type: 'text'; text: string }
+  | { type: 'activity-start'; activityId: string; kind: ActivityKind; label: string }
+  | { type: 'activity-delta'; activityId: string; text: string }
+  | { type: 'activity-end'; activityId: string }
   | { type: 'artefact-start'; artefactId: string; artefactType: string; title: string }
   | { type: 'artefact-delta'; artefactId: string; text: string }
   | { type: 'artefact-end'; artefactId: string; complete: boolean; savedPath: string | null }
@@ -81,6 +99,8 @@ export interface TurnLineage {
   systemPrompt: string;
   assembledMessages: ChatMessage[];
   rewrite: string | null;
+  /** The model's streamed reasoning, when it chose to think (adaptive thinking). */
+  thinking: string | null;
   tier: ModelTier;
   model: string;
   cacheKey: string;

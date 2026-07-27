@@ -1,0 +1,16 @@
+{
+  "goal": "When a Stripe payment succeeds, upsert the customer in HubSpot, then post a summary to #finance in Slack. On amounts over $5,000 also email the CFO.",
+  "triggers": [
+    "stripe payment_intent.succeeded"
+  ],
+  "systems": {
+    "crm": "HubSpot",
+    "chat": "Slack",
+    "email": "SMTP (Office 365)"
+  },
+  "notes": [
+    "dedupe customers by email",
+    "Slack message must include amount, customer name, product",
+    "retry failed HubSpot calls 3 times"
+  ]
+}

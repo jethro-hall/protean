@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { DomainPack } from '../contracts/domainPack.js';
-import type { AssembledTurn, ChatMessage, ModelTier, TurnRequest } from '../contracts/turn.js';
+import type {
+  AssembledTurn,
+  Attachment,
+  ChatMessage,
+  ModelTier,
+  TurnRequest,
+} from '../contracts/turn.js';
 import {
   ARTEFACT_PROTOCOL_PROMPT,
   DEFAULT_HISTORY_WINDOW_MESSAGES,
@@ -29,12 +35,33 @@ export function resolveTier(request: TurnRequest, pack: DomainPack): ModelTier {
   return request.tier ?? pack.tiers.default;
 }
 
+/**
+ * Render attached files into the user message deterministically (Law 4):
+ * clearly-delimited fenced blocks, so the model sees exactly what was uploaded
+ * and the content lands in history/cache-key/lineage like any other input.
+ */
+export function renderInputWithAttachments(
+  input: string,
+  attachments: Attachment[] | undefined,
+): string {
+  if (attachments === undefined || attachments.length === 0) return input;
+  const blocks = attachments.map(
+    (file) =>
+      `Attached file "${file.name}" (${file.mimeType}):\n` +
+      '```\n' +
+      `${file.textContent}\n` +
+      '```',
+  );
+  return `${input}\n\n${blocks.join('\n\n')}`;
+}
+
 export function assembleTurn(input: AssembleInput): AssembledTurn {
   const { request, pack, history, model } = input;
   const windowSize = input.historyWindow ?? DEFAULT_HISTORY_WINDOW_MESSAGES;
+  const userContent = renderInputWithAttachments(request.input, request.attachments);
   const messages: ChatMessage[] = [
     ...windowHistory(history, windowSize),
-    { role: 'user', content: request.input },
+    { role: 'user', content: userContent },
   ];
   return {
     turnId: randomUUID(),

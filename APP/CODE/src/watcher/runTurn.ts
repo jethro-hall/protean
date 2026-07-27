@@ -68,6 +68,21 @@ export async function* runTurn(
 
   const assembled = assembleTurn({ request, pack, history, model });
   const assembleMs = roundMs(performance.now() - t0);
+  // what actually entered the context (input + attachment blocks) — this is what history records
+  const userContent = assembled.messages.at(-1)?.content ?? assembled.input;
+
+  // Truthful stage chips: each attachment really was read into the context here.
+  for (const [index, file] of (request.attachments ?? []).entries()) {
+    const activityId = `${assembled.turnId}-file${index}`;
+    const sizeKb = (file.textContent.length / 1024).toFixed(1);
+    yield {
+      type: 'activity-start',
+      activityId,
+      kind: 'stage',
+      label: `Read ${file.name} (${sizeKb} KB) into context`,
+    };
+    yield { type: 'activity-end', activityId };
+  }
 
   const tBudget = performance.now();
   const budget = budgetMessages(assembled.messages, watcher.turnTokenBudget);
@@ -123,6 +138,7 @@ export async function* runTurn(
   );
 
   let output = '';
+  let thinking = '';
   let usage: TokenUsage | null = null;
   let costUsd: number | null = null;
   let failed: string | null = null;
@@ -204,6 +220,17 @@ export async function* runTurn(
       if (event.type === 'text') {
         output += event.text;
         yield* mapParserEvents(parser.push(event.text));
+      } else if (
+        event.type === 'activity-start' ||
+        event.type === 'activity-delta' ||
+        event.type === 'activity-end'
+      ) {
+        if (event.type === 'activity-delta') thinking += event.text;
+        if (timings.ttftMs === undefined && event.type === 'activity-start') {
+          // first sign of life from the model — an honest first token
+          timings.ttftMs = roundMs(performance.now() - t0);
+        }
+        yield event;
       } else if (event.type === 'done') {
         usage = event.usage;
         costUsd = event.costUsd;
@@ -221,8 +248,9 @@ export async function* runTurn(
   timings.totalMs = roundMs(performance.now() - t0);
 
   if (failed === null && deps.sessions !== undefined) {
-    // the Watcher owns history (ARCHITECTURE §3): raw output kept so follow-ups can edit artefacts
-    deps.sessions.append(assembled.sessionId, { role: 'user', content: assembled.input });
+    // the Watcher owns history (ARCHITECTURE §3): raw output kept so follow-ups can edit
+    // artefacts; userContent includes attachment blocks so files stay in context across turns
+    deps.sessions.append(assembled.sessionId, { role: 'user', content: userContent });
     deps.sessions.append(assembled.sessionId, { role: 'assistant', content: output });
   }
 
@@ -244,6 +272,7 @@ export async function* runTurn(
     systemPrompt: assembled.systemPrompt,
     assembledMessages: assembled.messages,
     rewrite,
+    thinking: thinking !== '' ? thinking : null,
     tier: assembled.tier,
     model,
     cacheKey,

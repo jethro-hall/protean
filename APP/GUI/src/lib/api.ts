@@ -21,8 +21,20 @@ export interface TurnDone {
 
 export type ArtefactType = 'html' | 'markdown' | 'code' | 'text';
 
+/** Text file attached to a turn (mirrors APP/CODE attachmentSchema). */
+export interface Attachment {
+  name: string;
+  mimeType: string;
+  textContent: string;
+}
+
+export type ActivityKind = 'thinking' | 'tool' | 'stage';
+
 export type TurnStreamEvent =
   | { type: 'text'; text: string }
+  | { type: 'activity-start'; activityId: string; kind: ActivityKind; label: string }
+  | { type: 'activity-delta'; activityId: string; text: string }
+  | { type: 'activity-end'; activityId: string }
   | { type: 'artefact-start'; artefactId: string; artefactType: ArtefactType; title: string }
   | { type: 'artefact-delta'; artefactId: string; text: string }
   | { type: 'artefact-end'; artefactId: string; complete: boolean; savedPath: string | null }
@@ -69,17 +81,24 @@ export interface StreamTurnParams {
   sessionId: string;
   domainId: string;
   tier: ModelTier;
+  attachments?: Attachment[];
   onEvent: (event: TurnStreamEvent) => void;
   signal?: AbortSignal;
 }
 
 /** POST a turn and deliver each SSE event as it arrives. */
 export async function streamTurn(params: StreamTurnParams): Promise<void> {
-  const { input, sessionId, domainId, tier, onEvent, signal } = params;
+  const { input, sessionId, domainId, tier, attachments, onEvent, signal } = params;
   const res = await fetch('/api/turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input, sessionId, domainId, tier }),
+    body: JSON.stringify({
+      input,
+      sessionId,
+      domainId,
+      tier,
+      ...(attachments !== undefined && attachments.length > 0 ? { attachments } : {}),
+    }),
     ...(signal !== undefined ? { signal } : {}),
   });
   if (!res.ok || res.body === null) {

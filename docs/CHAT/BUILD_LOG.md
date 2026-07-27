@@ -450,3 +450,45 @@ iframe), status Complete, saved truthfully to
 harness click-through; this run proves the same pipeline end-to-end against Bedrock.
 
 **Phases 0–3 are now fully signed off — built, tested, browser-verified, and live-accepted.**
+
+---
+
+## 2026-07-27 — Owner-directed: file uploads + Claude-Desktop-style working steps
+
+**User request (owner, verbatim intent):** seeing Claude Desktop's "Thought process / Ran a
+command" dynamic workflow, add an upload section immediately; will upload a file needing a
+response + an n8n workflow JSON build, with clarifying questions between which it keeps driving —
+fluid, no stopping.
+
+**Triage (ROADMAP rule):** activity visibility + uploads pulled forward by owner decision.
+CHALLENGE APPLIED: real "Ran a command" chips require enabled tools (Phase 5 registry + sandbox);
+painting them without a command would violate truthful-states. Shipped instead: REAL steps only —
+the model's adaptive-thinking stream, per-file context reads, tool blocks when tools arrive (the
+mapping already handles `tool_use`). Owner gets the experience without a lie.
+
+**What changed:**
+- `APP/CODE` — `attachments` on TurnRequest (zod; 512 KB/file, 5 files caps in config/defaults);
+  uploads persisted to `LLMBUILD_DATA/uploads/<session>/` (Law 6); `renderInputWithAttachments`
+  inlines files as fenced blocks so they hit history/cache-key/lineage; new
+  `activity-start/delta/end` TurnEvents; claude adapter enables `thinking: adaptive` and a pure
+  `gatewayEventsFromSdkMessage` maps thinking/tool_use blocks to activity events; runTurn forwards
+  activities, counts thinking into lineage (`thinking` field), emits truthful per-file stage chips,
+  and session history now stores the rendered user content so files persist across turns.
+- `APP/GUI` — composer paperclip + attachment chips with remove + early client-side caps
+  (mirrored constants in `config/uploads.ts`) + `attachFile`/`agentActivity` FieldHints; user
+  bubbles show file tags; assistant bubbles show a WORKING STEPS strip: live-pulsing steps,
+  streamed expandable Thought process (auto-open while streaming, collapse when done).
+
+**Testing: 70/70 vitest green; eslint + tsc strict clean (CODE + GUI).** New coverage: adapter
+thinking/tool/text mapping + text-block stop non-event, attachment rendering, runTurn activity
+forwarding + lineage thinking + per-file stage chip + history retention, server upload save +
+oversized-400.
+
+**Browser-verified LIVE (Sonnet-5 via Bedrock, real click-through + phone emulation):**
+uploaded `payment-flow-spec.json` (Stripe→HubSpot/Slack/CFO-email spec); working steps showed
+"Read payment-flow-spec.json (0.5 KB) into context" ✓ and a live streamed Thought process; the
+model built the complete n8n workflow JSON as a preview-pane artefact (saved to APP/ARTEFACTS),
+asked its clarifying questions IN the same turn while delivering a best-guess build ("Keep
+building, or tell me and I'll adjust"); answering the questions produced an updated artefact
+(second tab) with confirmations — fluid multi-turn drive, no stalls. Turn 1: TTFT 3.56 s, total
+34.9 s. Turn 2: TTFT 2.62 s, total 21.2 s.

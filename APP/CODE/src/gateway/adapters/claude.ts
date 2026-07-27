@@ -19,6 +19,18 @@ import type { LlmGateway } from '../LlmGateway.js';
 const SINGLE_ANSWER_MAX_TURNS = 1;
 
 /**
+ * Adaptive thinking: the model decides when/how deeply to reason, and the raw
+ * stream carries thinking blocks we surface as REAL activity (never cosmetic).
+ * Verified against sdk.d.ts 0.3.220 ThinkingConfig.
+ */
+const THINKING_CONFIG = { type: 'adaptive' } as const;
+
+const ACTIVITY_LABELS = {
+  thinking: 'Thought process',
+  tool: (name: string): string => `Using tool: ${name}`,
+} as const;
+
+/**
  * The assembled history is rendered into the prompt deterministically (Law 4).
  * The SDK holds no session state for us (persistSession false) — Protean's
  * Watcher/history store owns memory, not the vendor.
@@ -44,13 +56,69 @@ function usageFromResult(usage: {
   };
 }
 
-function textDeltaFromStreamEvent(message: SDKMessage): string | null {
-  if (message.type !== 'stream_event') return null;
+/** Tracks which stream content-block indexes are activities (thinking/tool blocks). */
+export interface StreamBlockState {
+  activityKindByIndex: Map<number, 'thinking' | 'tool'>;
+}
+
+export function createStreamBlockState(): StreamBlockState {
+  return { activityKindByIndex: new Map() };
+}
+
+/**
+ * Map one SDK stream message to gateway events (pure, testable). Text deltas
+ * become `text`; thinking/tool blocks become activity events keyed by
+ * turnId+block index so the GUI can group their streams.
+ */
+export function gatewayEventsFromSdkMessage(
+  message: SDKMessage,
+  turnId: string,
+  state: StreamBlockState,
+): GatewayEvent[] {
+  if (message.type !== 'stream_event') return [];
   const event = message.event;
-  if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-    return event.delta.text;
+
+  if (event.type === 'content_block_start') {
+    const block = event.content_block;
+    if (block.type === 'thinking') {
+      state.activityKindByIndex.set(event.index, 'thinking');
+      return [
+        {
+          type: 'activity-start',
+          activityId: `${turnId}-b${event.index}`,
+          kind: 'thinking',
+          label: ACTIVITY_LABELS.thinking,
+        },
+      ];
+    }
+    if (block.type === 'tool_use') {
+      state.activityKindByIndex.set(event.index, 'tool');
+      return [
+        {
+          type: 'activity-start',
+          activityId: `${turnId}-b${event.index}`,
+          kind: 'tool',
+          label: ACTIVITY_LABELS.tool(block.name),
+        },
+      ];
+    }
+    return [];
   }
-  return null;
+
+  if (event.type === 'content_block_delta') {
+    if (event.delta.type === 'text_delta') return [{ type: 'text', text: event.delta.text }];
+    if (event.delta.type === 'thinking_delta') {
+      return [{ type: 'activity-delta', activityId: `${turnId}-b${event.index}`, text: event.delta.thinking }];
+    }
+    return [];
+  }
+
+  if (event.type === 'content_block_stop' && state.activityKindByIndex.has(event.index)) {
+    state.activityKindByIndex.delete(event.index);
+    return [{ type: 'activity-end', activityId: `${turnId}-b${event.index}` }];
+  }
+
+  return [];
 }
 
 export function createClaudeGateway(log: LayerLogger): LlmGateway {
@@ -64,6 +132,7 @@ export function createClaudeGateway(log: LayerLogger): LlmGateway {
         maxTurns: SINGLE_ANSWER_MAX_TURNS,
         includePartialMessages: true,
         persistSession: false,
+        thinking: THINKING_CONFIG,
       };
       log.debug('gateway.call', `Calling Claude via Agent SDK, model ${request.model}`, {
         turnId: request.turnId,
@@ -72,12 +141,9 @@ export function createClaudeGateway(log: LayerLogger): LlmGateway {
 
       try {
         const stream = query({ prompt: renderPromptFromMessages(request.messages), options });
+        const blockState = createStreamBlockState();
         for await (const message of stream) {
-          const delta = textDeltaFromStreamEvent(message);
-          if (delta !== null) {
-            yield { type: 'text', text: delta };
-            continue;
-          }
+          yield* gatewayEventsFromSdkMessage(message, request.turnId, blockState);
           if (message.type === 'result') {
             if (message.subtype === 'success') {
               yield {
