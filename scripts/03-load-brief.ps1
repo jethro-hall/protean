@@ -1,4 +1,4 @@
-# 03-load-brief.ps1 — copy a project brief to the clipboard for the PASTE-ONLY tools.
+# 03-load-brief.ps1 - copy a project brief to the clipboard for the PASTE-ONLY tools.
 # Claude Desktop Projects and ChatGPT Projects take instructions through a text box, not a file
 # import. This is the honest "import": it puts the exact brief on your clipboard so paste is one key.
 #
@@ -24,9 +24,9 @@ $briefs = @{
 
 if (-not $Target) {
     Write-Step "Which brief do you want on your clipboard?"
-    Write-Info2 "claude  → Claude Desktop project instructions"
-    Write-Info2 "chatgpt → ChatGPT project instructions"
-    Write-Info2 "cursor  → Cursor setup reference"
+    Write-Info2 "claude  -> Claude Desktop project instructions"
+    Write-Info2 "chatgpt -> ChatGPT project instructions"
+    Write-Info2 "cursor  -> Cursor setup reference"
     $Target = Read-Host "Target (claude/chatgpt/cursor)"
 }
 if (-not $briefs.ContainsKey($Target)) { Write-Fail "Unknown target '$Target'."; exit 1 }
@@ -38,9 +38,9 @@ $text = Get-Content -LiteralPath $path -Raw
 if (Set-ClipboardText $text) {
     Write-Ok "Copied '$($briefs[$Target])' to the clipboard ($([math]::Round($text.Length/1KB,1)) KB)."
     switch ($Target) {
-        'claude'  { Write-Info2 "Claude Desktop → your Project → Edit → paste into the project instructions box." }
-        'chatgpt' { Write-Info2 "ChatGPT → your Project → Instructions → paste." }
-        'cursor'  { Write-Info2 "Reference only — Cursor auto-loads .cursorrules; no paste required." }
+        'claude'  { Write-Info2 "Claude Desktop -> your Project -> Edit -> paste into the project instructions box." }
+        'chatgpt' { Write-Info2 "ChatGPT -> your Project -> Instructions -> paste." }
+        'cursor'  { Write-Info2 "Reference only - Cursor auto-loads .cursorrules; no paste required." }
     }
     exit 0
 } else {

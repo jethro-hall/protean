@@ -1,6 +1,6 @@
-# 04-infra-up.ps1 — bring up the non-app estate (Postgres+pgvector, Redis) via the one compose.
+# 04-infra-up.ps1 - bring up the non-app estate (Postgres+pgvector, Redis) via the one compose.
 # Honours Law 2 (no secrets baked in): requires infra\.env to exist (copied from .env.example).
-# Does NOT invent a password — it makes you set one.
+# Does NOT invent a password - it makes you set one.
 #
 #   pwsh -File .\04-infra-up.ps1            # up -d protean-pg protean-cache
 #   pwsh -File .\04-infra-up.ps1 -Down      # stop the stack
@@ -29,9 +29,9 @@ try {
     if ($Status) { & docker compose ps; exit $LASTEXITCODE }
     if ($Down)   { Write-Info2 'Stopping stack...'; & docker compose down; exit $LASTEXITCODE }
 
-    # .env gate — Law 2 / secret hygiene.
+    # .env gate - Law 2 / secret hygiene.
     if (-not (Test-Path $envFile)) {
-        Write-Warn2 "infra\.env not found. Creating it from .env.example — you MUST set a real PG_PASSWORD."
+        Write-Warn2 "infra\.env not found. Creating it from .env.example - you MUST set a real PG_PASSWORD."
         Copy-Item $envEx $envFile
         Write-Info2 "Edit infra\.env, replace PG_PASSWORD=change-me, then re-run 04-infra-up."
         exit 1

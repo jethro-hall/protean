@@ -1,4 +1,4 @@
-# 01-github-push.ps1 — put the repo live on GitHub (your chosen flow: you create the
+# 01-github-push.ps1 - put the repo live on GitHub (your chosen flow: you create the
 # empty PRIVATE repo on github.com, this script wires the remote and pushes main).
 #
 # Safe to re-run: if 'origin' already exists it is reused/updated, not duplicated.
@@ -16,9 +16,9 @@ Assert-InsideRepo
 
 Write-Step "Push Protean to GitHub"
 
-if (-not (Test-Command 'git')) { Write-Fail 'git not found — run 00-preflight first.'; exit 1 }
+if (-not (Test-Command 'git')) { Write-Fail 'git not found - run 00-preflight first.'; exit 1 }
 
-# 1. Secret guard — never push the egress-patched config or any .env.
+# 1. Secret guard - never push the egress-patched config or any .env.
 #    Check what git actually TRACKS (that's what would be pushed), not the filesystem.
 Write-Step "Secret guard (pre-push)"
 $tracked = @((& git -C (Get-RepoRoot) ls-files) 2>$null)
@@ -50,10 +50,10 @@ if ([string]::IsNullOrWhiteSpace($RemoteUrl)) { Write-Fail 'No remote URL given.
 $existing = (& git -C (Get-RepoRoot) remote) 2>$null
 if ($existing -contains 'origin') {
     Invoke-Git remote set-url origin $RemoteUrl | Out-Null
-    Write-Ok "Updated existing 'origin' → $RemoteUrl"
+    Write-Ok "Updated existing 'origin' -> $RemoteUrl"
 } else {
     Invoke-Git remote add origin $RemoteUrl | Out-Null
-    Write-Ok "Added 'origin' → $RemoteUrl"
+    Write-Ok "Added 'origin' -> $RemoteUrl"
 }
 
 # 5. Rename branch to $Branch and push with upstream tracking.
@@ -65,6 +65,6 @@ if (Invoke-Git push -u origin $Branch) {
     exit 0
 } else {
     Write-Fail "Push failed. Common causes: repo not created yet, wrong URL, or auth needed."
-    Write-Info2 "Fix and re-run — the remote is already set, so just: pwsh -File .\01-github-push.ps1 -RemoteUrl $RemoteUrl"
+    Write-Info2 "Fix and re-run - the remote is already set, so just: pwsh -File .\01-github-push.ps1 -RemoteUrl $RemoteUrl"
     exit 1
 }

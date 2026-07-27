@@ -1,4 +1,4 @@
-# protean.ps1 — one entry point. Runs the rollout steps in order, or a single step.
+# protean.ps1 - one entry point. Runs the rollout steps in order, or a single step.
 #
 #   pwsh -File .\protean.ps1              # interactive menu
 #   pwsh -File .\protean.ps1 -Step preflight
@@ -29,7 +29,7 @@ if ($Step -and $Step -ne 'all') { Run-Step $Step; exit $LASTEXITCODE }
 
 if ($Step -eq 'all') {
     Write-Step "Full foundation rollout"
-    Run-Step 'preflight'; if ($LASTEXITCODE -ne 0) { Write-Fail 'Preflight gaps — stopping.'; exit 1 }
+    Run-Step 'preflight'; if ($LASTEXITCODE -ne 0) { Write-Fail 'Preflight gaps - stopping.'; exit 1 }
     Run-Step 'rules'
     Run-Step 'push'
     Write-Ok "Foundation steps done. Load the paste-only briefs with:  .\protean.ps1 -Step brief -Target claude"
@@ -38,12 +38,12 @@ if ($Step -eq 'all') {
 
 # Interactive menu
 Write-Step "Protean rollout"
-Write-Host "  1  preflight   — check dev tools (read-only)"
-Write-Host "  2  rules       — verify agent rule files auto-load"
-Write-Host "  3  push        — put repo live on GitHub"
-Write-Host "  4  brief       — copy a Claude/ChatGPT brief to clipboard"
-Write-Host "  5  infra       — docker compose up (Postgres+Redis)"
-Write-Host "  a  all         — preflight → rules → push"
+Write-Host "  1  preflight   - check dev tools (read-only)"
+Write-Host "  2  rules       - verify agent rule files auto-load"
+Write-Host "  3  push        - put repo live on GitHub"
+Write-Host "  4  brief       - copy a Claude/ChatGPT brief to clipboard"
+Write-Host "  5  infra       - docker compose up (Postgres+Redis)"
+Write-Host "  a  all         - preflight -> rules -> push"
 $c = Read-Host "Choose"
 switch ($c) {
     '1' { Run-Step 'preflight' }

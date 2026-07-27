@@ -1,4 +1,4 @@
-# common.ps1 — shared helpers for every Protean rollout script.
+# common.ps1 - shared helpers for every Protean rollout script.
 # Dot-source this at the top of each script:  . "$PSScriptRoot\lib\common.ps1"
 # No hardcoded absolute paths: the repo root is derived from this file's own location.
 
@@ -6,7 +6,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # --- repo root ---------------------------------------------------------------
-# This file lives at <repo>\scripts\lib\common.ps1  →  root is two levels up.
+# This file lives at <repo>\scripts\lib\common.ps1  ->  root is two levels up.
 $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 
 function Get-RepoRoot { return $script:RepoRoot }

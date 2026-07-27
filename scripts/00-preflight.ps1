@@ -1,4 +1,4 @@
-# 00-preflight.ps1 — verify the dev foundation before Phase 0.
+# 00-preflight.ps1 - verify the dev foundation before Phase 0.
 # Read-only: checks tools and versions, changes nothing. Reports a PASS/GAP table.
 #
 #   pwsh -File .\00-preflight.ps1        (or)   powershell -ExecutionPolicy Bypass -File .\00-preflight.ps1
@@ -6,7 +6,7 @@
 . "$PSScriptRoot\lib\common.ps1"
 Assert-InsideRepo
 
-Write-Step "Protean preflight — dev foundation check"
+Write-Step "Protean preflight - dev foundation check"
 Write-Info2 "Repo root: $(Get-RepoRoot)"
 
 $script:results = [System.Collections.Generic.List[object]]::new()
@@ -22,7 +22,7 @@ function Check ($name, $required, [scriptblock] $probe, $hint) {
 }
 
 Check 'git'    $true  { (git --version) }                        'Install Git for Windows: https://git-scm.com/download/win'
-Check 'node'   $true  { (node --version) }                       'Install Node LTS (>=20): https://nodejs.org  — needed for the SDK + Vite'
+Check 'node'   $true  { (node --version) }                       'Install Node LTS (>=20): https://nodejs.org  - needed for the SDK + Vite'
 Check 'npm'    $true  { (npm --version) }                        'Ships with Node.'
 Check 'gh'     $false { (gh --version | Select-Object -First 1) } 'Optional GitHub CLI. Not needed for your push flow (you create the repo).'
 Check 'docker' $false { (docker --version) }                     'Optional now; needed at infra bring-up (Postgres+Redis). Docker Desktop.'
@@ -36,7 +36,7 @@ Write-Step "Node version gate (SDK needs >= 20)"
 if (Test-Command 'node') {
     $v = (node --version) -replace '^v',''
     $major = [int]($v.Split('.')[0])
-    if ($major -ge 20) { Write-Ok "Node $v OK (>=20)" } else { Write-Warn2 "Node $v is below 20 — upgrade before Phase 0." }
+    if ($major -ge 20) { Write-Ok "Node $v OK (>=20)" } else { Write-Warn2 "Node $v is below 20 - upgrade before Phase 0." }
 } else { Write-Warn2 "Node not found." }
 
 Write-Step "Result"
