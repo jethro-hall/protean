@@ -22,3 +22,6 @@ coverage/
 # NOTE: a blanket `*.md` ignore was reverted 2026-07-27 — it silently blocked all future ADRs,
 # BUILD_LOG session files, and READMEs (governance requires those committed). If specific markdown
 # clutter must be ignored, add a targeted path here instead.
+
+# Operational service logs (systemd units) — not build artefacts
+APP/LLMBUILD_DATA/logs/

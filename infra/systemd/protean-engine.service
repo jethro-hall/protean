@@ -1,0 +1,18 @@
+[Unit]
+Description=Protean engine (AgentCore / gateway / watcher HTTP)
+Documentation=file:///var/dcf/protean/docs/ARCHITECTURE.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/dcf/protean/APP/CODE
+Environment=NODE_ENV=development
+ExecStart=/var/dcf/protean/scripts/run-engine.sh
+Restart=on-failure
+RestartSec=3
+StandardOutput=append:/var/dcf/protean/APP/LLMBUILD_DATA/logs/protean-engine.log
+StandardError=append:/var/dcf/protean/APP/LLMBUILD_DATA/logs/protean-engine.log
+
+[Install]
+WantedBy=default.target

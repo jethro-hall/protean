@@ -16,3 +16,7 @@ Full text: `docs/UX_STANDARDS.md`. Hard constraints when editing UI:
 - **Truthful state.** Loading, streaming, degraded, and error are visible and honest.
 - **Browser-verify** every GUI change (desktop / iPad / mobile). "It compiles" is not evidence.
 - Phase 0 has no GUI — if asked to build UI during Phase 0, stop and say so.
+
+**Design system:** the token architecture, colour contract, worklog + (i) contracts, and the
+verification gate are enforced in detail by `design-system.mdc` and documented in
+`APP/GUI/design/DESIGN.md`. Open `APP/GUI/design/protean-style-guide.html` before building any page.

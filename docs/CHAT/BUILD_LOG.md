@@ -570,3 +570,26 @@ Vite Fast Refresh cannot patch that mix; invalidate left Layout mounted without 
 **Evidence:** after split, touching provider/hooks/Layout produces clean `hmr update`
 lines with no `incompatible` invalidate and no `useAppState outside AppStateProvider`.
 GUI lint + tsc clean; `/` returns 200.
+
+## 2026-07-28 — Install design-system bundle + systemd GUI (owner human-test)
+
+**User request:** open `docs/protean-design-bundle.zip`, study pathway, install new GUI, test,
+present for human testing; bring GUI back correctly — **not** as a Cursor-hanging terminal.
+
+**Pathway followed (README-TRANSFER Option B + DESIGN.md):**
+1. Unzipped at repo root → `APP/GUI/design/*`, `.cursor/rules/design-system.mdc`,
+   updated `gui-ux.mdc`, `README-TRANSFER.md`.
+2. Symlinked `APP/GUI/public/design` → `../design` so Vite serves style guide + shell prototype.
+3. Did **not** silently replace the live React shell with the static prototype (would drop
+   streaming/uploads/artefacts). DESIGN.md §1: CSS promotes into `src/theme/` as the next
+   wiring step after owner browser-approves the governed look.
+4. GUI + engine now run as **systemd --user** units (`protean-gui`, `protean-engine`) via
+   `scripts/install-gui-services.sh` — logs under `APP/LLMBUILD_DATA/logs/`, restart without
+   an IDE terminal. Linger enabled.
+
+**Browser-verified (agent):** style guide loads (worklog + (i) sections); shell prototype
+3-pane + worklog collapse; React GUI at `/` healthy. Owner click-through checklist:
+`docs/HUMAN_TEST_GUI.md`.
+
+**URLs:** http://127.0.0.1:5173/design/protean-style-guide.html ·
+…/design/protean-shell-prototype.html · …/ · engine :8787/healthz

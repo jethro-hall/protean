@@ -1,0 +1,84 @@
+---
+description: Protean design system — token-only styling, colour + worklog contracts, verification gate
+globs: APP/GUI/**,APP/PREVIEWPANE/**
+alwaysApply: false
+---
+
+# Design System — BINDING (Cursor: obey on every UI edit)
+
+Canonical CSS: `APP/GUI/design/protean-design-system.css`.
+Governance + rationale: `APP/GUI/design/DESIGN.md`.
+Living reference (open it before building a page): `APP/GUI/design/protean-style-guide.html`.
+This rule is the machine-facing mirror of DESIGN.md. It enforces Law 2 (nothing hardcoded) in CSS.
+Do NOT relax a rule here to "make it look right" — fix the token, or write an ADR.
+
+## THE ONE RULE YOU MUST NOT BREAK — token-only styling
+A component or page may use **Layer 2 (semantic) + Layer 3 (scale) tokens** and the documented
+component classes **only**. It must NEVER:
+- write a raw `#hex`, `rgb()`, `rgba()`, `hsl()` anywhere outside Layer 1 primitives;
+- write a magic `px` for spacing / radius / font-size / z-index / shadow — use `--s-*`, `--r*`,
+  `--fz-*`, `--z-*`, `--shadow*`;
+- reach into a Layer 1 primitive (e.g. `var(--c-blue-600)`) from a component. Primitives are private.
+
+Raw values are legal in **Layer 1 ONLY**. If you need a value the tokens don't offer, that's a gap:
+add a primitive + a semantic/scale alias, note it in `DESIGN.md` §8, THEN use the alias. Never inline.
+
+## The six layers (never merge, never reorder)
+`0 reset → 1 primitives (raw values live here) → 2 semantic (role aliases) → 3 scale
+(space/radius/shadow/z/type/motion/layout) → 4 base (element defaults) → 5 components (C1..C16)`.
+Re-theming = edit Layer 2 only. So Layer 5 must reference Layer 2–3 exclusively.
+
+## Colour contract (do not invent colours)
+- **Blue** = the one system + primary-action colour. One `--accent-blue` primary action per view.
+- **Orange** = the single warm accent (artefacts, steer bar, subagents). **Max one orange element
+  per view.**
+- **Purple (`--think`)** = reserved EXCLUSIVELY for model reasoning in the worklog (`think` +
+  `watcher` steps). It appears NOWHERE else. Never use it as a generic accent.
+- **Green / amber / red** = status + positive/negative figures ONLY. Never decorative.
+
+## Numbers (the CFO-tool signature)
+Every figure carries `.num` (mono + `tabular-nums`); `.pos` / `.neg` for sign. Accounting style:
+`$1,234.56`, negatives in parentheses `($1,234.56)` coloured red, nil `$0.00`. Never set a figure
+in the sans font.
+
+## Worklog contract (C6 — the "show your working" feed)
+- It is **data-driven**: render from a `worklog:{ summary, ms, steps[] }` array — one object per
+  step with a `kind`. NEVER hand-write step markup, NEVER hardcode a step's colour.
+- `kind` → node colour: `tool|file|command` = blue · `subagent` = orange · `think|watcher` = purple
+  · `task` = green. Colour comes from `data-kind`, not inline style.
+- Reasoning is shown as **honest summary prose** in `.wl-detail` — NEVER raw hidden chain-of-thought.
+- Visible by default; header collapses it (click + Enter/Space, toggles `aria-expanded`). Flip
+  `.done` when the turn finishes (live dot → solid green tick). A failed step is shown, not hidden.
+- This is Law 6 (full turn lineage) made visible. Keep it truthful (Law 1).
+
+## (i) info affordance (C11 — MANDATORY)
+Every required input and key output carries an `.info` (i). Hidden until hover/focus/tap; Esc
+dismisses. Content is DATA — a `FieldHint {what, why, example?}` injected as `.pop`, NEVER hardcoded
+in markup. Keyboard-reachable (`tabindex`, `role="button"`).
+
+## Truthful states (C12)
+Loading / streaming / degraded / error / empty render honestly. A spinner must NEVER sit on top of a
+failure. Degraded (stale-but-real) and error (no data) are distinct. Never fill an empty result with
+invented numbers.
+
+## New page / component checklist
+1. Open the style guide; reuse an existing component class if one fits.
+2. Page-only styles go in a **namespaced** block (e.g. `.myfeature-*`) so they can't leak.
+3. Compose with Layer 2–3 tokens only. No literals.
+4. Add an (i) to required inputs/key outputs; wire truthful states.
+5. New component → add a `C## · NAME` block (header + one-line WHAT/USE) AND a style-guide panel.
+
+## Verification gate (run before you call a UI change done)
+1. **0 literals outside Layer 1** — grep the diff for `#hex` / `rgba(` / magic px in Layers 2–5.
+2. **Every `var()` resolves** — no undefined token.
+3. **Contrast** — body/reading text ≥ 4.5:1 (AA); UI-accent/status/large-figure ≥ 3:1. Compute it.
+4. **Style guide still renders** — every class it uses exists; every token it reads resolves.
+5. **Browser click-through (desktop/iPad/mobile)** — REQUIRED (UX §4). "It compiles" / "static
+   checks pass" is NOT evidence. If you cannot open a browser, STOP and log it as an owner action in
+   `docs/CHAT/BUILD_LOG.md` — do not claim it was done (Law 1).
+
+## Phase discipline
+Phase 0 has no wired GUI. These files are the **design prototype + system** — safe to iterate. The
+real React GUI is Phase 1. At Phase 1 the CSS promotes to `APP/GUI/src/theme/` split into
+`tokens.css` (Layers 1–3) + `base.css` (Layer 4) + `components.css` (Layer 5) — see DESIGN.md §1.
+Tailwind config must be generated FROM these tokens; do not fork a second palette.

@@ -1,0 +1,19 @@
+[Unit]
+Description=Protean GUI (Vite) + design system static pages
+Documentation=file:///var/dcf/protean/APP/GUI/design/DESIGN.md
+After=network-online.target protean-engine.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/dcf/protean/APP/GUI
+Environment=NODE_ENV=development
+Environment=PROTEAN_ENGINE_ORIGIN=http://127.0.0.1:8787
+ExecStart=/var/dcf/protean/scripts/run-gui.sh
+Restart=on-failure
+RestartSec=3
+StandardOutput=append:/var/dcf/protean/APP/LLMBUILD_DATA/logs/protean-gui.log
+StandardError=append:/var/dcf/protean/APP/LLMBUILD_DATA/logs/protean-gui.log
+
+[Install]
+WantedBy=default.target
