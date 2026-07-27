@@ -18,6 +18,11 @@
   --color-warn: #e0a030;
   --color-err: #c0392b;
 
+  /* Soft fills for status badges/chips (same hues, background weight) */
+  --color-accent-blue-soft: #e4eefa;
+  --color-ok-soft: #e2f3ea;
+  --color-warn-soft: #faf0da;
+
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 

@@ -96,16 +96,16 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
   }
 
   res.writeHead(200, { ...SSE_HEADERS, 'X-Session-Id': request.sessionId });
-  const history = deps.sessions.history(request.sessionId);
+  // snapshot history BEFORE the turn — the Watcher appends this turn itself
+  const history = [...deps.sessions.history(request.sessionId)];
 
-  let output = '';
-  let succeeded = false;
   for await (const event of runTurn(request, {
     agent: deps.agent,
     gateway: deps.gateway,
     cache: deps.cache,
     pack,
     history,
+    sessions: deps.sessions,
     model,
     watcher: {
       turnTokenBudget: deps.config.watcher.turnTokenBudget,
@@ -116,14 +116,9 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
     log: deps.logger.child('watcher'),
     promptHistoryDir: deps.config.paths.promptHistoryDir,
     tokenTelemetryDir: deps.config.paths.tokenTelemetryDir,
+    artefactsDir: deps.config.paths.artefactsDir,
   })) {
-    if (event.type === 'text') output += event.text;
-    if (event.type === 'done') succeeded = true;
     writeSseEvent(res, event);
-  }
-  if (succeeded) {
-    deps.sessions.append(request.sessionId, { role: 'user', content: request.input });
-    deps.sessions.append(request.sessionId, { role: 'assistant', content: output });
   }
   res.end();
 }

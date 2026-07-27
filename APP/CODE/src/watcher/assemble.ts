@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { DomainPack } from '../contracts/domainPack.js';
 import type { AssembledTurn, ChatMessage, ModelTier, TurnRequest } from '../contracts/turn.js';
-import { DEFAULT_HISTORY_WINDOW_MESSAGES, TOOLSET_VERSION } from '../config/defaults.js';
+import {
+  ARTEFACT_PROTOCOL_PROMPT,
+  DEFAULT_HISTORY_WINDOW_MESSAGES,
+  TOOLSET_VERSION,
+} from '../config/defaults.js';
 
 /**
  * Watcher step 1 — ASSEMBLE (pure code, Law 4). Pulls the domain pack's system
@@ -37,7 +41,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     sessionId: request.sessionId,
     domainId: request.domainId,
     input: request.input,
-    systemPrompt: pack.systemPrompt,
+    systemPrompt: `${pack.systemPrompt}\n\n${ARTEFACT_PROTOCOL_PROMPT}`,
     messages,
     tier: resolveTier(request, pack),
     model,

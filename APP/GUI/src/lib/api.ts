@@ -19,8 +19,13 @@ export interface TurnDone {
   timings: TurnTimings;
 }
 
+export type ArtefactType = 'html' | 'markdown' | 'code' | 'text';
+
 export type TurnStreamEvent =
   | { type: 'text'; text: string }
+  | { type: 'artefact-start'; artefactId: string; artefactType: ArtefactType; title: string }
+  | { type: 'artefact-delta'; artefactId: string; text: string }
+  | { type: 'artefact-end'; artefactId: string; complete: boolean; savedPath: string | null }
   | ({ type: 'done' } & TurnDone)
   | { type: 'error'; turnId: string; message: string };
 

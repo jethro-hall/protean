@@ -65,24 +65,20 @@ export function Layout() {
 
         <ChatPane />
 
-        {/* Preview: side column from md up, drawer on mobile */}
+        {/* Preview: ONE instance — side column from md up, drawer below md
+            (two mounts would mean duplicate live iframes) */}
         {state.previewOpen && (
-          <>
-            <div className="hidden w-preview shrink-0 border-l border-line md:block">
+          <div className="flex max-md:absolute max-md:inset-0 max-md:z-20 md:w-preview md:shrink-0">
+            <button
+              type="button"
+              aria-label="Close preview"
+              onClick={() => dispatch({ type: 'togglePreview' })}
+              className="flex-1 bg-ink/30 md:hidden"
+            />
+            <div className="border-l border-line max-md:w-[85%] max-md:shadow-xl md:w-full">
               <PreviewPane />
             </div>
-            <div className="absolute inset-0 z-20 flex md:hidden">
-              <button
-                type="button"
-                aria-label="Close preview"
-                onClick={() => dispatch({ type: 'togglePreview' })}
-                className="flex-1 bg-ink/30"
-              />
-              <div className="w-[85%] border-l border-line shadow-xl">
-                <PreviewPane />
-              </div>
-            </div>
-          </>
+          </div>
         )}
       </div>
     </div>

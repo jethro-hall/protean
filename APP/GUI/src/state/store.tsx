@@ -5,7 +5,16 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react';
-import type { ModelTier, TurnDone } from '../lib/api';
+import type { ArtefactType, ModelTier, TurnDone } from '../lib/api';
+
+export interface Artefact {
+  id: string;
+  artefactType: ArtefactType;
+  title: string;
+  content: string;
+  status: 'streaming' | 'complete' | 'incomplete';
+  savedPath: string | null;
+}
 
 export interface ChatMessage {
   id: string;
@@ -22,6 +31,8 @@ export interface Conversation {
   id: string;
   title: string;
   messages: ChatMessage[];
+  artefacts: Artefact[];
+  activeArtefactId: string | null;
   status: ConversationStatus;
   errorMessage?: string;
 }
@@ -46,6 +57,22 @@ export type Action =
   | { type: 'assistantStart'; conversationId: string; messageId: string }
   | { type: 'assistantDelta'; conversationId: string; messageId: string; text: string }
   | { type: 'assistantDone'; conversationId: string; messageId: string; stats: TurnDone }
+  | {
+      type: 'artefactStart';
+      conversationId: string;
+      artefactId: string;
+      artefactType: ArtefactType;
+      title: string;
+    }
+  | { type: 'artefactDelta'; conversationId: string; artefactId: string; text: string }
+  | {
+      type: 'artefactEnd';
+      conversationId: string;
+      artefactId: string;
+      complete: boolean;
+      savedPath: string | null;
+    }
+  | { type: 'selectArtefact'; conversationId: string; artefactId: string }
   | { type: 'turnError'; conversationId: string; messageId: string; message: string }
   | { type: 'setTier'; tier: ModelTier }
   | { type: 'setDomain'; domainId: string }
@@ -59,7 +86,14 @@ export function newConversationId(): string {
 }
 
 function emptyConversation(): Conversation {
-  return { id: newConversationId(), title: 'New conversation', messages: [], status: 'idle' };
+  return {
+    id: newConversationId(),
+    title: 'New conversation',
+    messages: [],
+    artefacts: [],
+    activeArtefactId: null,
+    status: 'idle',
+  };
 }
 
 export function initialState(): AppState {
@@ -82,6 +116,19 @@ function updateConversation(
     ...state,
     conversations: state.conversations.map((conversation) =>
       conversation.id === id ? update(conversation) : conversation,
+    ),
+  };
+}
+
+function updateArtefact(
+  conversation: Conversation,
+  artefactId: string,
+  update: (artefact: Artefact) => Artefact,
+): Conversation {
+  return {
+    ...conversation,
+    artefacts: conversation.artefacts.map((artefact) =>
+      artefact.id === artefactId ? update(artefact) : artefact,
     ),
   };
 }
@@ -148,6 +195,48 @@ export function reducer(state: AppState, action: Action): AppState {
         })),
         status: 'idle',
       }));
+    case 'artefactStart': {
+      const next = updateConversation(state, action.conversationId, (conversation) => ({
+        ...conversation,
+        artefacts: [
+          ...conversation.artefacts,
+          {
+            id: action.artefactId,
+            artefactType: action.artefactType,
+            title: action.title,
+            content: '',
+            status: 'streaming' as const,
+            savedPath: null,
+          },
+        ],
+        activeArtefactId: action.artefactId,
+      }));
+      // an artefact starting is the one moment the preview pane opens itself
+      return action.conversationId === state.activeId ? { ...next, previewOpen: true } : next;
+    }
+    case 'artefactDelta':
+      return updateConversation(state, action.conversationId, (conversation) =>
+        updateArtefact(conversation, action.artefactId, (artefact) => ({
+          ...artefact,
+          content: artefact.content + action.text,
+        })),
+      );
+    case 'artefactEnd':
+      return updateConversation(state, action.conversationId, (conversation) =>
+        updateArtefact(conversation, action.artefactId, (artefact) => ({
+          ...artefact,
+          status: action.complete ? 'complete' : 'incomplete',
+          savedPath: action.savedPath,
+        })),
+      );
+    case 'selectArtefact':
+      return {
+        ...updateConversation(state, action.conversationId, (conversation) => ({
+          ...conversation,
+          activeArtefactId: action.artefactId,
+        })),
+        previewOpen: true,
+      };
     case 'turnError':
       return updateConversation(state, action.conversationId, (conversation) => ({
         ...conversation,

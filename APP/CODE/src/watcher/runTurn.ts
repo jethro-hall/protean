@@ -10,11 +10,18 @@ import type {
 } from '../contracts/turn.js';
 import type { LayerLogger } from '../logging/logger.js';
 import type { LlmGateway } from '../gateway/LlmGateway.js';
+import {
+  createArtefactParser,
+  saveArtefact,
+  type ArtefactParserEvent,
+  type ArtefactType,
+} from './artefacts.js';
 import { assembleTurn } from './assemble.js';
 import { budgetMessages } from './budget.js';
 import { computeCacheKey, type CacheStore } from './cache.js';
 import { recordLineage, recordTelemetry } from './record.js';
 import { rewriteTurnInput, shouldRewriteTurn } from './rewrite.js';
+import type { SessionStore } from './sessionStore.js';
 
 /**
  * The Watcher choke point (ARCHITECTURE §3): every turn bound for an answering
@@ -37,11 +44,15 @@ export interface TurnPipelineDeps {
   cache: CacheStore;
   pack: DomainPack;
   history: ChatMessage[];
+  /** When provided, the Watcher records the turn into session history (it owns history). */
+  sessions?: SessionStore;
   model: string;
   watcher: WatcherOptions;
   log: LayerLogger;
   promptHistoryDir: string;
   tokenTelemetryDir: string;
+  /** Required for Phase 3 artefact persistence; artefacts are skipped-with-log if unset. */
+  artefactsDir?: string;
 }
 
 const MS_PRECISION = 2;
@@ -116,18 +127,83 @@ export async function* runTurn(
   let costUsd: number | null = null;
   let failed: string | null = null;
 
+  // Phase 3: split the raw model stream deterministically into chat text and artefacts.
+  const parser = createArtefactParser();
+  let artefactCounter = 0;
+  let currentArtefact: { id: string; artefactType: ArtefactType; title: string; content: string } | null =
+    null;
+  const persistArtefacts = cached === undefined; // cache hits re-emit but never re-save
+
+  function* mapParserEvents(parserEvents: ArtefactParserEvent[]): Generator<TurnEvent> {
+    for (const parserEvent of parserEvents) {
+      if (timings.ttftMs === undefined && parserEvent.kind !== 'end') {
+        timings.ttftMs = roundMs(performance.now() - t0);
+      }
+      if (parserEvent.kind === 'chat') {
+        yield { type: 'text', text: parserEvent.text };
+      } else if (parserEvent.kind === 'start') {
+        artefactCounter += 1;
+        currentArtefact = {
+          id: `${assembled.turnId}-a${artefactCounter}`,
+          artefactType: parserEvent.artefactType,
+          title: parserEvent.title,
+          content: '',
+        };
+        yield {
+          type: 'artefact-start',
+          artefactId: currentArtefact.id,
+          artefactType: currentArtefact.artefactType,
+          title: currentArtefact.title,
+        };
+      } else if (parserEvent.kind === 'delta') {
+        if (currentArtefact !== null) {
+          currentArtefact.content += parserEvent.text;
+          yield { type: 'artefact-delta', artefactId: currentArtefact.id, text: parserEvent.text };
+        }
+      } else if (currentArtefact !== null) {
+        let savedPath: string | null = null;
+        if (persistArtefacts && deps.artefactsDir !== undefined) {
+          savedPath = saveArtefact(
+            deps.artefactsDir,
+            assembled.sessionId,
+            currentArtefact.id,
+            currentArtefact.artefactType,
+            currentArtefact.content,
+          );
+          log.info(
+            'watcher.artefact.saved',
+            `Artefact "${currentArtefact.title}" (${currentArtefact.artefactType}, ${currentArtefact.content.length} chars, ${parserEvent.complete ? 'complete' : 'INCOMPLETE stream'}) saved`,
+            { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { savedPath } },
+          );
+        } else if (persistArtefacts) {
+          log.warn(
+            'watcher.artefact.unsaved',
+            'Artefact finished but no artefactsDir configured — not persisted',
+            { turnId: assembled.turnId },
+          );
+        }
+        yield {
+          type: 'artefact-end',
+          artefactId: currentArtefact.id,
+          complete: parserEvent.complete,
+          savedPath,
+        };
+        currentArtefact = null;
+      }
+    }
+  }
+
   if (cached !== undefined) {
     output = cached.output;
     usage = cached.usage;
     costUsd = cached.costUsd;
-    timings.ttftMs = roundMs(performance.now() - t0);
-    yield { type: 'text', text: cached.output };
+    yield* mapParserEvents([...parser.push(cached.output), ...parser.flush()]);
+    timings.ttftMs ??= roundMs(performance.now() - t0);
   } else {
     for await (const event of agent.runTurn(assembled)) {
       if (event.type === 'text') {
-        if (timings.ttftMs === undefined) timings.ttftMs = roundMs(performance.now() - t0);
         output += event.text;
-        yield { type: 'text', text: event.text };
+        yield* mapParserEvents(parser.push(event.text));
       } else if (event.type === 'done') {
         usage = event.usage;
         costUsd = event.costUsd;
@@ -136,12 +212,19 @@ export async function* runTurn(
         failed = event.message;
       }
     }
+    yield* mapParserEvents(parser.flush());
     if (failed === null) {
       cache.set(cacheKey, { output, model, usage, costUsd, storedAt: new Date().toISOString() });
     }
   }
 
   timings.totalMs = roundMs(performance.now() - t0);
+
+  if (failed === null && deps.sessions !== undefined) {
+    // the Watcher owns history (ARCHITECTURE §3): raw output kept so follow-ups can edit artefacts
+    deps.sessions.append(assembled.sessionId, { role: 'user', content: assembled.input });
+    deps.sessions.append(assembled.sessionId, { role: 'assistant', content: output });
+  }
 
   if (failed !== null) {
     log.error('watcher.turn.failed', `Turn failed after ${timings.totalMs} ms: ${failed}`, {

@@ -367,3 +367,48 @@ deterministic scorer, baseline set schema.
   AWS-auth blocker. Verdict rule is encoded: if B ≤ A, the rewrite stays cut.
 
 **Next step:** Phase 3 Preview Pane while the owner completes AWS re-auth.
+
+---
+
+## 2026-07-27 — Phase 3: live Preview Pane (artefact streaming end-to-end)
+
+**User request:** continue the autonomous Phase 0→3 build; Phase 3 per ROADMAP — artefacts stream
+into the preview pane during generation, are steerable by follow-ups, and are saved to disk.
+
+**Wire protocol (deterministic, Law 4):** the engine instructs the model (protocol constant
+`ARTEFACT_PROTOCOL_PROMPT`, appended to every system prompt) to wrap artefacts in
+`<protean:artefact type="..." title="...">…</protean:artefact>`. A pure-code stream parser
+(`watcher/artefacts.ts`) splits chat text from artefact content — surviving tags split across
+chunk boundaries — and never lets artefact bodies leak into chat bubbles. Stream ending
+mid-artefact yields an HONEST `complete: false` (never faked as done).
+
+**What changed:**
+- `APP/CODE`: `watcher/artefacts.ts` (parser + `saveArtefact` with hostile-session-ID sanitising);
+  `contracts/turn.ts` + `runTurn.ts` emit `artefact-start/delta/end` turn events; artefacts persist
+  under `APP/ARTEFACTS/<sessionId>/` and land in lineage; full text (incl. tags) still cached so
+  cache replays re-parse identically.
+- `APP/GUI`: preview pane goes live — renders HTML artefacts in a **sandboxed iframe** (all other
+  types as monospaced source), truthful status badge (Building…/Complete/Incomplete), artefact tab
+  strip, saved-path footer; pane auto-opens when an artefact starts; store/useTurn/api extended for
+  artefact events. New soft status tokens in `theme/tokens.css` (Law 2).
+- Browser-verification harness `APP/CODE/test/manual/artefactDemoServer.ts`: boots the REAL
+  engine with a scripted AgentCore at the provider boundary (same seam the unit tests fake) so the
+  GUI path could be click-verified while AWS auth is down. Clearly labelled; it replaces nothing.
+
+**Testing (Phase 3 gate): 59/59 vitest green; eslint + tsc strict clean (CODE + GUI).** New
+coverage: parser chunk-boundary splits, incomplete-stream honesty, saveArtefact sanitising, server
+SSE test proving artefact events + saved file + no `<h1>` leakage into text events.
+
+**Browser-verified (real click-through, desktop + iPhone-390px emulation):**
+- artefact streamed live into the pane; pane auto-opened; status Building… → Complete (badge
+  sequence captured in-page at 172 ms into the stream);
+- steering follow-up ("Make the heading red") produced a new artefact, tab strip switched to it;
+- saved path shown truthfully; artefact body absent from chat bubbles;
+- mobile: preview is an 85% drawer over dimmed chat, tabs scroll horizontally.
+- **Bug found & root-fixed during verification:** Layout mounted the PreviewPane twice (desktop
+  column + mobile drawer), i.e. duplicate live iframes; restructured to a single responsive mount
+  (verified: 1 pane / 1 iframe in the DOM).
+
+**Outstanding for full sign-off (blocked on owner AWS re-auth, login still pending):** live
+Phase 0 spike (TTFT + cache < 300 ms), live Phase 2 A/B eval, live Phase 3 artefact run with a
+real model.

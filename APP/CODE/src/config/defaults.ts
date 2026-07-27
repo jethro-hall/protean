@@ -20,6 +20,18 @@ export const DEFAULT_REWRITE_BLOAT_TOKENS = 600;
 /** Version stamp for the current toolset — part of the deterministic cache key. */
 export const TOOLSET_VERSION = 'phase0-no-tools';
 
+/**
+ * Artefact wire protocol instruction (Phase 3) — an ENGINE protocol constant,
+ * not a domain fact: appended to every domain pack's system prompt so the
+ * preview pane can render artefacts live from any pack.
+ */
+export const ARTEFACT_PROTOCOL_PROMPT =
+  'When the user asks you to produce a document, web page, table, chart, or other standalone ' +
+  'artefact, emit it wrapped EXACTLY as: <protean:artefact type="html|markdown|code|text" ' +
+  'title="Short title">…artefact content…</protean:artefact>. Put explanation OUTSIDE the tags, ' +
+  'keep the artefact complete and self-contained inside them, and when asked to modify an ' +
+  'artefact, re-emit the FULL updated artefact in the same tags.';
+
 /** SSE wire constants (the internal stream protocol to the GUI). */
 export const SSE_HEADERS = {
   'Content-Type': 'text/event-stream',

@@ -54,7 +54,7 @@ async function executeRun(
     } else if (event.type === 'done') {
       cacheHit = event.cacheHit;
       timings = event.timings;
-    } else {
+    } else if (event.type === 'error') {
       error = event.message;
     }
   }

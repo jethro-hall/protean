@@ -27,6 +27,29 @@ export function useSendTurn(): (input: string) => void {
         onEvent: (event) => {
           if (event.type === 'text') {
             dispatch({ type: 'assistantDelta', conversationId, messageId, text: event.text });
+          } else if (event.type === 'artefact-start') {
+            dispatch({
+              type: 'artefactStart',
+              conversationId,
+              artefactId: event.artefactId,
+              artefactType: event.artefactType,
+              title: event.title,
+            });
+          } else if (event.type === 'artefact-delta') {
+            dispatch({
+              type: 'artefactDelta',
+              conversationId,
+              artefactId: event.artefactId,
+              text: event.text,
+            });
+          } else if (event.type === 'artefact-end') {
+            dispatch({
+              type: 'artefactEnd',
+              conversationId,
+              artefactId: event.artefactId,
+              complete: event.complete,
+              savedPath: event.savedPath,
+            });
           } else if (event.type === 'done') {
             dispatch({ type: 'assistantDone', conversationId, messageId, stats: event });
           } else {

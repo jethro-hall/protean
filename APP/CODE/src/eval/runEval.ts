@@ -61,7 +61,7 @@ async function runItem(
       ttftMs = event.timings.ttftMs ?? null;
       totalMs = event.timings.totalMs ?? null;
       rewriteMs = event.timings.rewriteMs ?? null;
-    } else error = event.message;
+    } else if (event.type === 'error') error = event.message;
   }
   const scored = scoreOutput(output, item.checks);
   return {

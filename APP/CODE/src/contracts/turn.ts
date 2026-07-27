@@ -57,6 +57,9 @@ export interface TurnTimings {
 /** Events streamed back to the caller while a turn runs. */
 export type TurnEvent =
   | { type: 'text'; text: string }
+  | { type: 'artefact-start'; artefactId: string; artefactType: string; title: string }
+  | { type: 'artefact-delta'; artefactId: string; text: string }
+  | { type: 'artefact-end'; artefactId: string; complete: boolean; savedPath: string | null }
   | {
       type: 'done';
       turnId: string;

@@ -50,7 +50,9 @@ describe('assembleTurn', () => {
     const assembled = assembleTurn({ request, pack, history: historyOf(4), model: 'm' });
     expect(assembled.messages).toHaveLength(5);
     expect(assembled.messages.at(-1)).toEqual({ role: 'user', content: request.input });
-    expect(assembled.systemPrompt).toBe(pack.systemPrompt);
+    // pack prompt first, then the engine's artefact wire-protocol instruction (Phase 3)
+    expect(assembled.systemPrompt.startsWith(pack.systemPrompt)).toBe(true);
+    expect(assembled.systemPrompt).toContain('<protean:artefact');
     expect(assembled.tier).toBe('strong');
   });
 

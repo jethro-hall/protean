@@ -8,6 +8,7 @@ import type { TurnEvent, TurnRequest } from '../src/contracts/turn.js';
 import { createLogger } from '../src/logging/logger.js';
 import { createMemoryCacheStore } from '../src/watcher/cache.js';
 import { runTurn, type TurnPipelineDeps } from '../src/watcher/runTurn.js';
+import { createMemorySessionStore } from '../src/watcher/sessionStore.js';
 
 const pack = domainPackSchema.parse({
   id: 'testpack',
@@ -118,6 +119,54 @@ describe('runTurn pipeline', () => {
     expect(row.assembledMessages.at(-1).content).toBe('compressed prompt');
     // identical bloated input again → rewrite produces the same prompt → cache HIT
     const second = await collect(runTurn({ ...request, input: bloated }, rewriteDeps));
+    const secondDone = second.at(-1);
+    if (secondDone?.type !== 'done') throw new Error('expected done');
+    expect(secondDone.cacheHit).toBe(true);
+  });
+
+  it('streams artefacts to the preview protocol, saves them, and keeps raw output in history', async () => {
+    const artefactAgent = fakeAgent(async function* () {
+      yield { type: 'text' as const, text: 'Building it now: <protean:artefact type="html" ' };
+      yield { type: 'text' as const, text: 'title="Board memo"><h1>Memo</h1>' };
+      yield { type: 'text' as const, text: '</protean:artefact> Done!' };
+      yield {
+        type: 'done' as const,
+        model: 'test-model',
+        usage: { inputTokens: 5, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0 },
+        costUsd: 0,
+        providerDurationMs: 1,
+      };
+    });
+    const deps = makeDeps(artefactAgent);
+    const artefactsDir = join(deps.dataDir, 'artefacts');
+    const sessions = createMemorySessionStore();
+    const events = await collect(runTurn(request, { ...deps, artefactsDir, sessions }));
+
+    const chatText = events
+      .filter((e): e is Extract<TurnEvent, { type: 'text' }> => e.type === 'text')
+      .map((e) => e.text)
+      .join('');
+    expect(chatText).toBe('Building it now:  Done!');
+
+    const start = events.find((e) => e.type === 'artefact-start');
+    if (start?.type !== 'artefact-start') throw new Error('no artefact-start');
+    expect(start.title).toBe('Board memo');
+    const end = events.find((e) => e.type === 'artefact-end');
+    if (end?.type !== 'artefact-end') throw new Error('no artefact-end');
+    expect(end.complete).toBe(true);
+    if (end.savedPath === null) throw new Error('artefact not saved');
+    expect(readFileSync(end.savedPath, 'utf8')).toBe('<h1>Memo</h1>');
+
+    // raw output (incl. tags) is in session history so follow-ups can edit the artefact
+    const history = sessions.history(request.sessionId);
+    expect(history.at(-1)?.content).toContain('<protean:artefact');
+    expect(history.at(-1)?.content).toContain('<h1>Memo</h1>');
+
+    // cache hit re-emits artefact events but does not re-save
+    const second = await collect(runTurn(request, { ...deps, artefactsDir, sessions, history: [] }));
+    const secondEnd = second.find((e) => e.type === 'artefact-end');
+    if (secondEnd?.type !== 'artefact-end') throw new Error('no artefact-end on hit');
+    expect(secondEnd.savedPath).toBeNull();
     const secondDone = second.at(-1);
     if (secondDone?.type !== 'done') throw new Error('expected done');
     expect(secondDone.cacheHit).toBe(true);

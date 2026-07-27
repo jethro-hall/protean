@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -13,9 +13,17 @@ import { startServer, type AppDeps } from '../src/server.js';
 
 const fakeAgent: AgentCore = {
   name: 'fake',
-  async *runTurn() {
-    yield { type: 'text' as const, text: 'hello ' };
-    yield { type: 'text' as const, text: 'from fake' };
+  async *runTurn(turn) {
+    const wantsArtefact = turn.messages.at(-1)?.content.includes('build a page') ?? false;
+    if (wantsArtefact) {
+      // exercise the wire protocol, including a tag split across chunks
+      yield { type: 'text' as const, text: 'Here it is: <protean:arte' };
+      yield { type: 'text' as const, text: 'fact type="html" title="Test page"><h1>Hi</h1>' };
+      yield { type: 'text' as const, text: '</protean:artefact> done.' };
+    } else {
+      yield { type: 'text' as const, text: 'hello ' };
+      yield { type: 'text' as const, text: 'from fake' };
+    }
     yield {
       type: 'done' as const,
       model: 'test-model',
@@ -49,6 +57,7 @@ beforeAll(async () => {
         dataDir,
         promptHistoryDir: join(dataDir, 'prompt-history'),
         tokenTelemetryDir: join(dataDir, 'token-telemetry'),
+        artefactsDir: join(dataDir, 'artefacts'),
       },
     },
     logger: createLogger('error', () => {}),
@@ -105,6 +114,37 @@ describe('engine HTTP surface', () => {
     const done = JSON.parse(doneLine.slice('data:'.length));
     expect(done.cacheHit).toBe(false);
     expect(done.timings.totalMs).toBeGreaterThan(0);
+  });
+
+  it('streams artefact events over SSE and reports the saved path', async () => {
+    const res = await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'build a page for me', sessionId: 'server-test-artefact' }),
+    });
+    const raw = await res.text();
+    expect(raw).toContain('event: artefact-start');
+    expect(raw).toContain('event: artefact-delta');
+    expect(raw).toContain('event: artefact-end');
+    // chat text around the artefact still arrives as plain text events
+    expect(raw).toContain('Here it is: ');
+    // the artefact body must never leak into chat text events
+    const textPayloads = raw
+      .split('\n')
+      .filter((line) => line.startsWith('data:') && line.includes('"type":"text"'));
+    expect(textPayloads.some((line) => line.includes('<h1>'))).toBe(false);
+
+    const endLine = raw
+      .split('\n')
+      .find((line) => line.startsWith('data:') && line.includes('"type":"artefact-end"'));
+    if (endLine === undefined) throw new Error('no artefact-end payload');
+    const end = JSON.parse(endLine.slice('data:'.length)) as {
+      complete: boolean;
+      savedPath: string | null;
+    };
+    expect(end.complete).toBe(true);
+    if (end.savedPath === null) throw new Error('artefact was not saved');
+    expect(readFileSync(end.savedPath, 'utf8')).toBe('<h1>Hi</h1>');
   });
 
   it('serves the identical prompt from cache on the second request', async () => {

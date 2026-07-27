@@ -30,7 +30,8 @@ const SESSION_FILE_SUFFIX = '.jsonl';
 
 /** Session IDs come from crypto.randomUUID or spike prefixes — keep filenames safe regardless. */
 function sessionFileName(sessionId: string): string {
-  return sessionId.replace(/[^A-Za-z0-9._-]/g, '_') + SESSION_FILE_SUFFIX;
+  const safe = sessionId.replace(/[^A-Za-z0-9._-]/g, '_').replace(/^\.+/, '') || 'session';
+  return safe + SESSION_FILE_SUFFIX;
 }
 
 interface SessionRow {
