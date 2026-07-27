@@ -238,3 +238,49 @@ Bedrock/API via the gateway at any instance size (ADR-0003 unchanged in substanc
 `aws bedrock list-inference-profiles --region ap-southeast-2` and pin `ANTHROPIC_MODEL`.
 
 ---
+
+## 2026-07-27 · Cursor · Phase 0 · Engine slice built: AgentCore → Gateway → Claude SDK, watcher, logging, SSE server
+
+**User request (verbatim):**
+> "Build the project, flesh out the phases and let me speed you up, I am asking for you to run
+> autonosmly. Permission to go to Phase 3 what ever that requires so from here to there do it,
+> highlight testing (after each phase), any issues please reach out i am here and watching"
+
+**What changed (APP/CODE, all new):**
+- `contracts/` — `turn.ts` (TurnRequest/AssembledTurn/TurnEvent/TurnLineage/TokenUsage/TurnTimings,
+  zod), `gateway.ts` (the ONE internal app↔gateway protocol), `domainPack.ts` (pack manifest schema
+  incl. FieldHint for the GUI (i) affordance).
+- `config/` — `defaults.ts` (named constants, env-var name registry), `env.ts` (deterministic .env
+  parser, repo-root resolution), `loadConfig.ts` (typed runtime config; `requireModel()` fails loudly
+  naming the env var — no guessed model IDs), `domainPacks.ts` (validated pack loader).
+- `logging/` — `events.ts` (LogEvent contract), `redact.ts` (env-derived secret scrubbing at the
+  boundary), `logger.ts` (structured JSONL, layer children), `render.ts` (human-readable renderer).
+- `gateway/LlmGateway.ts` + `gateway/adapters/claude.ts` — the ONLY vendor-SDK import (Law 5).
+  API verified against installed `@anthropic-ai/claude-agent-sdk` **0.3.220** sdk.d.ts:
+  `query({prompt, options})`, `Options.{model,systemPrompt,tools:[],maxTurns,includePartialMessages,
+  persistSession:false,env}`, `stream_event` text deltas, `result` message with usage/cost/durations.
+  Serves both Bedrock and direct-API routes from env.
+- `agent/AgentCore.ts` + `agent/adapters/claudeSdk.ts` — loop behind the interface, provider I/O
+  delegated to the gateway (AgentCore → Gateway → Claude Agent SDK).
+- `watcher/` — `assemble.ts` (deterministic: pack system prompt + windowed history), `cache.ts`
+  (sha256 key over normalised {messages, system, model, domain, toolset}; in-memory LRU+TTL behind a
+  CacheStore seam), `record.ts` (lineage → prompt-history, numbers → token-telemetry, JSONL,
+  redacted), `runTurn.ts` (the choke point: assemble → cache-check → agent → record, per-stage
+  timings), `sessionStore.ts` (SessionStore seam; memory impl now, persistent impl is Phase 2).
+- `server.ts` — SSE entrypoint: POST /api/turn (streams text/done/error events), GET /api/domains,
+  GET /healthz. `spike.ts` — Phase 0 acceptance script (same prompt twice; run 2 must be cache-hit
+  < 300 ms; evidence JSON written to LLMBUILD_DATA/token-telemetry).
+
+**Testing (Phase 0 gate, code level): 30/30 vitest tests pass; eslint clean (no-console enforced
+outside spike/renderer); tsc strict (exactOptionalPropertyTypes) clean.** Covered: cache key
+determinism/normalisation/TTL/LRU, history windowing + tier resolution, secret redaction, .env
+parsing, pack loading (both shipped packs validate), pipeline miss→hit + failure-not-cached +
+lineage/telemetry rows, HTTP+SSE streaming incl. cross-request cache hit. Test I/O goes to tmp dirs
+— LLMBUILD_DATA stays real evidence only.
+
+**Blocked (owner pinged in-chat):** live acceptance run needs AWS re-auth (`aws login --remote`
+started; URL+code relayed) to pin `ANTHROPIC_MODEL`/`PROTEAN_FAST_MODEL` from
+`aws bedrock list-inference-profiles --region ap-southeast-2`, then `npm run spike` records the real
+TTFT/total/cache numbers. Until then Phase 0 is code-complete but NOT accepted.
+
+**Next step:** Phase 1 GUI shell in parallel while awaiting the auth code.

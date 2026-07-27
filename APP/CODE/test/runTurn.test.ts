@@ -1,0 +1,110 @@
+import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import type { AgentCore, AgentEvent } from '../src/agent/AgentCore.js';
+import { domainPackSchema } from '../src/contracts/domainPack.js';
+import type { TurnEvent, TurnRequest } from '../src/contracts/turn.js';
+import { createLogger } from '../src/logging/logger.js';
+import { createMemoryCacheStore } from '../src/watcher/cache.js';
+import { runTurn, type TurnPipelineDeps } from '../src/watcher/runTurn.js';
+
+const pack = domainPackSchema.parse({
+  id: 'testpack',
+  displayName: 'Test pack',
+  version: '0.0.1',
+  systemPrompt: 'You are a test assistant.',
+});
+
+const request: TurnRequest = { sessionId: 's1', domainId: 'testpack', input: 'ping' };
+
+function fakeAgent(events: () => AsyncIterable<AgentEvent>): AgentCore {
+  return { name: 'fake', runTurn: events };
+}
+
+async function collect(iterable: AsyncIterable<TurnEvent>): Promise<TurnEvent[]> {
+  const events: TurnEvent[] = [];
+  for await (const event of iterable) events.push(event);
+  return events;
+}
+
+function makeDeps(agent: AgentCore): TurnPipelineDeps & { dataDir: string } {
+  const dataDir = mkdtempSync(join(tmpdir(), 'protean-test-'));
+  const logger = createLogger('error', () => {});
+  return {
+    agent,
+    cache: createMemoryCacheStore(60, 10),
+    pack,
+    history: [],
+    model: 'test-model',
+    log: logger.child('watcher'),
+    promptHistoryDir: join(dataDir, 'prompt-history'),
+    tokenTelemetryDir: join(dataDir, 'token-telemetry'),
+    dataDir,
+  };
+}
+
+const successAgent = fakeAgent(async function* () {
+  yield { type: 'text' as const, text: 'pong ' };
+  yield { type: 'text' as const, text: 'pong' };
+  yield {
+    type: 'done' as const,
+    model: 'test-model',
+    usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0 },
+    costUsd: 0.001,
+    providerDurationMs: 42,
+  };
+});
+
+describe('runTurn pipeline', () => {
+  it('streams text, reports a miss, then serves the identical turn from cache', async () => {
+    const deps = makeDeps(successAgent);
+    const first = await collect(runTurn(request, deps));
+    const firstDone = first.at(-1);
+    expect(firstDone?.type).toBe('done');
+    if (firstDone?.type !== 'done') return;
+    expect(firstDone.cacheHit).toBe(false);
+    expect(first.filter((e) => e.type === 'text').length).toBe(2);
+
+    const second = await collect(runTurn(request, deps));
+    const secondDone = second.at(-1);
+    if (secondDone?.type !== 'done') throw new Error('expected done');
+    expect(secondDone.cacheHit).toBe(true);
+    expect(second.find((e) => e.type === 'text')).toEqual({ type: 'text', text: 'pong pong' });
+    expect(secondDone.timings.totalMs ?? Infinity).toBeLessThan(300);
+  });
+
+  it('writes lineage and telemetry JSONL rows for each turn', async () => {
+    const deps = makeDeps(successAgent);
+    await collect(runTurn(request, deps));
+    const lineageFiles = readdirSync(deps.promptHistoryDir);
+    const telemetryFiles = readdirSync(deps.tokenTelemetryDir);
+    expect(lineageFiles).toHaveLength(1);
+    expect(telemetryFiles).toHaveLength(1);
+    const lineageFile = lineageFiles[0];
+    if (lineageFile === undefined) throw new Error('no lineage file');
+    const row = JSON.parse(readFileSync(join(deps.promptHistoryDir, lineageFile), 'utf8').trim());
+    expect(row.input).toBe('ping');
+    expect(row.output).toBe('pong pong');
+    expect(row.cacheHit).toBe(false);
+    expect(row.timings.totalMs).toBeGreaterThan(0);
+  });
+
+  it('emits an error event and does NOT cache when the agent fails', async () => {
+    const failingAgent = fakeAgent(async function* () {
+      yield { type: 'text' as const, text: 'partial' };
+      yield { type: 'error' as const, message: 'provider exploded' };
+    });
+    const deps = makeDeps(failingAgent);
+    const events = await collect(runTurn(request, deps));
+    expect(events.at(-1)?.type).toBe('error');
+    expect(deps.cache.size()).toBe(0);
+
+    // a subsequent successful turn must still be a MISS (failure was not cached)
+    const retryDeps = { ...deps, agent: successAgent };
+    const retry = await collect(runTurn(request, retryDeps));
+    const retryDone = retry.at(-1);
+    if (retryDone?.type !== 'done') throw new Error('expected done');
+    expect(retryDone.cacheHit).toBe(false);
+  });
+});
