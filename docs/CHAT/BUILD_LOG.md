@@ -209,3 +209,32 @@ list; then start Phase 0 code (`AgentCore` + Gateway + Claude adapter + logger +
 `aws login` to pin Bedrock model IDs and start Phase 0 code.
 
 ---
+
+## 2026-07-27 · Claude · Phase 0 · Host-sizing blocker CLOSED (deliberate downsize)
+
+**User request (verbatim):**
+> "change the hardware i downsized for savings whilst teh server doing nothing, i can scale up
+> anytime, its stil running sam software and has gpu"
+
+**Resolution:** The g4dn.xlarge / Tesla T4 16 GB is **not** a discrepancy against the brief — it is a
+**deliberate, owner-confirmed cost-down** from the originally-briefed g6.2xlarge / L4 24 GB while the
+server is idle during early-phase build. Same DL Base AMI and software stack; GPU still present. The
+instance can be scaled back up at any time (stop → change type → start) with **no code or config
+change**. This closes the standing "confirm g4dn vs g6.2xlarge" blocker.
+
+**What changed (docs):**
+- `docs/INFRASTRUCTURE.md` §1 — replaced the "Discrepancy flagged" note with a "Sizing decision
+  (owner, confirmed)" note: reversible downsize, 16 GB VRAM is the current floor, nothing depends on
+  24 GB. Table row reworded ("deliberately downsized from g6.2xlarge"). BLUF, §5.2, §5.3, §7, §8
+  de-hardcoded from "L4"/"g6.2xlarge" to instance-agnostic wording.
+- `docs/DECISIONS/ADR-0003` — GPU described as "on-board NVIDIA GPU (T4 16 GB now; L4 24 GB when
+  scaled up)"; "host reasoning model locally" rejection now notes neither 16 GB nor 24 GB suffices.
+
+**Design stance carried forward:** size GPU batch/model choices against **16 GB** (current floor) so
+everything runs on the small box; scaling up simply yields headroom. Reasoning models stay on
+Bedrock/API via the gateway at any instance size (ADR-0003 unchanged in substance).
+
+**Still open (unchanged):** AWS session re-auth to run
+`aws bedrock list-inference-profiles --region ap-southeast-2` and pin `ANTHROPIC_MODEL`.
+
+---

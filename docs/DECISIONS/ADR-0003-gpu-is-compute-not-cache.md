@@ -11,7 +11,8 @@ Claude Desktop struggling on large chats. A GPU is a compute device, not a cache
 chats slow" is a context-management problem, not a caching one.
 
 ## Decision
-The **NVIDIA L4** is used for **compute**: (1) embeddings for semantic recall, (2) an optional small
+The **on-board NVIDIA GPU** (currently a Tesla T4 16 GB; L4 24 GB when scaled up — see
+INFRASTRUCTURE §1) is used for **compute**: (1) embeddings for semantic recall, (2) an optional small
 local fast-model for WatcherLLM cheap-path + long-chat compaction/summarisation, (3) warming
 embeddings for active user memory. **Caching itself lives in Redis/RAM.** The real fix for large
 chats is compaction + semantic retrieval (which the GPU accelerates), feeding the reasoning model a
@@ -20,8 +21,9 @@ cap); no sandbox gets raw device access. GPU is optional and degradable — noth
 correct; absent/busy GPU falls back to the gateway fast tier.
 
 ## Alternatives considered
-- **Host the primary reasoning model on the L4** — rejected: 24 GB is insufficient for frontier-model
-  latency and contends with embeddings. Reasoning stays on Bedrock/API. Revisit only with evidence.
+- **Host the primary reasoning model on the local GPU** — rejected: neither 16 GB (T4) nor 24 GB (L4)
+  is sufficient for frontier-model latency, and it contends with embeddings. Reasoning stays on
+  Bedrock/API regardless of instance size. Revisit only with evidence.
 
 ## Consequences
 Clear division: Redis caches, GPU computes, Bedrock reasons. `[VERIFY]` NVIDIA Container Toolkit +

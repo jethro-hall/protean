@@ -14,7 +14,7 @@ Protean runs as a small set of **Docker services behind one common `docker-compo
 of provider — goes through **one gateway/proxy** that is built to survive a *transient upstream
 link* (Bedrock token expiry, network blips, provider 5xx). State lives in **PostgreSQL**
 (relational/truth) and **Qdrant** (vectors/memory). Hot paths are accelerated by a **tiered cache**
-that can be promoted onto the **NVIDIA L4 GPU** for large-chat inference and embedding workloads.
+that can be promoted onto the **on-board NVIDIA GPU** for large-chat inference and embedding workloads.
 Each user working session gets an isolated **sandbox VM instance**, spawnable on the current server
 today and portable to a fleet later.
 
@@ -24,17 +24,20 @@ today and portable to a fleet later.
 
 | Attribute | Value | Source |
 |---|---|---|
-| Instance | AWS **g4dn.xlarge** (owner brief said g6.2xlarge — measured otherwise, see note) | IMDS, measured 2026-07-27 |
+| Instance | AWS **g4dn.xlarge** (deliberately downsized from g6.2xlarge — see note) | IMDS, measured 2026-07-27 |
 | vCPU / RAM | 4 vCPU / 16 GiB | `nproc`; `free -g`, measured 2026-07-27 |
 | GPU | **1× NVIDIA Tesla T4** (16 GB GDDR6) | `nvidia-smi`, measured 2026-07-27 |
 | AMI | Amazon **Deep Learning Base AMI, Single CUDA (Amazon Linux 2023)**, build 20260609 | owner |
 | Region | ap-southeast-2 (Sydney) — matches Bedrock egress allowlist | `.env.example` |
 
-> **Discrepancy flagged 2026-07-27:** the owner brief specified g6.2xlarge (8 vCPU / 32 GiB /
-> L4 24 GB). The box this repo actually runs on is a **g4dn.xlarge** — half the vCPU/RAM and a
-> T4 with 16 GB. All GPU sizing below assumed 24 GB; re-check batch sizes and any local
-> fast-model choice against 16 GB before enabling `protean-gpu`. If a g6.2xlarge is still the
-> intended target, this VM is not it.
+> **Sizing decision (owner, confirmed 2026-07-27):** the box was **deliberately downsized** from the
+> originally-briefed g6.2xlarge (8 vCPU / 32 GiB / L4 24 GB) to a **g4dn.xlarge** (4 vCPU / 16 GiB /
+> Tesla T4 16 GB) to save cost while the server is otherwise idle during early-phase build. Same AMI
+> and software stack, GPU still present — this is **not** a mismatch, it is a cost-down. The instance
+> can be **scaled back up at any time** (stop → change instance type → start) with no code or config
+> change. **Design consequence:** treat 16 GB VRAM as the current floor — size GPU batch/model choices
+> against 16 GB (§5) so everything runs on the small box, and it will simply have more headroom when
+> scaled up. Nothing depends on 24 GB.
 
 **Design consequence.** One GPU with 16 GB is a *shared, scarce* resource. Protean does **not**
 host a large base LLM on it by default — the reasoning models are called via the gateway (Bedrock/
@@ -153,7 +156,7 @@ correctness (fail-open to the layer below, ultimately to a fresh LLM call).
 | L3 semantic | Qdrant | "we've answered something like this" recall | embedding similarity |
 
 ### 5.2 GPU-backed acceleration (`[VERIFY]` on hardware before committing)
-The GPU (T4, 16 GB — see §1) is used to make the cache and large chats fast, in priority order:
+The GPU (T4, 16 GB now — see §1; more headroom when scaled up) is used to make the cache and large chats fast, in priority order:
 1. **Embeddings** for L3 semantic cache + Qdrant — batched on GPU; the single highest-value GPU use.
 2. **KV-cache / large-context handling for a local fast model** (WatcherLLM cheap path + summar/
    compaction of long chats). This is the direct answer to "Claude Desktop struggles on large
@@ -167,9 +170,9 @@ path falls back to the gateway fast-model tier. No feature *requires* the GPU to
 only makes it faster (Charter: designed degradation, never silent).
 
 ### 5.3 What the GPU is NOT for (now)
-Hosting the primary reasoning model. 24 GB is insufficient for a frontier model at good latency,
-and it contends with embeddings. Reasoning stays on Bedrock/API via the gateway. Revisit only with
-an ADR and measured evidence.
+Hosting the primary reasoning model. Neither 16 GB (current) nor 24 GB (scaled-up) is sufficient for
+a frontier model at good latency, and it contends with embeddings. Reasoning stays on Bedrock/API via
+the gateway regardless of instance size. Revisit only with an ADR and measured evidence.
 
 ### 5.4 GPU as a scheduled resource
 One GPU, many session sandboxes. GPU work is queued through a single accessor (a `protean-gpu`
@@ -207,7 +210,7 @@ Rules: pinned image tags (no `:latest`); named volumes only (§8); healthchecks 
 ## 7. Session sandbox — the VM/instance model
 
 Claude Desktop gives each working session an isolated VM. Protean matches this: **one ephemeral
-sandbox per working session**, spawnable on the g6.2xlarge today, portable to a fleet/orchestrator
+sandbox per working session**, spawnable on the current g4dn.xlarge today, portable to a fleet/orchestrator
 (k8s/Nomad/Firecracker) later without app changes (Law 7 seam).
 
 - **Unit today:** a container (`protean-sandbox-<sessionId>`) from a common base image — cheap,
@@ -226,7 +229,7 @@ ADR once the POC proves the model. POC uses containers (security deferred, owner
 
 ## 8. Static disk / HDD standard
 
-The g6.2xlarge has a root EBS volume; large/persistent data must live on a **declared static path**,
+The instance has a root EBS volume; large/persistent data must live on a **declared static path**,
 not scattered. Standard host layout (`[VERIFY]` actual mount points on box — `df -h`, `lsblk`):
 
 ```
