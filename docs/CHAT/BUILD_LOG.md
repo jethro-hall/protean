@@ -324,3 +324,46 @@ still 30/30. **Phase 1 acceptance NOT yet claimable:** the streamed-reply + TTFT
 live creds — same blocker as Phase 0 (AWS re-auth waiting on owner's authorization code).
 
 **Next step:** Phase 2 (persistent history + full Watcher + eval harness) while waiting.
+
+---
+
+## 2026-07-27 · Cursor · Phase 2 · Watcher full layer + persistent history + eval harness (overhead measured: p95 0.12 ms)
+
+**What changed (APP/CODE):**
+- `watcher/budget.ts` — deterministic token estimator (named chars/token heuristic; estimates are
+  for trimming only, never presented as facts) + oldest-first history trimming; final user input
+  never dropped.
+- `watcher/rewrite.ts` — the conditional Tier-1 rewrite: `shouldRewriteTurn` is a PURE-CODE gate
+  (input estimated above the bloat threshold), the rewrite call is measured/logged, and failure is a
+  designed logged fallback to the original input (Law 1: surfaced, not silent). OFF by default
+  (`PROTEAN_REWRITE_ENABLED`), stays off unless the A/B proves it.
+- `watcher/runTurn.ts` — pipeline is now assemble → budget → (gate/rewrite) → cache-check → agent →
+  record, each stage timed; rewrite lands in lineage and the cache key is computed on the rewritten
+  prompt.
+- `watcher/sessionStore.ts` — `createFileSessionStore`: append-only JSONL per session under
+  `LLMBUILD_DATA/sessions/`, read-through memory cache, hostile-ID filename sanitising. Server now
+  uses it — **history survives restarts**. (Bug found by test and root-fixed: append hydrated the
+  cache after writing, double-counting the new row.)
+- `eval/` — `evalSet.ts` (zod-validated DATA sets in `LLMBUILD_DATA/eval-sets/`), `score.ts`
+  (deterministic scoring: substring/forbidden/length — no model grades a model here), `runEval.ts`
+  (A/B: rewrite OFF vs ON, per-arm fresh cache, evidence JSON to `LLMBUILD_DATA/eval-results/`).
+  `eval-sets/baseline.json` ships 3 bloated prompts + 1 concise control.
+- `bench.ts` — Phase 2 acceptance bench: zero-latency fake agent isolates the Watcher's
+  deterministic overhead; per-turn scratch rows go to tmp, summary JSON is committed evidence.
+- Config: `PROTEAN_TURN_TOKEN_BUDGET` / `PROTEAN_REWRITE_ENABLED` / `PROTEAN_REWRITE_BLOAT_TOKENS`,
+  new data dirs (sessions, eval-sets, eval-results).
+
+**Testing (Phase 2 gate): 49/49 vitest tests pass; eslint + tsc strict clean.** New coverage:
+budget trimming/floor, rewrite gate determinism + fallback paths, rewrite-in-pipeline (lineage +
+cache-on-rewritten-prompt), file store restart persistence + reload-append + ID sanitising,
+deterministic scorer, baseline set schema.
+
+**Acceptance measured (evidence `LLMBUILD_DATA/token-telemetry/watcher-overhead-2026-07-27T05-26-49-469Z.json`):**
+- Watcher deterministic-path overhead over 200 turns with 40-message history:
+  **p50 0.07 ms · p95 0.12 ms · max 1.91 ms** — ROADMAP budget < 50 ms: **PASS**.
+- Cache-hit total latency: p95 0.1 ms (190 hits) — the < 300 ms path holds in-process.
+- Restart persistence: proven by test (new store instance over the same dir reads full history).
+- **Outstanding for full Phase 2 sign-off:** the live A/B (`npm run eval`) needs models — same
+  AWS-auth blocker. Verdict rule is encoded: if B ≤ A, the rewrite stays cut.
+
+**Next step:** Phase 3 Preview Pane while the owner completes AWS re-auth.

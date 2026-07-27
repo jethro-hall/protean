@@ -11,6 +11,8 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "spike": "tsx src/spike.ts",
+    "bench": "tsx src/bench.ts",
+    "eval": "tsx src/eval/runEval.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src test",

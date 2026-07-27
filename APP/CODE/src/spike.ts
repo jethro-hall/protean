@@ -73,12 +73,20 @@ async function main(): Promise<void> {
   const request: TurnRequest = { sessionId: `spike-${randomUUID()}`, domainId, input };
   const model = requireModel(config, resolveTier(request, pack));
 
+  const gateway = createClaudeGateway(logger.child('gateway'));
   const deps: TurnPipelineDeps = {
-    agent: createClaudeSdkAgentCore(createClaudeGateway(logger.child('gateway')), logger.child('agent')),
+    agent: createClaudeSdkAgentCore(gateway, logger.child('agent')),
+    gateway,
     cache: createMemoryCacheStore(config.cache.ttlSeconds, config.cache.maxEntries),
     pack,
     history: [], // identical assembled prompt both runs — the cache-hit precondition
     model,
+    watcher: {
+      turnTokenBudget: config.watcher.turnTokenBudget,
+      rewriteEnabled: config.watcher.rewriteEnabled,
+      rewriteBloatTokens: config.watcher.rewriteBloatTokens,
+      ...(config.models.fast !== undefined ? { fastModel: config.models.fast } : {}),
+    },
     log: logger.child('watcher'),
     promptHistoryDir: config.paths.promptHistoryDir,
     tokenTelemetryDir: config.paths.tokenTelemetryDir,

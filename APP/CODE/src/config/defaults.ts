@@ -11,6 +11,12 @@ export const DEFAULT_DOMAIN_ID = 'generic';
 /** How many prior messages the Watcher includes when assembling a turn (Phase 0 baseline). */
 export const DEFAULT_HISTORY_WINDOW_MESSAGES = 20;
 
+/** Watcher budget: estimated-token ceiling for one assembled turn (history trimmed to fit). */
+export const DEFAULT_TURN_TOKEN_BUDGET = 8000;
+
+/** Rewrite gate: inputs estimated above this are "bloated" and eligible for Tier-1 rewrite. */
+export const DEFAULT_REWRITE_BLOAT_TOKENS = 600;
+
 /** Version stamp for the current toolset — part of the deterministic cache key. */
 export const TOOLSET_VERSION = 'phase0-no-tools';
 
@@ -35,4 +41,7 @@ export const ENV = {
   awsBearerToken: 'AWS_BEARER_TOKEN_BEDROCK',
   dataDir: 'PROTEAN_DATA_DIR',
   artefactsDir: 'PROTEAN_ARTEFACTS_DIR',
+  turnTokenBudget: 'PROTEAN_TURN_TOKEN_BUDGET',
+  rewriteEnabled: 'PROTEAN_REWRITE_ENABLED',
+  rewriteBloatTokens: 'PROTEAN_REWRITE_BLOAT_TOKENS',
 } as const;

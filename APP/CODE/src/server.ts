@@ -7,12 +7,13 @@ import { DEFAULT_DOMAIN_ID, SSE_HEADERS } from './config/defaults.js';
 import { listDomainPacks, loadDomainPack } from './config/domainPacks.js';
 import { loadConfig, requireModel, type ProteanConfig } from './config/loadConfig.js';
 import { modelTierSchema, type TurnEvent, type TurnRequest } from './contracts/turn.js';
+import type { LlmGateway } from './gateway/LlmGateway.js';
 import { createClaudeGateway } from './gateway/adapters/claude.js';
 import { createLogger, type Logger } from './logging/logger.js';
 import { createMemoryCacheStore, type CacheStore } from './watcher/cache.js';
 import { resolveTier } from './watcher/assemble.js';
 import { runTurn } from './watcher/runTurn.js';
-import { createMemorySessionStore, type SessionStore } from './watcher/sessionStore.js';
+import { createFileSessionStore, type SessionStore } from './watcher/sessionStore.js';
 
 /** What the GUI/CLI actually posts — session/domain default server-side. */
 const turnBodySchema = z.object({
@@ -28,6 +29,7 @@ export interface AppDeps {
   cache: CacheStore;
   sessions: SessionStore;
   agent: AgentCore;
+  gateway: LlmGateway;
 }
 
 export function createAppDeps(config: ProteanConfig, logger: Logger): AppDeps {
@@ -36,8 +38,10 @@ export function createAppDeps(config: ProteanConfig, logger: Logger): AppDeps {
     config,
     logger,
     cache: createMemoryCacheStore(config.cache.ttlSeconds, config.cache.maxEntries),
-    sessions: createMemorySessionStore(),
+    // Phase 2: history persists across restarts (file-backed JSONL per session)
+    sessions: createFileSessionStore(config.paths.sessionsDir),
     agent: createClaudeSdkAgentCore(gateway, logger.child('agent')),
+    gateway,
   };
 }
 
@@ -98,10 +102,17 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
   let succeeded = false;
   for await (const event of runTurn(request, {
     agent: deps.agent,
+    gateway: deps.gateway,
     cache: deps.cache,
     pack,
     history,
     model,
+    watcher: {
+      turnTokenBudget: deps.config.watcher.turnTokenBudget,
+      rewriteEnabled: deps.config.watcher.rewriteEnabled,
+      rewriteBloatTokens: deps.config.watcher.rewriteBloatTokens,
+      ...(deps.config.models.fast !== undefined ? { fastModel: deps.config.models.fast } : {}),
+    },
     log: deps.logger.child('watcher'),
     promptHistoryDir: deps.config.paths.promptHistoryDir,
     tokenTelemetryDir: deps.config.paths.tokenTelemetryDir,

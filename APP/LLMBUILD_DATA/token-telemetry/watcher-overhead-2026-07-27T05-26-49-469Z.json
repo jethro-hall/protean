@@ -1,0 +1,18 @@
+{
+  "ts": "2026-07-27T05:26:49.469Z",
+  "turns": 200,
+  "historyMessages": 40,
+  "budgetMs": 50,
+  "deterministicOverheadMs": {
+    "p50": 0.07,
+    "p95": 0.12000000000000001,
+    "max": 1.91
+  },
+  "cacheHitTotalMs": {
+    "count": 190,
+    "p50": 0.08,
+    "p95": 0.1,
+    "max": 0.49
+  },
+  "passed": true
+}

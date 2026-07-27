@@ -37,6 +37,7 @@ function makeDeps(agent: AgentCore): TurnPipelineDeps & { dataDir: string } {
     pack,
     history: [],
     model: 'test-model',
+    watcher: { turnTokenBudget: 8000, rewriteEnabled: false, rewriteBloatTokens: 600 },
     log: logger.child('watcher'),
     promptHistoryDir: join(dataDir, 'prompt-history'),
     tokenTelemetryDir: join(dataDir, 'token-telemetry'),
@@ -88,6 +89,38 @@ describe('runTurn pipeline', () => {
     expect(row.output).toBe('pong pong');
     expect(row.cacheHit).toBe(false);
     expect(row.timings.totalMs).toBeGreaterThan(0);
+  });
+
+  it('rewrites a bloated input when enabled, records it in lineage, and keys the cache on it', async () => {
+    const deps = makeDeps(successAgent);
+    const rewritingGateway: import('../src/gateway/LlmGateway.js').LlmGateway = {
+      provider: 'fake-rewriter',
+      async *streamTurn() {
+        yield { type: 'text' as const, text: 'compressed prompt' };
+        yield { type: 'done' as const, model: 'fast', usage: null, costUsd: null, providerDurationMs: 1 };
+      },
+    };
+    const bloated = 'blah '.repeat(1000);
+    const rewriteDeps: TurnPipelineDeps = {
+      ...deps,
+      gateway: rewritingGateway,
+      watcher: { turnTokenBudget: 8000, rewriteEnabled: true, rewriteBloatTokens: 100, fastModel: 'fast' },
+    };
+    const events = await collect(runTurn({ ...request, input: bloated }, rewriteDeps));
+    const done = events.at(-1);
+    if (done?.type !== 'done') throw new Error('expected done');
+    expect(done.timings.rewriteMs).toBeGreaterThanOrEqual(0);
+
+    const lineageFile = readdirSync(deps.promptHistoryDir)[0];
+    if (lineageFile === undefined) throw new Error('no lineage file');
+    const row = JSON.parse(readFileSync(join(deps.promptHistoryDir, lineageFile), 'utf8').trim());
+    expect(row.rewrite).toBe('compressed prompt');
+    expect(row.assembledMessages.at(-1).content).toBe('compressed prompt');
+    // identical bloated input again → rewrite produces the same prompt → cache HIT
+    const second = await collect(runTurn({ ...request, input: bloated }, rewriteDeps));
+    const secondDone = second.at(-1);
+    if (secondDone?.type !== 'done') throw new Error('expected done');
+    expect(secondDone.cacheHit).toBe(true);
   });
 
   it('emits an error event and does NOT cache when the agent fails', async () => {

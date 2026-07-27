@@ -5,6 +5,8 @@ import {
   DEFAULT_CACHE_TTL_SECONDS,
   DEFAULT_LOG_LEVEL,
   DEFAULT_PORT,
+  DEFAULT_REWRITE_BLOAT_TOKENS,
+  DEFAULT_TURN_TOKEN_BUDGET,
   ENV,
 } from './defaults.js';
 import { codeDir, loadDotEnv, repoRoot } from './env.js';
@@ -17,6 +19,12 @@ export interface ProteanConfig {
   cache: { ttlSeconds: number; maxEntries: number };
   /** Model IDs per tier. Strong is required for any live run; fast may be unset until Phase 2. */
   models: Partial<Record<ModelTier, string>>;
+  watcher: {
+    turnTokenBudget: number;
+    /** Conditional rewrite: OFF until the A/B eval proves it pays for itself (ARCHITECTURE §3). */
+    rewriteEnabled: boolean;
+    rewriteBloatTokens: number;
+  };
   provider: {
     useBedrock: boolean;
     awsRegion: string | undefined;
@@ -29,6 +37,9 @@ export interface ProteanConfig {
     dataDir: string;
     promptHistoryDir: string;
     tokenTelemetryDir: string;
+    sessionsDir: string;
+    evalSetsDir: string;
+    evalResultsDir: string;
     artefactsDir: string;
   };
 }
@@ -67,6 +78,11 @@ export function loadConfig(): ProteanConfig {
       ttlSeconds: intFromEnv(ENV.cacheTtlSeconds, DEFAULT_CACHE_TTL_SECONDS),
       maxEntries: DEFAULT_CACHE_MAX_ENTRIES,
     },
+    watcher: {
+      turnTokenBudget: intFromEnv(ENV.turnTokenBudget, DEFAULT_TURN_TOKEN_BUDGET),
+      rewriteEnabled: process.env[ENV.rewriteEnabled] === '1',
+      rewriteBloatTokens: intFromEnv(ENV.rewriteBloatTokens, DEFAULT_REWRITE_BLOAT_TOKENS),
+    },
     models: {
       ...(strongModel !== undefined ? { strong: strongModel } : {}),
       ...(fastModel !== undefined ? { fast: fastModel } : {}),
@@ -83,6 +99,9 @@ export function loadConfig(): ProteanConfig {
       dataDir,
       promptHistoryDir: join(dataDir, 'prompt-history'),
       tokenTelemetryDir: join(dataDir, 'token-telemetry'),
+      sessionsDir: join(dataDir, 'sessions'),
+      evalSetsDir: join(dataDir, 'eval-sets'),
+      evalResultsDir: join(dataDir, 'eval-results'),
       artefactsDir: process.env[ENV.artefactsDir] ?? join(root, 'APP', 'ARTEFACTS'),
     },
   };

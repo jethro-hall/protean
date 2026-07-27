@@ -1,0 +1,41 @@
+{
+  "id": "baseline",
+  "description": "Phase 2 A/B set: bloated prompts that fire the rewrite gate, with deterministic checks. Rewrite stays OFF unless arm B beats arm A on this set.",
+  "domainId": "generic",
+  "items": [
+    {
+      "id": "bloated-definition",
+      "prompt": "So basically what I am trying to get at, and I apologise in advance because I know I am rambling quite a lot here and probably repeating myself several times over, but what I really truly want to understand at the end of the day, when all is said and done, is the concept that people in the world of computing and specifically in the world of artificial intelligence and large language models keep referring to over and over again, namely the idea of quote unquote time to first token, sometimes abbreviated as TTFT, and I would really appreciate it if you could explain to me in plain simple English that anybody could understand what exactly this term means, why it matters at all, and whether it has anything to do with how responsive a chat application feels to the person using it, because I have heard people say it does but I am not sure I believe them, and please keep your answer reasonably short, ideally just a few sentences, definitely under two thousand characters in total.",
+      "checks": {
+        "mustInclude": ["token"],
+        "mustNotInclude": ["I cannot answer", "as an AI"],
+        "maxChars": 2000
+      }
+    },
+    {
+      "id": "bloated-arithmetic",
+      "prompt": "Right, so, here is the thing, and again forgive the extremely long-winded way I am going about asking what is fundamentally an extremely simple question, but I have a spreadsheet, well actually it is not really a spreadsheet, it is more of a mental model of a spreadsheet if you will, and in this notional spreadsheet of mine there are two numbers that matter for the purposes of this conversation, the first number being one hundred and twenty five, which represents revenue in thousands of dollars, and the second number being seventy five, which represents costs, also in thousands of dollars, and what I need you to do for me, if you would be so kind, is to tell me what the gross profit is in thousands of dollars, that is to say revenue minus costs, and also what the gross margin percentage works out to be, rounded to the nearest whole percent, and nothing else, keep it brief please.",
+      "checks": {
+        "mustInclude": ["50", "40"],
+        "mustNotInclude": ["I need more information"],
+        "maxChars": 1500
+      }
+    },
+    {
+      "id": "bloated-list",
+      "prompt": "Okay so bear with me here because context is everything, or so they say, and I want to give you all of it even though most of it is probably not strictly necessary for the task at hand, which as you will see in a moment is really quite trivial: I am putting together a tiny reference card for my team, we are a small team, lovely people, and this card is about the classic HTTP methods used in REST APIs, you know the ones, and specifically I want you to list exactly four of them, the four most commonly used ones for create, read, update and delete operations respectively, one per line, just the method names in capital letters, no explanations, no numbering, no punctuation, nothing fancy whatsoever, just the four method names and that is all.",
+      "checks": {
+        "mustInclude": ["POST", "GET", "PUT", "DELETE"],
+        "maxChars": 400
+      }
+    },
+    {
+      "id": "concise-control",
+      "prompt": "In one sentence, what does a cache do?",
+      "checks": {
+        "mustInclude": ["cache"],
+        "maxChars": 600
+      }
+    }
+  ]
+}

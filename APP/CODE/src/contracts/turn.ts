@@ -46,6 +46,8 @@ export interface TokenUsage {
 /** Per-stage wall-clock timings for a turn (Law 6). All milliseconds. */
 export interface TurnTimings {
   assembleMs?: number;
+  budgetMs?: number;
+  rewriteMs?: number;
   cacheCheckMs?: number;
   ttftMs?: number;
   modelMs?: number;

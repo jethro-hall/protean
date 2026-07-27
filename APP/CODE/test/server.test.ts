@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AgentCore } from '../src/agent/AgentCore.js';
 import { loadConfig } from '../src/config/loadConfig.js';
 import { createLogger } from '../src/logging/logger.js';
+import type { LlmGateway } from '../src/gateway/LlmGateway.js';
 import { createMemoryCacheStore } from '../src/watcher/cache.js';
 import { createMemorySessionStore } from '../src/watcher/sessionStore.js';
 import { startServer, type AppDeps } from '../src/server.js';
@@ -22,6 +23,13 @@ const fakeAgent: AgentCore = {
       costUsd: 0,
       providerDurationMs: 1,
     };
+  },
+};
+
+const fakeGateway: LlmGateway = {
+  provider: 'fake',
+  async *streamTurn() {
+    yield { type: 'error' as const, message: 'gateway should not be called in these tests' };
   },
 };
 
@@ -47,6 +55,7 @@ beforeAll(async () => {
     cache: createMemoryCacheStore(60, 10),
     sessions: createMemorySessionStore(),
     agent: fakeAgent,
+    gateway: fakeGateway,
   };
   server = startServer(deps);
   await new Promise<void>((resolve) => server.on('listening', resolve));

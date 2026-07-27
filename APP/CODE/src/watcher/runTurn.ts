@@ -9,21 +9,36 @@ import type {
   TurnTimings,
 } from '../contracts/turn.js';
 import type { LayerLogger } from '../logging/logger.js';
+import type { LlmGateway } from '../gateway/LlmGateway.js';
 import { assembleTurn } from './assemble.js';
+import { budgetMessages } from './budget.js';
 import { computeCacheKey, type CacheStore } from './cache.js';
 import { recordLineage, recordTelemetry } from './record.js';
+import { rewriteTurnInput, shouldRewriteTurn } from './rewrite.js';
 
 /**
  * The Watcher choke point (ARCHITECTURE §3): every turn bound for an answering
- * LLM passes through here. Deterministic path: assemble → cache-check →
- * (agent on miss) → record. Each stage is timed — Phase 0 measures, never assumes.
+ * LLM passes through here. Deterministic path: assemble → budget → (conditional
+ * rewrite) → cache-check → (agent on miss) → record. Each stage is timed —
+ * we measure, never assume.
  */
+export interface WatcherOptions {
+  turnTokenBudget: number;
+  rewriteEnabled: boolean;
+  rewriteBloatTokens: number;
+  /** Fast model for the Tier-1 rewrite; rewrite is skipped (and logged) if unset. */
+  fastModel?: string;
+}
+
 export interface TurnPipelineDeps {
   agent: AgentCore;
+  /** Used ONLY for the conditional Tier-1 rewrite; answering goes through the agent. */
+  gateway?: LlmGateway;
   cache: CacheStore;
   pack: DomainPack;
   history: ChatMessage[];
   model: string;
+  watcher: WatcherOptions;
   log: LayerLogger;
   promptHistoryDir: string;
   tokenTelemetryDir: string;
@@ -36,23 +51,64 @@ export async function* runTurn(
   request: TurnRequest,
   deps: TurnPipelineDeps,
 ): AsyncIterable<TurnEvent> {
-  const { agent, cache, pack, history, model, log } = deps;
+  const { agent, cache, pack, history, model, watcher, log } = deps;
   const startedAt = new Date().toISOString();
   const t0 = performance.now();
 
   const assembled = assembleTurn({ request, pack, history, model });
   const assembleMs = roundMs(performance.now() - t0);
 
+  const tBudget = performance.now();
+  const budget = budgetMessages(assembled.messages, watcher.turnTokenBudget);
+  assembled.messages = budget.messages;
+  const budgetMs = roundMs(performance.now() - tBudget);
+  if (budget.droppedMessages > 0) {
+    log.info(
+      'watcher.budget.trimmed',
+      `Budget trimmed ${budget.droppedMessages} oldest messages to fit ~${watcher.turnTokenBudget} tokens (now ~${budget.estimatedTokens})`,
+      { turnId: assembled.turnId, sessionId: assembled.sessionId },
+    );
+  }
+
+  // Conditional Tier-1 rewrite: deterministic gate, measured generative step (ARCHITECTURE §3.4).
+  let rewrite: string | null = null;
+  let rewriteMs: number | undefined;
+  const decision = shouldRewriteTurn(assembled, watcher.rewriteBloatTokens);
+  if (watcher.rewriteEnabled && decision.rewrite) {
+    if (deps.gateway === undefined || watcher.fastModel === undefined) {
+      log.warn(
+        'watcher.rewrite.skipped',
+        `Rewrite gate fired (${decision.reason}) but no fast model/gateway configured — proceeding without rewrite`,
+        { turnId: assembled.turnId },
+      );
+    } else {
+      const result = await rewriteTurnInput(deps.gateway, assembled, watcher.fastModel, log);
+      rewriteMs = result.rewriteMs;
+      if (result.text !== assembled.input) {
+        rewrite = result.text;
+        const lastIndex = assembled.messages.length - 1;
+        assembled.messages = assembled.messages.map((message, index) =>
+          index === lastIndex ? { ...message, content: result.text } : message,
+        );
+      }
+    }
+  }
+
   const tCache = performance.now();
   const cacheKey = computeCacheKey(assembled);
   const cached = cache.get(cacheKey);
   const cacheCheckMs = roundMs(performance.now() - tCache);
-  const timings: TurnTimings = { assembleMs, cacheCheckMs };
+  const timings: TurnTimings = {
+    assembleMs,
+    budgetMs,
+    cacheCheckMs,
+    ...(rewriteMs !== undefined ? { rewriteMs } : {}),
+  };
 
   log.info(
     'watcher.assembled',
-    `Assembled turn for domain "${assembled.domainId}" (${assembled.messages.length} messages, tier ${assembled.tier}); cache ${cached !== undefined ? 'HIT' : 'MISS'}`,
-    { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { cacheKey, assembleMs, cacheCheckMs } },
+    `Assembled turn for domain "${assembled.domainId}" (${assembled.messages.length} messages, ~${budget.estimatedTokens} tokens, tier ${assembled.tier}); ${decision.reason}; cache ${cached !== undefined ? 'HIT' : 'MISS'}`,
+    { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { cacheKey, assembleMs, budgetMs, cacheCheckMs } },
   );
 
   let output = '';
@@ -104,7 +160,7 @@ export async function* runTurn(
     input: assembled.input,
     systemPrompt: assembled.systemPrompt,
     assembledMessages: assembled.messages,
-    rewrite: null,
+    rewrite,
     tier: assembled.tier,
     model,
     cacheKey,
