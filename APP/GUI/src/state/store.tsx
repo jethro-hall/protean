@@ -1,3 +1,9 @@
+/**
+ * Full remount on edit: this module exports both React components and plain
+ * helpers (activeConversation, reducer, …). Fast Refresh cannot patch that
+ * mix and previously blanked the app with "useAppState outside AppStateProvider".
+ */
+/* @refresh reset */
 import {
   createContext,
   useContext,

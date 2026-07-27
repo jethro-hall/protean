@@ -538,3 +538,16 @@ Turn 1: TTFT 3.35 s, total 38.8 s. Turn 2: TTFT 3.30 s, total 43.3 s.
 **Honest boundary (repeated):** the "Ran a command / Used X integration" chips in the reference
 are REAL tool calls — those land with the Phase 5 tool registry + sandbox; the event pipeline and
 UI for them are already in place (`tool_use` mapping renders as a step the moment tools exist).
+
+## 2026-07-27 — Follow-up: engine restart SIGTERM + Vite HMR blank-out hardened
+
+**Context:** background notifications after the Claude-Desktop-parity push — engine task
+592209 exited 143 (SIGTERM), Vite logged `useAppState outside AppStateProvider`.
+
+**Findings:** exit 143 was the intentional `pkill` when restarting the engine to pick up
+`NARRATION_PROTOCOL_PROMPT` — not a crash. Replacement process is healthy (`/healthz` 200).
+Vite error was Fast Refresh failing on `store.tsx` (mix of React provider + plain helpers like
+`activeConversation`); a full reload recovered the GUI.
+
+**Fix:** marked `APP/GUI/src/state/store.tsx` with `/* @refresh reset */` so edits remount the
+module cleanly instead of blanking the tree. Engine + GUI both 200; GUI lint+tsc clean.
