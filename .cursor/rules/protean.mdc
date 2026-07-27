@@ -1,0 +1,32 @@
+---
+description: Protean enforced laws and phase discipline — always applied
+alwaysApply: true
+---
+
+# Protean — Cursor project rules (modern .mdc form)
+
+The canonical, human-readable law set is `.cursorrules` at the repo root and `AGENTS.md`.
+This file exists so newer Cursor versions (which prefer `.cursor/rules/*.mdc`) always load the
+same laws. **Do not duplicate law text** — obey `.cursorrules` and `AGENTS.md`; this is a pointer.
+
+## Non-negotiable behaviour
+- **Challenge before you comply.** Only do what's asked if it is the true and correct way; otherwise
+  question it with reasoning and propose the better path. Don't flatter, don't rubber-stamp.
+- **Evidence or nothing.** Never guess or invent an API/number. Unverifiable → `[VERIFY]`, check
+  official docs, else log a blocker in `docs/CHAT/BUILD_LOG.md`. Never hide a gap behind a stub.
+- **Phase discipline.** Work the current phase only (see `docs/ROADMAP.md`). Say so and stop if a
+  task belongs to a later phase.
+
+## The 8 laws (full text in `.cursorrules` / `AGENTS.md`)
+1 No workarounds — root cause only. 2 Nothing hardcoded (values/decisions/domain-facts → config/
+contracts/domain pack). 3 Small named functions in the right module. 4 Deterministic before
+generative. 5 Provider-agnostic core (vendor SDK only inside its adapter). 6 Full turn lineage
+logged. 7 SaaS-ready seams, single-tenant now. 8 Best practice or a one-page ADR.
+
+## Every change
+Plan → small typed functions → lint+tests pass → browser-verify if GUI → append
+`docs/CHAT/BUILD_LOG.md` → conventional commit → push.
+
+## Read for context (keep in context)
+`.cursorrules`, `AGENTS.md`, `docs/PROJECT_CHARTER.md`, `docs/ARCHITECTURE.md`,
+`docs/INFRASTRUCTURE.md`, `docs/NAMING_AND_LAYOUT.md`, `docs/UX_STANDARDS.md`, `docs/ROADMAP.md`.

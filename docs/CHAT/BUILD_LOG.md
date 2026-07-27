@@ -104,3 +104,46 @@ adapter behind the Gateway and record real TTFT/latency numbers here.
 API is confirmed against live docs (pending allowlist/restart).
 
 ---
+
+## 2026-07-27 · Claude · Phase 0 · Foundation rollout kit (plan + scripts + skill)
+
+**User request (verbatim):**
+> "i need step by step roll out plan to get the foundations correct, the rules/skills/description
+> etc if possible create scripts for import into cursor, claude and whatever else.. i can run
+> powershell"
+
+**Challenge raised (before building):** "import into Cursor/Claude/etc." is only literally possible
+for *file-driven* tools. Cursor (`.cursorrules`, `.cursor/rules/*.mdc`) and Claude Code (`CLAUDE.md`,
+`AGENTS.md`) auto-read rule files from the repo — those files ARE the import. Claude Desktop Projects
+and ChatGPT Projects are **paste-only** (instructions via a text box, no file import); the best a
+script can do is clipboard-load the brief. Built to that truth rather than faking an importer.
+Owner's rollout choices: (a) "I create the empty private repo, script pushes"; (b) foundation +
+governance scope (stop at the Phase 0 door); (c) yes — package a reusable Protean Claude skill.
+
+**What changed:**
+- `CLAUDE.md` (new) — Claude Code / Agent SDK auto-load pointer to `AGENTS.md` + docs; the 5 binding
+  rules + current phase. Thin pointer, no law duplication (single source of truth, no drift).
+- `.cursor/rules/protean.mdc` (new) — `alwaysApply` rule for modern Cursor; points at `.cursorrules`.
+- `scripts/` (new) — PowerShell rollout kit, all `$PSScriptRoot`-relative (no hardcoded G:\ path),
+  idempotent, secret-safe: `lib/common.ps1` (repo-root resolve, git-lock move-aside workaround,
+  clipboard, guards), `00-preflight.ps1` (git/node>=20/npm required; gh/docker/aws optional),
+  `01-github-push.ps1` (secret-guard on tracked files → wire origin → push main), `02-sync-agent-
+  rules.ps1` (verify the 4 file-driven rule files), `03-load-brief.ps1` (clipboard-load Claude/
+  ChatGPT/Cursor briefs), `04-infra-up.ps1` (compose up Postgres+Redis; refuses `change-me`
+  password), `protean.ps1` (menu/orchestrator), `README.md`.
+- `docs/ROLLOUT.md` (new) — the 6-step foundation plan (preflight → rules → GitHub → briefs → infra
+  → Phase 0 gate), the file-driven vs paste-only truth table, and a "foundation correct" checklist.
+- Saved a reusable **`protean` Claude skill** (desktop app) carrying the laws/architecture/infra/
+  phase/behaviour context — invocable by name in any session.
+
+**Agent response / status:** foundation + governance kit complete and committed. Push to GitHub is
+the owner's step (script ready, needs the empty private repo URL). `04-infra-up` waits until Phase 2
+data work. Bug fixed pre-commit: `00-preflight` array-scope (`+=` in a function → script-scoped
+`List`); `01` secret-guard rewritten to inspect `git ls-files` (tracked) not filesystem globs.
+
+**[VERIFY] unchanged:** docs egress + Bedrock model IDs still pending the allowlist/restart.
+
+**Next step:** owner runs `00-preflight`, creates the private repo, runs `01-github-push -RemoteUrl`;
+pastes the Claude/ChatGPT briefs; deletes `claude_desktop_config.EGRESS_PATCHED.json`. Then Phase 0.
+
+---
