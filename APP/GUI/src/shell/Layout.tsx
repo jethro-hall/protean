@@ -2,7 +2,7 @@ import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } fr
 import { ChatPane } from '../panes/ChatPane';
 import { ConversationsRail } from '../panes/ConversationsRail';
 import { PreviewPane } from '../panes/PreviewPane';
-import { useAppDispatch, useAppState } from '../state/store';
+import { useAppDispatch, useAppState } from '../state/useAppStore';
 import { SettingsMenu } from './SettingsMenu';
 
 /**

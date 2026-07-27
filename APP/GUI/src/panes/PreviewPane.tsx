@@ -1,5 +1,6 @@
 import { InfoHint } from '../components/InfoHint';
-import { activeConversation, useAppDispatch, useAppState, type Artefact } from '../state/store';
+import { activeConversation, type Artefact } from '../state/appState';
+import { useAppDispatch, useAppState } from '../state/useAppStore';
 
 /**
  * Tab/header labels: artefacts sharing a title are versions of the same

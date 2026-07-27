@@ -551,3 +551,22 @@ Vite error was Fast Refresh failing on `store.tsx` (mix of React provider + plai
 
 **Fix:** marked `APP/GUI/src/state/store.tsx` with `/* @refresh reset */` so edits remount the
 module cleanly instead of blanking the tree. Engine + GUI both 200; GUI lint+tsc clean.
+
+## 2026-07-27 — Fix Vite Fast Refresh blank-out (split store modules) + push
+
+**User request:** "Fix this and upload to gi" — the recurring Vite Fast Refresh
+`activeConversation` / `useAppDispatch` incompatible warning that blanked the GUI.
+
+**Root cause:** one module exported both React components and plain helpers/hooks.
+Vite Fast Refresh cannot patch that mix; invalidate left Layout mounted without a provider.
+
+**Fix (Law 3 — right module):**
+- `state/appState.ts` — types, constants, reducer, `activeConversation`
+- `state/appStateContext.ts` — shared contexts only
+- `state/AppStateProvider.tsx` — sole export: the provider component
+- `state/useAppStore.ts` — sole exports: `useAppState` / `useAppDispatch`
+- deleted the mixed `store.tsx`; updated all imports
+
+**Evidence:** after split, touching provider/hooks/Layout produces clean `hmr update`
+lines with no `incompatible` invalidate and no `useAppState outside AppStateProvider`.
+GUI lint + tsc clean; `/` returns 200.

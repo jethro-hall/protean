@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { InfoHint } from '../components/InfoHint';
 import { fetchDomains, type DomainSummary, type ModelTier } from '../lib/api';
-import { useAppDispatch, useAppState } from '../state/store';
+import { useAppDispatch, useAppState } from '../state/useAppStore';
 
 const TIERS: Array<{ id: ModelTier; label: string }> = [
   { id: 'fast', label: 'Fast' },

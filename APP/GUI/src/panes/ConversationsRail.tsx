@@ -1,4 +1,4 @@
-import { useAppDispatch, useAppState } from '../state/store';
+import { useAppDispatch, useAppState } from '../state/useAppStore';
 
 export function ConversationsRail() {
   const state = useAppState();

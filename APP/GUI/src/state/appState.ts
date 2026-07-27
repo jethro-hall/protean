@@ -1,16 +1,7 @@
 /**
- * Full remount on edit: this module exports both React components and plain
- * helpers (activeConversation, reducer, …). Fast Refresh cannot patch that
- * mix and previously blanked the app with "useAppState outside AppStateProvider".
+ * App state model — types, constants, reducer. No React components so Vite
+ * Fast Refresh can patch the provider module independently (Law 3: right module).
  */
-/* @refresh reset */
-import {
-  createContext,
-  useContext,
-  useReducer,
-  type Dispatch,
-  type ReactNode,
-} from 'react';
 import type { ActivityKind, ArtefactType, ModelTier, TurnDone } from '../lib/api';
 
 /** One real working step of a turn (thinking, tool run, engine stage). */
@@ -380,30 +371,6 @@ export function reducer(state: AppState, action: Action): AppState {
     default:
       return state;
   }
-}
-
-const StateContext = createContext<AppState | null>(null);
-const DispatchContext = createContext<Dispatch<Action> | null>(null);
-
-export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, initialState);
-  return (
-    <StateContext.Provider value={state}>
-      <DispatchContext.Provider value={dispatch}>{children}</DispatchContext.Provider>
-    </StateContext.Provider>
-  );
-}
-
-export function useAppState(): AppState {
-  const state = useContext(StateContext);
-  if (state === null) throw new Error('useAppState outside AppStateProvider');
-  return state;
-}
-
-export function useAppDispatch(): Dispatch<Action> {
-  const dispatch = useContext(DispatchContext);
-  if (dispatch === null) throw new Error('useAppDispatch outside AppStateProvider');
-  return dispatch;
 }
 
 export function activeConversation(state: AppState): Conversation {

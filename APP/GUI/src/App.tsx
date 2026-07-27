@@ -1,4 +1,4 @@
-import { AppStateProvider } from './state/store';
+import { AppStateProvider } from './state/AppStateProvider';
 import { Layout } from './shell/Layout';
 
 export default function App() {

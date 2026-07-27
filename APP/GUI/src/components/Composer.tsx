@@ -1,7 +1,8 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { InfoHint } from './InfoHint';
 import { useSendTurn } from '../state/useTurn';
-import { activeConversation, useAppState } from '../state/store';
+import { activeConversation } from '../state/appState';
+import { useAppState } from '../state/useAppStore';
 import {
   ATTACHMENT_ACCEPT,
   MAX_ATTACHMENTS_PER_TURN,

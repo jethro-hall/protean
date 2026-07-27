@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { streamTurn, type Attachment } from '../lib/api';
-import { useAppDispatch, useAppState, activeConversation } from './store';
+import { activeConversation } from './appState';
+import { useAppDispatch, useAppState } from './useAppStore';
 
 /** Send the user's input (plus any attached files) as a turn and stream the reply in. */
 export function useSendTurn(): (input: string, attachments?: Attachment[]) => void {

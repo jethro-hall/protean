@@ -2,14 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { InfoHint } from './InfoHint';
 import {
   activeConversation,
-  useAppDispatch,
-  useAppState,
   type Activity,
   type Artefact,
   type ChatMessage,
   type Conversation,
   type MessageSegment,
-} from '../state/store';
+} from '../state/appState';
+import { useAppDispatch, useAppState } from '../state/useAppStore';
 
 /** One real working step (Claude-Desktop-style). Thinking expands to its streamed text. */
 function ActivityRow({ activity, showHint }: { activity: Activity; showHint: boolean }) {
