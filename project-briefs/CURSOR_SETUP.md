@@ -3,8 +3,14 @@
 How to point Cursor at this project so it builds to the standard.
 
 ## 1. Open the repo
-Open the `protean/` folder as the Cursor workspace root. Cursor auto-loads `.cursorrules` from the
-root — that file is the enforced law set (mirror of `AGENTS.md`). Nothing to configure for that.
+Open the **`protean/`** folder as the Cursor workspace root (not a parent folder). Cursor then
+auto-loads:
+- `.cursorrules` + `.cursor/rules/*.mdc` — laws and file-scoped rules
+- `.cursor/agents/*.md` — project subagents (`@protean-architect`, `@protean-verifier`, …)
+- `.cursor/skills/*/SKILL.md` — workflow skills (project-builder, phase0, adr)
+
+If you open a parent directory, those project bindings will not load. Verify with
+`scripts/02-sync-agent-rules.sh` (Linux/macOS) or `scripts/02-sync-agent-rules.ps1` (Windows).
 
 ## 2. Give Cursor the fuller context
 `.cursorrules` is the hard constraints. For the *why* and the full picture, tell Cursor to read

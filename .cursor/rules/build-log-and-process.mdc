@@ -1,0 +1,16 @@
+---
+description: BUILD_LOG append-only discipline and conventional commit/PR process
+globs: docs/CHAT/**,CONTRIBUTING.md,AGENTS.md
+alwaysApply: false
+---
+
+# Build log & process
+
+- `docs/CHAT/BUILD_LOG.md` is **append-only**. Never edit or delete past entries; correct with a
+  new entry.
+- Every significant user-requested change gets: date · agent · phase · verbatim/summarised request ·
+  what changed · response/summary · commit/ADR links.
+- Substantial design chats → excerpt in `docs/CHAT/sessions/<date>-<slug>.md`, linked from the log.
+- Commits: Conventional Commits (`type(scope): subject`). Every meaningful step is its own commit.
+- PRs must pass CI, name the roadmap phase, confirm the 8 laws, link BUILD_LOG/ADR. Never commit
+  secrets.

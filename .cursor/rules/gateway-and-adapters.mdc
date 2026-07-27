@@ -1,0 +1,18 @@
+---
+description: Provider-agnostic gateway and AgentCore adapter boundaries (Law 5)
+globs: APP/CODE/**/gateway/**,APP/CODE/**/agent/**
+alwaysApply: false
+---
+
+# Gateway & adapters
+
+- Core logic talks to **interfaces only** (`LlmGateway`, `AgentCore`). Never import a vendor SDK
+  (`@anthropic-ai/*`, AWS Bedrock clients, OpenAI, etc.) outside `gateway/adapters/` or
+  `agent/adapters/`.
+- One adapter = one provider. Shared retry/backoff/circuit-breaker lives in the gateway, not in
+  each adapter.
+- Streaming is first-class. Per-stage timings (TTFT, total, cache hit/miss) go through the structured
+  logger — never bare `console.log`.
+- Model IDs, endpoints, timeouts, and prompts are config/contracts — not string literals in logic.
+- Before relying on SDK option names or Bedrock inference-profile IDs, confirm against live docs /
+  `aws bedrock list-inference-profiles`. Unverifiable → `[VERIFY]` + BUILD_LOG blocker.

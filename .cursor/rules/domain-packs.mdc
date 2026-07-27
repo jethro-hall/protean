@@ -1,0 +1,15 @@
+---
+description: Domain Packs are config-only shape-shifting — no engine forks
+globs: APP/CODE/**/domains/**
+alwaysApply: false
+---
+
+# Domain Packs
+
+- A domain pack (`domains/<name>/`) holds prompts, tools, vocabulary, templates, thresholds —
+  **config and contracts**, not a parallel engine.
+- Switching packs must change behaviour with **zero core-code change** (Law 2 / Charter §3).
+- Never hardcode Ride Electric / finance facts into `agent/`, `gateway/`, or `watcher/` logic.
+- New domains = new pack directory + pack manifest. Do not fork modules per domain.
+- Pack facts that look like code decisions still belong in the pack or `config/` — not buried in
+  adapters.

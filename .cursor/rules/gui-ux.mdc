@@ -1,0 +1,18 @@
+---
+description: Protean GUI laws — 3-pane layout, (i) affordance, theme tokens, browser-verify
+globs: APP/GUI/**,APP/PREVIEWPANE/**
+alwaysApply: false
+---
+
+# GUI / Preview Pane
+
+Full text: `docs/UX_STANDARDS.md`. Hard constraints when editing UI:
+
+- **3 panes:** left conversations · centre chat · right preview. Settings = small gear, top.
+- **(i) info affordance** on every required input/output. Hover/click reveals WHAT / WHY / EXAMPLE.
+  Hint copy is data (`FieldHint` in config), never hardcoded in the component.
+- **Theme tokens only** in `GUI/src/theme` (Law 2). No raw hex/rgb in components.
+- **No clutter.** If removing an element doesn't hurt understanding or action, remove it.
+- **Truthful state.** Loading, streaming, degraded, and error are visible and honest.
+- **Browser-verify** every GUI change (desktop / iPad / mobile). "It compiles" is not evidence.
+- Phase 0 has no GUI — if asked to build UI during Phase 0, stop and say so.

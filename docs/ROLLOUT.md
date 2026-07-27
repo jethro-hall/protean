@@ -50,9 +50,11 @@ Run everything from `protean\scripts\`. One entry point: `pwsh -File .\protean.p
 **Why:** confirms the four rule files exist so Cursor and Claude Code load Protean's 8 laws
 automatically. These are thin pointers to the canonical `AGENTS.md`/`.cursorrules` — no duplicated
 law text, so nothing drifts.
-**Files verified:** `.cursorrules` (Cursor classic), `.cursor\rules\protean.mdc` (Cursor modern),
-`CLAUDE.md` (Claude Code / SDK), `AGENTS.md` (any agent — canonical).
-**Done when:** all four report present.
+**Files verified:** `.cursorrules` (Cursor classic), `.cursor/rules/*.mdc` (always-on + scoped),
+`.cursor/agents/*.md`, `.cursor/skills/*/SKILL.md`, `CLAUDE.md` (Claude Code / SDK),
+`AGENTS.md` (any agent — canonical).
+**Done when:** core four + at least one agents/ and skills/ entry report present.
+Linux/macOS without pwsh: `bash scripts/02-sync-agent-rules.sh`.
 
 ## Step 3 — GitHub live (version control on)
 **Prereq (you):** create an **empty PRIVATE** repo on github.com — no README, licence, or .gitignore.
@@ -95,7 +97,7 @@ against docs.claude.com (needs the docs egress allowlist + a fresh session) and
 ## Definition of "foundation correct"
 - [ ] `00-preflight` passes (git, node>=20, npm).
 - [ ] Repo pushed to a private GitHub remote; `git status` clean.
-- [ ] `02-sync-agent-rules` shows all four rule files present.
+- [ ] `02-sync-agent-rules` shows core rule files + `.cursor/agents` + `.cursor/skills` present.
 - [ ] Claude Desktop + ChatGPT projects carry the pasted brief.
 - [ ] `claude_desktop_config.EGRESS_PATCHED.json` deleted (secrets); `.env` files gitignored.
 - [ ] BUILD_LOG updated with this rollout.

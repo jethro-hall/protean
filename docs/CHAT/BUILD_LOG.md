@@ -185,3 +185,27 @@ pastes the Claude/ChatGPT briefs; deletes `claude_desktop_config.EGRESS_PATCHED.
 list; then start Phase 0 code (`AgentCore` + Gateway + Claude adapter + logger + streamed spike).
 
 ---
+
+## 2026-07-27 · Cursor · Phase 0 · Cursor agents/skills/rules tied to GitHub
+
+**User request (verbatim):**
+> "look at the past agent discussion, i wnat thi to be tied into github and i need to add
+> rules/agents etc"
+
+**What changed:**
+- Confirmed GitHub already live: private `https://github.com/jethro-hall/protean`, `origin/main`
+  clean. Gap was Cursor project bindings (rules beyond the pointer, plus agents + skills).
+- Added focused rules (no law duplication): `gateway-and-adapters.mdc`, `gui-ux.mdc`,
+  `domain-packs.mdc`, `build-log-and-process.mdc` alongside existing `protean.mdc`.
+- Added project agents: `protean-architect`, `protean-verifier`, `phase-gate`, `build-log-scribe`.
+- Added project skills: `protean-project-builder`, `protean-phase0`, `protean-adr`.
+- Index at `.cursor/README.md`. Extended `02-sync-agent-rules.ps1`; added bash twin
+  `02-sync-agent-rules.sh` (this VM has no pwsh). Updated `CURSOR_SETUP.md` + `ROLLOUT.md`.
+
+**Challenge raised:** opening workspace at `/var/dcf` (parent) will not auto-load
+`protean/.cursor/*`. Correct root is the `protean/` folder — documented again in CURSOR_SETUP.
+
+**Next step:** reopen Cursor on `protean/`; run `bash scripts/02-sync-agent-rules.sh`; then
+`aws login` to pin Bedrock model IDs and start Phase 0 code.
+
+---
