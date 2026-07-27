@@ -147,3 +147,41 @@ data work. Bug fixed pre-commit: `00-preflight` array-scope (`+=` in a function 
 pastes the Claude/ChatGPT briefs; deletes `claude_desktop_config.EGRESS_PATCHED.json`. Then Phase 0.
 
 ---
+
+## 2026-07-27 · Cursor · Phase 0 · Repo put in order on the build VM; [VERIFY]s resolved
+
+**User request (verbatim):**
+> "You are to check trhis repository, there are skills/agents/descriptions etc everything... Get it
+> in order to start the projectt"
+
+**What changed:**
+- **Removed an accidental nested duplicate clone** at `protean/protean/` (untracked). Verified
+  lossless before deletion: byte-identical to the root (`diff -rq` clean), same HEAD `96620ec`,
+  clean status, no stash, no unique branches.
+- **Node upgraded 18 → 22** (`dnf install nodejs22` + `alternatives --set node /usr/bin/node-22`).
+  Distro node 18 failed the project's own preflight floor (>= 20). Now v22.21.1 / npm 10.9.4.
+- **Resolved the docs-egress [VERIFY] (was the standing blocker):** `docs.claude.com` is reachable
+  from this VM (redirects → `code.claude.com/docs`). Confirmed against live docs:
+  `@anthropic-ai/claude-agent-sdk` latest **0.3.220** (engines node >= 18);
+  `query({ prompt, options })` with `Options.model: string` is the current API; Bedrock routing is
+  `CLAUDE_CODE_USE_BEDROCK=1` + `AWS_REGION` + `ANTHROPIC_MODEL` (inference-profile ID or ARN),
+  bearer auth via `AWS_BEARER_TOKEN_BEDROCK`. `.env.example` updated to the verified names.
+- **Resolved the host-spec [VERIFY]s in `docs/INFRASTRUCTURE.md` §1 — with a discrepancy:** the
+  box is a **g4dn.xlarge** (IMDS): 4 vCPU, 16 GiB RAM, **Tesla T4 16 GB** — not the g6.2xlarge
+  (8 vCPU / 32 GiB / L4 24 GB) in the owner brief. Doc table updated to measured values with a
+  flagged discrepancy note; GPU sizing in §5 must be re-checked against 16 GB.
+
+**Still blocked / owner input needed:**
+- **AWS session expired** on this VM — cannot run
+  `aws bedrock list-inference-profiles --region ap-southeast-2` to pin exact model IDs.
+  Fix is `aws login` (CLI 2.32.20 present, supports it); needs owner confirmation, and on a
+  headless VM `aws login --remote` (URL + code flow).
+- `scripts/` are PowerShell-only and this VM has no `pwsh`. Not a Phase 0 blocker (repo is already
+  pushed; rules files verified present), but the kit is inert here. Options: install pwsh, or add
+  bash equivalents if we keep working from this box.
+- Owner to confirm whether g4dn.xlarge is the intended host or the g6.2xlarge exists elsewhere.
+
+**Next step:** owner confirms `aws login`; pin `ANTHROPIC_MODEL` from the ap-southeast-2 profile
+list; then start Phase 0 code (`AgentCore` + Gateway + Claude adapter + logger + streamed spike).
+
+---

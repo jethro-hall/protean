@@ -24,13 +24,19 @@ today and portable to a fleet later.
 
 | Attribute | Value | Source |
 |---|---|---|
-| Instance | AWS **g6.2xlarge** | owner |
-| vCPU / RAM | 8 vCPU / 32 GiB | AWS g6.2xlarge spec `[VERIFY on box: nproc; free -g]` |
-| GPU | **1× NVIDIA L4** (24 GB GDDR6) | g6 family = L4 `[VERIFY: nvidia-smi]` |
+| Instance | AWS **g4dn.xlarge** (owner brief said g6.2xlarge — measured otherwise, see note) | IMDS, measured 2026-07-27 |
+| vCPU / RAM | 4 vCPU / 16 GiB | `nproc`; `free -g`, measured 2026-07-27 |
+| GPU | **1× NVIDIA Tesla T4** (16 GB GDDR6) | `nvidia-smi`, measured 2026-07-27 |
 | AMI | Amazon **Deep Learning Base AMI, Single CUDA (Amazon Linux 2023)**, build 20260609 | owner |
 | Region | ap-southeast-2 (Sydney) — matches Bedrock egress allowlist | `.env.example` |
 
-**Design consequence.** One L4 with 24 GB is a *shared, scarce* resource. Protean does **not**
+> **Discrepancy flagged 2026-07-27:** the owner brief specified g6.2xlarge (8 vCPU / 32 GiB /
+> L4 24 GB). The box this repo actually runs on is a **g4dn.xlarge** — half the vCPU/RAM and a
+> T4 with 16 GB. All GPU sizing below assumed 24 GB; re-check batch sizes and any local
+> fast-model choice against 16 GB before enabling `protean-gpu`. If a g6.2xlarge is still the
+> intended target, this VM is not it.
+
+**Design consequence.** One GPU with 16 GB is a *shared, scarce* resource. Protean does **not**
 host a large base LLM on it by default — the reasoning models are called via the gateway (Bedrock/
 API). The GPU is reserved for: (a) **embeddings** for Qdrant, (b) optional **small local fast-model**
 for the WatcherLLM cheap path, and (c) **cache acceleration** (§5). GPU contention is a first-class
@@ -147,7 +153,7 @@ correctness (fail-open to the layer below, ultimately to a fresh LLM call).
 | L3 semantic | Qdrant | "we've answered something like this" recall | embedding similarity |
 
 ### 5.2 GPU-backed acceleration (`[VERIFY]` on hardware before committing)
-The L4 is used to make the cache and large chats fast, in priority order:
+The GPU (T4, 16 GB — see §1) is used to make the cache and large chats fast, in priority order:
 1. **Embeddings** for L3 semantic cache + Qdrant — batched on GPU; the single highest-value GPU use.
 2. **KV-cache / large-context handling for a local fast model** (WatcherLLM cheap path + summar/
    compaction of long chats). This is the direct answer to "Claude Desktop struggles on large
@@ -166,7 +172,7 @@ and it contends with embeddings. Reasoning stays on Bedrock/API via the gateway.
 an ADR and measured evidence.
 
 ### 5.4 GPU as a scheduled resource
-One L4, many session sandboxes. GPU work is queued through a single accessor (a `protean-gpu`
+One GPU, many session sandboxes. GPU work is queued through a single accessor (a `protean-gpu`
 service or in-gateway scheduler) with per-session fairness and a hard concurrency cap. No sandbox
 gets raw device access. `[VERIFY]` NVIDIA Container Toolkit present on the DL Base AMI —
 `nvidia-smi` in a test container — before compose declares `gpus`.
