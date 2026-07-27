@@ -284,3 +284,43 @@ started; URL+code relayed) to pin `ANTHROPIC_MODEL`/`PROTEAN_FAST_MODEL` from
 TTFT/total/cache numbers. Until then Phase 0 is code-complete but NOT accepted.
 
 **Next step:** Phase 1 GUI shell in parallel while awaiting the auth code.
+
+---
+
+## 2026-07-27 · Cursor · Phase 1 · Three-pane GUI shell built and browser-verified (live stream pending creds)
+
+**What changed (APP/GUI, all new):** React 19 + Vite 8 + TS + Tailwind 4.
+- `src/theme/tokens.css` — the ONLY place visual values live (Law 2): executive pascal palette
+  (ARCHITECTURE §7), fonts, ≥44px touch-target token, pane widths.
+- `src/shell/` — `Layout.tsx` (responsive contract: desktop 3 columns · iPad chat+collapsible
+  preview · mobile drawers + scrim), `SettingsMenu.tsx` (gear: model tier Fast/Strong + domain pack
+  list fetched live from the engine, honest loading/unavailable states).
+- `src/panes/` — `ConversationsRail.tsx`, `ChatPane.tsx`, `PreviewPane.tsx` (present per the 3-pane
+  contract, HONESTLY stubbed: "Live artefacts land here in a later phase" — no fake content).
+- `src/components/` — `InfoHint.tsx` (the mandatory (i) affordance: hover = transient, click = pin,
+  Esc/click-away dismiss, aria-describedby, content from `src/config/fieldHints.ts` DATA not code),
+  `Composer.tsx`, `MessageList.tsx` (streaming cursor, "Waiting for first token…" status, per-answer
+  TTFT/total/cache stats line with (i)).
+- `src/state/store.tsx` (context+reducer), `src/state/useTurn.ts`, `src/lib/api.ts` (SSE reader for
+  POST /api/turn; engine error JSON → human wording).
+- Vite dev proxy `/api` → engine :8787 (`PROTEAN_ENGINE_ORIGIN` overridable, no hardcoded hosts).
+
+**Browser verification (real click-through, screenshots in chat):**
+- Desktop (>1024): 3 columns, rail static; settings gear lists BOTH packs live from the engine
+  (finance + generic) and tier toggle works.
+- Mobile 390px: rail → hamburger drawer with scrim; chat full-width. iPad 820px: chat + preview
+  side-by-side. Preview toggle honest stub.
+- (i) hints: hover + click-pin + Esc verified. **Two bugs found by click-through and root-fixed:**
+  (1) hover-then-click closed the hint instantly (hover state and pin state now separate — touch
+  works); (2) hint popover inherited the legend's uppercase style and overflowed the viewport edge
+  (style reset + direction-aware placement).
+- Truthful states: sending with no model configured shows an honest error banner with the exact fix
+  ("No model configured for tier "fast". Set PROTEAN_FAST_MODEL in .env — pin IDs via aws bedrock
+  list-inference-profiles"); empty assistant placeholder is dropped on failure; raw JSON no longer
+  leaks into user-facing wording.
+
+**Testing:** GUI tsc strict + eslint clean; production build passes (65 kB gz JS). Engine suite
+still 30/30. **Phase 1 acceptance NOT yet claimable:** the streamed-reply + TTFT<800ms check needs
+live creds — same blocker as Phase 0 (AWS re-auth waiting on owner's authorization code).
+
+**Next step:** Phase 2 (persistent history + full Watcher + eval harness) while waiting.
