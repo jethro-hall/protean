@@ -26,15 +26,47 @@ First domain: Ride Electric finance. Must shape-shift to medical/education/gener
 ## STACK (see ADRs before changing)
 - Frontend: React + Vite + TypeScript + Tailwind. Theme tokens ONLY in GUI/src/theme (Law 2).
 - Backend: Node + TypeScript. Streaming: SSE first.
-- Agent loop: Claude Agent SDK behind an AgentCore interface. VERIFY SDK APIs against current docs.
+- Agent loop: Claude Agent SDK (@anthropic-ai/claude-agent-sdk) behind an AgentCore interface.
+  VERIFY exact SDK option/field names + Bedrock model IDs against docs.claude.com and
+  `aws bedrock list-inference-profiles --region ap-southeast-2` — they are version-sensitive.
 - Types/validation: zod (or TS types) in src/contracts. Nothing crosses a boundary untyped.
+
+## INFRASTRUCTURE DECISIONS (confirmed 2026-07-27 — see docs/INFRASTRUCTURE.md)
+- GATEWAY/PROXY owns all provider creds + wire protocols; resilient to transient upstream links
+  (refresh-before-expiry, retry+backoff, circuit breaker, streaming continuity). BOTH the Claude
+  (Bedrock) and direct-API adapters are wired behind it from the start. App speaks ONE internal
+  protocol to the gateway — never a vendor SDK.
+- DATABASES: PostgreSQL + pgvector for the POC (truth + vectors, one service). Qdrant is DEFERRED
+  behind a VectorStore interface — swap only with an ADR when scale/filtering justify it.
+- REDIS = cache (hot/ephemeral). Losing it costs latency, never correctness.
+- GPU (NVIDIA L4) = COMPUTE, not a cache. Embeddings + optional small local fast-model to accelerate
+  long-chat compaction/retrieval. Caching lives in Redis/RAM. GPU optional/degradable — nothing
+  requires it to be correct. GPU access only via the protean-gpu accessor, never raw to a sandbox.
+- DOCKER: everything non-app in ONE common compose (infra/docker-compose.yml). Naming: protean-<role>
+  services, protean_<service>_data volumes, protean-net network, static root /srv/protean/.
+  Pinned image tags, healthchecks, named volumes. See docs/NAMING_AND_LAYOUT.md.
+- SESSION SANDBOX: one ephemeral instance per working session (protean-sandbox-<sessionId>) via a
+  SandboxProvider seam (LocalDockerProvider now, fleet later).
+
+## GUI RULES (see docs/UX_STANDARDS.md)
+- 3 panes: left conversations rail · centre chat · right preview pane; settings gear top.
+- (i) INFO AFFORDANCE MANDATORY on every required input/output: hover/click reveals what/why/(example);
+  hidden until then; zero clutter. Text is DATA (a FieldHint in config), not hardcoded in a component.
+- Theme = executive pascal palette; tokens only in GUI/src/theme (Law 2). Orange is an accent, sparing.
+- BROWSER-VERIFY every GUI change (real browser, click-through, wording sense-check, responsive
+  mobile/iPad/desktop, honest loading/streaming/degraded/error states). "It compiles" is NOT evidence.
 
 ## SECURITY (POC posture)
 Security is deferred EXCEPT: never commit secrets; load from env/secret-store; redact secrets in logs.
 
 ## EVERY CHANGE
-Plan → write as small typed functions → run lint+tests (must pass) → append to docs/CHAT/BUILD_LOG.md
-(user request + change + response) → commit with a conventional message → push.
+Plan → write as small typed functions → run lint+tests (must pass) → browser-verify if GUI →
+append to docs/CHAT/BUILD_LOG.md (user request + change + response) → commit (conventional) → push.
+
+## WORKING WITH THE OWNER (Jeff)
+CHALLENGE BEFORE YOU COMPLY. Only do what's asked if it's the true and correct way; otherwise question
+it with logic and reasoning and offer the better path. Don't flatter. Don't rubber-stamp. He is up for
+challenge and wants the knowledge.
 
 ## WHEN UNSURE
 Mark unverifiable facts [VERIFY], check official docs, and if still blocked, LOG IT. Never guess,

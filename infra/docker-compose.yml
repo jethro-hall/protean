@@ -1,0 +1,73 @@
+# Protean — common compose (the ONE compose for the whole non-app estate)
+# See docs/INFRASTRUCTURE.md and docs/NAMING_AND_LAYOUT.md. Pinned tags only; no :latest.
+# [VERIFY] image tags to latest-stable at build time; GPU block only after nvidia-smi works in a
+# test container. Secrets come from infra/.env (gitignored) — NEVER baked into an image.
+#
+# Phase note: protean-app runs ON-HOST in Phase 0 for fastest SDK iteration; the service stub below
+# exists so the seam is present. protean-qdrant is DEFERRED (ADR-0002) — not enabled here yet.
+
+name: protean
+
+services:
+  protean-pg:
+    image: pgvector/pgvector:pg16   # [VERIFY tag] Postgres 16 + pgvector
+    container_name: protean-pg
+    environment:
+      POSTGRES_USER: ${PG_USER:?set in infra/.env}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?set in infra/.env}
+      POSTGRES_DB: ${PG_DB:-protean}
+    volumes:
+      - protean_pg_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [protean-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DB:-protean}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  protean-cache:
+    image: redis:7-alpine   # [VERIFY tag]
+    container_name: protean-cache
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - protean_redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks: [protean-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # protean-gateway — LLM proxy (transient-link resilient). Built from APP/CODE (gateway target).
+  # Enabled once Phase 0 code exists; stub kept here so the seam is declared.
+  # protean-gateway:
+  #   build: { context: .., dockerfile: infra/gateway/Dockerfile }
+  #   container_name: protean-gateway
+  #   env_file: [infra/.env]
+  #   depends_on:
+  #     protean-pg: { condition: service_healthy }
+  #     protean-cache: { condition: service_healthy }
+  #   networks: [protean-net]
+
+  # protean-gpu — embeddings + optional small local fast-model (ADR-0003).
+  # [VERIFY] NVIDIA Container Toolkit before enabling the deploy.resources.reservations.devices block.
+  # protean-gpu:
+  #   build: { context: .., dockerfile: infra/gpu/Dockerfile }
+  #   container_name: protean-gpu
+  #   networks: [protean-net]
+  #   # deploy:
+  #   #   resources:
+  #   #     reservations:
+  #   #       devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+
+  # protean-qdrant — DEFERRED (ADR-0002). Do not enable until the pgvector→Qdrant trigger + ADR.
+
+networks:
+  protean-net:
+    driver: bridge
+
+volumes:
+  protean_pg_data:
+  protean_redis_data:
