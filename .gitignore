@@ -19,4 +19,6 @@ coverage/
 
 # Do NOT ignore APP/ARTEFACTS or APP/LLMBUILD_DATA — owner wants the full build data in the repo
 # (only the secrets above are excluded).
-*.md
+# NOTE: a blanket `*.md` ignore was reverted 2026-07-27 — it silently blocked all future ADRs,
+# BUILD_LOG session files, and READMEs (governance requires those committed). If specific markdown
+# clutter must be ignored, add a targeted path here instead.
