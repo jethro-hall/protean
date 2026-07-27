@@ -1,8 +1,45 @@
+import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { ChatPane } from '../panes/ChatPane';
 import { ConversationsRail } from '../panes/ConversationsRail';
 import { PreviewPane } from '../panes/PreviewPane';
 import { useAppDispatch, useAppState } from '../state/store';
 import { SettingsMenu } from './SettingsMenu';
+
+/**
+ * Drag handle on the preview pane's left edge (desktop). Pointer capture keeps
+ * the drag alive even when the cursor crosses the preview iframe.
+ */
+function PreviewResizeHandle({ currentWidth }: { currentWidth: number }) {
+  const dispatch = useAppDispatch();
+  const drag = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    drag.current = { startX: event.clientX, startWidth: currentWidth };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (drag.current === null) return;
+    dispatch({
+      type: 'setPreviewWidth',
+      width: drag.current.startWidth + (drag.current.startX - event.clientX),
+    });
+  };
+  const onPointerUp = () => {
+    drag.current = null;
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-label="Resize preview pane"
+      aria-orientation="vertical"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      className="hidden w-1.5 shrink-0 cursor-col-resize touch-none bg-line transition-colors hover:bg-accent-blue active:bg-accent-blue md:block"
+    />
+  );
+}
 
 /**
  * Responsive contract (ARCHITECTURE §2): desktop = 3 columns; iPad = chat +
@@ -65,17 +102,21 @@ export function Layout() {
 
         <ChatPane />
 
-        {/* Preview: ONE instance — side column from md up, drawer below md
-            (two mounts would mean duplicate live iframes) */}
+        {/* Preview: ONE instance — resizable side column from md up, drawer
+            below md (two mounts would mean duplicate live iframes) */}
         {state.previewOpen && (
-          <div className="flex max-md:absolute max-md:inset-0 max-md:z-20 md:w-preview md:shrink-0">
+          <div
+            style={{ '--preview-w': `${state.previewWidth}px` } as CSSProperties}
+            className="flex max-md:absolute max-md:inset-0 max-md:z-20 md:w-[var(--preview-w)] md:shrink-0"
+          >
             <button
               type="button"
               aria-label="Close preview"
               onClick={() => dispatch({ type: 'togglePreview' })}
               className="flex-1 bg-ink/30 md:hidden"
             />
-            <div className="border-l border-line max-md:w-[85%] max-md:shadow-xl md:w-full">
+            <PreviewResizeHandle currentWidth={state.previewWidth} />
+            <div className="min-w-0 border-l border-line max-md:w-[85%] max-md:shadow-xl md:flex-1 md:border-l-0">
               <PreviewPane />
             </div>
           </div>

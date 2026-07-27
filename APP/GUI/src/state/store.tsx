@@ -16,6 +16,16 @@ export interface Activity {
   done: boolean;
 }
 
+/**
+ * Assistant output in stream order — narration paragraphs interleave with
+ * working steps and artefact builds, Claude-Desktop-style, instead of steps
+ * being lumped above one text blob.
+ */
+export type MessageSegment =
+  | { kind: 'text'; text: string }
+  | { kind: 'activity'; activityId: string }
+  | { kind: 'artefact'; artefactId: string; title: string; artefactType: ArtefactType };
+
 export interface Artefact {
   id: string;
   artefactType: ArtefactType;
@@ -34,8 +44,10 @@ export interface ChatMessage {
   stats?: TurnDone;
   /** Names of files the user attached to this message. */
   attachmentNames?: string[];
-  /** The turn's real working steps, shown Claude-Desktop-style above the answer. */
+  /** The turn's real working steps (state lives here; order lives in segments). */
   activities?: Activity[];
+  /** Assistant only: everything that streamed, in arrival order. */
+  segments?: MessageSegment[];
 }
 
 export type ConversationStatus = 'idle' | 'waiting' | 'streaming' | 'error';
@@ -61,7 +73,13 @@ export interface AppState {
   settings: Settings;
   railOpen: boolean;
   previewOpen: boolean;
+  /** User-adjusted preview pane width (px, desktop only). */
+  previewWidth: number;
 }
+
+export const PREVIEW_WIDTH_DEFAULT_PX = 416;
+export const PREVIEW_WIDTH_MIN_PX = 320;
+export const PREVIEW_WIDTH_MAX_PX = 880;
 
 export type Action =
   | { type: 'newConversation' }
@@ -89,6 +107,7 @@ export type Action =
   | {
       type: 'artefactStart';
       conversationId: string;
+      messageId: string;
       artefactId: string;
       artefactType: ArtefactType;
       title: string;
@@ -106,7 +125,8 @@ export type Action =
   | { type: 'setTier'; tier: ModelTier }
   | { type: 'setDomain'; domainId: string }
   | { type: 'toggleRail' }
-  | { type: 'togglePreview' };
+  | { type: 'togglePreview' }
+  | { type: 'setPreviewWidth'; width: number };
 
 const TITLE_MAX_CHARS = 44;
 
@@ -133,6 +153,7 @@ export function initialState(): AppState {
     settings: { tier: 'fast', domainId: 'generic' },
     railOpen: false,
     previewOpen: false,
+    previewWidth: PREVIEW_WIDTH_DEFAULT_PX,
   };
 }
 
@@ -175,6 +196,15 @@ function updateMessage(
   };
 }
 
+/** Append streamed text preserving order: extend the trailing text segment or open a new one. */
+function appendTextSegment(segments: MessageSegment[], text: string): MessageSegment[] {
+  const last = segments.at(-1);
+  if (last?.kind === 'text') {
+    return [...segments.slice(0, -1), { kind: 'text', text: last.text + text }];
+  }
+  return [...segments, { kind: 'text', text }];
+}
+
 export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'newConversation': {
@@ -203,7 +233,7 @@ export function reducer(state: AppState, action: Action): AppState {
         ...conversation,
         messages: [
           ...conversation.messages,
-          { id: action.messageId, role: 'assistant', content: '', streaming: true },
+          { id: action.messageId, role: 'assistant', content: '', streaming: true, segments: [] },
         ],
         status: 'waiting',
       }));
@@ -212,6 +242,7 @@ export function reducer(state: AppState, action: Action): AppState {
         ...updateMessage(conversation, action.messageId, (message) => ({
           ...message,
           content: message.content + action.text,
+          segments: appendTextSegment(message.segments ?? [], action.text),
         })),
         status: 'streaming',
       }));
@@ -232,6 +263,7 @@ export function reducer(state: AppState, action: Action): AppState {
             ...(message.activities ?? []),
             { id: action.activityId, kind: action.kind, label: action.label, text: '', done: false },
           ],
+          segments: [...(message.segments ?? []), { kind: 'activity', activityId: action.activityId }],
         })),
       );
     case 'activityDelta':
@@ -256,7 +288,18 @@ export function reducer(state: AppState, action: Action): AppState {
       );
     case 'artefactStart': {
       const next = updateConversation(state, action.conversationId, (conversation) => ({
-        ...conversation,
+        ...updateMessage(conversation, action.messageId, (message) => ({
+          ...message,
+          segments: [
+            ...(message.segments ?? []),
+            {
+              kind: 'artefact',
+              artefactId: action.artefactId,
+              title: action.title,
+              artefactType: action.artefactType,
+            },
+          ],
+        })),
         artefacts: [
           ...conversation.artefacts,
           {
@@ -323,6 +366,11 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, railOpen: !state.railOpen };
     case 'togglePreview':
       return { ...state, previewOpen: !state.previewOpen };
+    case 'setPreviewWidth':
+      return {
+        ...state,
+        previewWidth: Math.min(PREVIEW_WIDTH_MAX_PX, Math.max(PREVIEW_WIDTH_MIN_PX, action.width)),
+      };
     default:
       return state;
   }

@@ -1,0 +1,280 @@
+
+{
+  "name": "Stripe payment → HubSpot deal sync",
+  "description": "When a Stripe payment succeeds, upsert customer to HubSpot and create a closed-won deal. On failure, alert #payments-alerts on Slack.",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "payment_intent.succeeded",
+        "authentication": "oAuth2",
+        "events": [
+          "payment_intent.succeeded"
+        ]
+      },
+      "id": "stripe_webhook_trigger",
+      "name": "Stripe Webhook",
+      "type": "n8n-nodes-base.stripe",
+      "typeVersion": 1,
+      "position": [100, 200],
+      "webhookId": "{{ $env.STRIPE_WEBHOOK_ID }}"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and normalize Stripe event data\nconst data = $input.first().json;\nconst pi = data.data?.object || {};\n\nconst stripeEventId = data.id;\nconst customerId = pi.customer;\nconst customerEmail = pi.receipt_email || pi.billing_details?.email;\nconst amountCents = pi.amount;\nconst amountDollars = amountCents / 100;\nconst product = pi.metadata?.product || null;\nconst description = pi.description;\n\nreturn {\n  stripeEventId,\n  customerId,\n  customerEmail,\n  amountCents,\n  amountDollars,\n  product,\n  description,\n  fullEvent: data\n};"
+      },
+      "id": "extract_stripe_data",
+      "name": "Extract Stripe Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Apply fallback if product is missing\nconst data = $input.first().json;\nif (!data.product || data.product.trim() === '') {\n  data.product = 'Ride Electric Subscription';\n  data.productFlagged = true; // Flag for monitoring\n} else {\n  data.productFlagged = false;\n}\nreturn data;"
+      },
+      "id": "fallback_product",
+      "name": "Apply Product Fallback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build deal name\nconst data = $input.first().json;\nconst dealName = `${data.product} - ${data.customerEmail}`;\ndata.dealName = dealName;\nreturn data;"
+      },
+      "id": "build_deal_name",
+      "name": "Build Deal Name",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.hubapi.com/crm/v3/objects/deals/search",
+        "authentication": "oAuth2",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\"filters\":[{\"propertyName\":\"dealname\",\"operator\":\"EQ\",\"value\":\"{{ $node.build_deal_name.json.dealName }}\"}],\"limit\":1}"
+      },
+      "id": "hubspot_check_existing_deal",
+      "name": "HubSpot: Check Existing Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 200],
+      "credentials": {
+        "httpBasicAuth": "hubspot_oauth"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "key": "results.length",
+              "operator": "greaterThan",
+              "value": 0
+            }
+          ]
+        }
+      },
+      "id": "check_deal_exists",
+      "name": "Deal Already Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts/upsert",
+        "authentication": "oAuth2",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\"inputs\":[{\"id_property\":\"email\",\"idempotencyKey\":\"{{ $node.extract_stripe_data.json.stripeEventId }}\",\"properties\":{\"email\":\"{{ $node.extract_stripe_data.json.customerEmail }}\",\"firstname\":\"\",\"lastname\":\"\"}}]}"
+      },
+      "id": "hubspot_upsert_contact",
+      "name": "HubSpot: Upsert Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1300, 50]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/deals",
+        "authentication": "oAuth2",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\"properties\":{\"dealname\":\"{{ $node.build_deal_name.json.dealName }}\",\"dealstage\":\"closedwon\",\"amount\":\"{{ $node.build_deal_name.json.amountDollars }}\",\"hubspot_owner_id\":\"\"}}"
+      },
+      "id": "hubspot_create_deal",
+      "name": "HubSpot: Create Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1500, 50]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "{{ $env.SLACK_WEBHOOK_PAYMENTS_ALERTS }}",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParametersJson": "{\"text\":\":warning: Payment sync failed\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Stripe → HubSpot sync failed*\"}},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"**Stripe Event ID:** `{{ $node.extract_stripe_data.json.stripeEventId }}`\"}},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"**Error:** ```{{ $error.message }}```\"}}]}"
+      },
+      "id": "slack_error_alert",
+      "name": "Slack: Alert #payments-alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1700, 200]
+    }
+  ],
+  "connections": {
+    "stripe_webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "extract_stripe_data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract_stripe_data": {
+      "main": [
+        [
+          {
+            "node": "fallback_product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fallback_product": {
+      "main": [
+        [
+          {
+            "node": "build_deal_name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "build_deal_name": {
+      "main": [
+        [
+          {
+            "node": "hubspot_check_existing_deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "hubspot_check_existing_deal": {
+      "main": [
+        [
+          {
+            "node": "check_deal_exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_deal_exists": {
+      "main": [
+        [],
+        [
+          {
+            "node": "hubspot_upsert_contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "hubspot_upsert_contact": {
+      "main": [
+        [
+          {
+            "node": "hubspot_create_deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "slack_error_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "hubspot_create_deal": {
+      "main": [
+        []
+      ],
+      "error": [
+        [
+          {
+            "node": "slack_error_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC"
+  },
+  "credentialsData": {
+    "stripe_oauth": {
+      "type": "oauth2",
+      "id": "stripe_creds",
+      "displayName": "Stripe (OAuth2)"
+    },
+    "hubspot_oauth": {
+      "type": "oauth2",
+      "id": "hubspot_creds",
+      "displayName": "HubSpot (OAuth2)"
+    }
+  },
+  "variables": {
+    "STRIPE_WEBHOOK_ID": "${STRIPE_WEBHOOK_ID}",
+    "SLACK_WEBHOOK_PAYMENTS_ALERTS": "${SLACK_WEBHOOK_PAYMENTS_ALERTS}"
+  }
+}

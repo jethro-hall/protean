@@ -58,6 +58,7 @@ export function useSendTurn(): (input: string, attachments?: Attachment[]) => vo
             dispatch({
               type: 'artefactStart',
               conversationId,
+              messageId,
               artefactId: event.artefactId,
               artefactType: event.artefactType,
               title: event.title,

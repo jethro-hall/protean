@@ -492,3 +492,49 @@ asked its clarifying questions IN the same turn while delivering a best-guess bu
 building, or tell me and I'll adjust"); answering the questions produced an updated artefact
 (second tab) with confirmations — fluid multi-turn drive, no stalls. Turn 1: TTFT 3.56 s, total
 34.9 s. Turn 2: TTFT 2.62 s, total 21.2 s.
+
+## 2026-07-27 — Owner feedback: Claude-Desktop-parity detail — interleaved narration, resizable preview, artefact clarity
+
+**User request (owner, verbatim intent):** doesn't like the level of detail vs the attached Claude
+Desktop screenshot ("It must be like this"); the metadata.product answer "tells me nothing"; can't
+adjust the preview window; doesn't know what he's seeing when clicking "Stripe payment → HubSpot";
+"basically useless … I expect this to be the same as claudedesktop".
+
+**Root causes found (Law 1 — not cosmetics):**
+1. Steps were lumped in a strip ABOVE one concatenated text blob — Claude Desktop interleaves
+   narration BETWEEN steps in stream order. Our store threw the ordering away.
+2. Nothing asked the model to narrate its findings/decisions or itemise revisions — so revision
+   turns collapsed to bare confirmations.
+3. Preview pane was fixed-width with no drag handle, and artefact tabs carried no version/context.
+
+**What changed:**
+- `APP/GUI/state/store.tsx` — assistant messages now carry ordered `segments`
+  (text | activity | artefact-ref) built as events arrive; `artefactStart` records its position in
+  the message; `previewWidth` state with clamped `setPreviewWidth` (320–880 px).
+- `APP/GUI/components/MessageList.tsx` — `SegmentFlow` renders the turn as it unfolded: narration
+  paragraphs between working steps, plus an inline clickable artefact card ("Building in the
+  preview pane…" → "click to view") that selects/opens the artefact — the answer to "what am I
+  seeing when I click X".
+- `APP/GUI/shell/Layout.tsx` — pointer-captured drag handle on the preview pane's left edge
+  (desktop); width flows through a CSS var so the mobile drawer is untouched.
+- `APP/GUI/panes/PreviewPane.tsx` — artefacts sharing a title label as "Title · vN" tabs; header
+  now states type, size, streaming truth; previewPane FieldHint documents resize + version tabs.
+- `APP/CODE/config/defaults.ts` — new `NARRATION_PROTOCOL_PROMPT` (engine protocol constant,
+  Law 2): narrate between steps, quote the field names that matter, state each shaping decision
+  (question/answer/reason), itemise every revision — never a bare confirmation. Appended to every
+  pack's system prompt in `assemble.ts` alongside the artefact protocol.
+
+**Testing: 70/70 vitest green; eslint + tsc strict clean (CODE + GUI).**
+
+**Browser-verified LIVE (Sonnet-5 via Bedrock):** re-ran the payment-flow-spec.json build. Turn 1
+now reads like the reference screenshot — "Read payment-flow-spec.json (0.9 KB) into context" ✓,
+expandable Thought process, then "# Reading the spec" narration quoting `payment_intent.amount /
+100`, the idempotency requirement, and an explicit metadata.product fallback decision; inline
+artefact card mid-flow; then a per-node "Walk-through of decisions" + [VERIFY]-flagged assumptions.
+Drag-resized preview 410 → 610 px (pointer capture works). Revision turn returned an itemised
+node-by-node change list + "Result" summary and a second, distinguishable artefact tab.
+Turn 1: TTFT 3.35 s, total 38.8 s. Turn 2: TTFT 3.30 s, total 43.3 s.
+
+**Honest boundary (repeated):** the "Ran a command / Used X integration" chips in the reference
+are REAL tool calls — those land with the Phase 5 tool registry + sandbox; the event pipeline and
+UI for them are already in place (`tool_use` mapping renders as a step the moment tools exist).

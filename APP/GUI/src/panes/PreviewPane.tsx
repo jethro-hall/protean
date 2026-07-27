@@ -2,14 +2,43 @@ import { InfoHint } from '../components/InfoHint';
 import { activeConversation, useAppDispatch, useAppState, type Artefact } from '../state/store';
 
 /**
+ * Tab/header labels: artefacts sharing a title are versions of the same
+ * deliverable, so they read "Title · v2" instead of two identical tabs.
+ */
+function artefactLabels(artefacts: Artefact[]): Map<string, string> {
+  const totals = new Map<string, number>();
+  for (const artefact of artefacts) {
+    totals.set(artefact.title, (totals.get(artefact.title) ?? 0) + 1);
+  }
+  const running = new Map<string, number>();
+  const labels = new Map<string, string>();
+  for (const artefact of artefacts) {
+    const version = (running.get(artefact.title) ?? 0) + 1;
+    running.set(artefact.title, version);
+    labels.set(
+      artefact.id,
+      (totals.get(artefact.title) ?? 1) > 1 ? `${artefact.title} · v${version}` : artefact.title,
+    );
+  }
+  return labels;
+}
+
+function contentSizeLabel(content: string): string {
+  const kb = content.length / 1024;
+  return kb >= 1 ? `${kb.toFixed(1)} KB` : `${content.length} chars`;
+}
+
+/**
  * Preview pane — renders artefacts live as they stream from the engine
  * (ROADMAP Phase 3). HTML renders in a sandboxed iframe; everything else
- * shows as monospaced source. Status is always truthful.
+ * shows as monospaced source. Status is always truthful. Resizable via the
+ * drag handle on its left edge (desktop).
  */
 export function PreviewPane() {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const conversation = activeConversation(state);
+  const labels = artefactLabels(conversation.artefacts);
   const artefact =
     conversation.artefacts.find((candidate) => candidate.id === conversation.activeArtefactId) ??
     conversation.artefacts.at(-1);
@@ -40,7 +69,7 @@ export function PreviewPane() {
                   : 'text-muted hover:text-ink'
               }`}
             >
-              {candidate.title}
+              {labels.get(candidate.id) ?? candidate.title}
             </button>
           ))}
         </nav>
@@ -53,7 +82,7 @@ export function PreviewPane() {
           </p>
         </div>
       ) : (
-        <ArtefactView artefact={artefact} />
+        <ArtefactView artefact={artefact} label={labels.get(artefact.id) ?? artefact.title} />
       )}
     </aside>
   );
@@ -77,12 +106,16 @@ function StatusBadge({ status }: { status: Artefact['status'] }) {
   );
 }
 
-function ArtefactView({ artefact }: { artefact: Artefact }) {
+function ArtefactView({ artefact, label }: { artefact: Artefact; label: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-baseline gap-2 border-b border-line px-4 py-2">
-        <span className="truncate text-sm font-medium">{artefact.title}</span>
-        <span className="text-[11px] text-muted uppercase">{artefact.artefactType}</span>
+      <div className="border-b border-line px-4 py-2">
+        <p className="truncate text-sm font-medium">{label}</p>
+        <p className="text-[11px] text-muted">
+          <span className="uppercase">{artefact.artefactType}</span> artefact ·{' '}
+          {contentSizeLabel(artefact.content)}
+          {artefact.status === 'streaming' && ' · still streaming'}
+        </p>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
         {artefact.artefactType === 'html' ? (

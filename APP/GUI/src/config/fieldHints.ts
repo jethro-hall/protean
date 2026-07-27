@@ -40,7 +40,8 @@ export const fieldHints: Record<string, FieldHint> = {
   },
   previewPane: {
     what: 'A live surface for artefacts the assistant builds (documents, tables, pages).',
-    why: 'You watch the artefact update during generation and steer it with follow-ups.',
+    why: 'You watch the artefact update during generation and steer it with follow-ups. Revisions of the same deliverable appear as v1, v2\u2026 tabs.',
+    example: 'Drag the left edge to resize; click an artefact card in the chat to open it here.',
   },
   turnStats: {
     what: 'Latency and cache facts for the last answer (TTFT, total, cache hit).',

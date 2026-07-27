@@ -1,0 +1,16 @@
+{
+  "name": "Stripe payment -> HubSpot deal sync",
+  "description": "When a Stripe payment succeeds, upsert the paying customer as a HubSpot contact and create a deal marked closed-won with the payment amount. Failures must go to a Slack #payments-alerts message.",
+  "trigger": {
+    "service": "stripe",
+    "event": "payment_intent.succeeded"
+  },
+  "requirements": [
+    "Idempotent: re-delivered Stripe events must not create duplicate HubSpot deals",
+    "Map stripe customer email -> hubspot contact email (upsert)",
+    "Deal name format: '<product> - <customer email>'",
+    "Deal amount from payment_intent.amount (convert from cents)",
+    "On any node failure, send Slack message to #payments-alerts with the Stripe event id"
+  ],
+  "notes": "The product name lives in payment_intent.metadata.product. If metadata.product is missing, decide a sensible fallback and flag it."
+}

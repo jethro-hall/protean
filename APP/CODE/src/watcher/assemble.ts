@@ -10,6 +10,7 @@ import type {
 import {
   ARTEFACT_PROTOCOL_PROMPT,
   DEFAULT_HISTORY_WINDOW_MESSAGES,
+  NARRATION_PROTOCOL_PROMPT,
   TOOLSET_VERSION,
 } from '../config/defaults.js';
 
@@ -68,7 +69,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     sessionId: request.sessionId,
     domainId: request.domainId,
     input: request.input,
-    systemPrompt: `${pack.systemPrompt}\n\n${ARTEFACT_PROTOCOL_PROMPT}`,
+    systemPrompt: `${pack.systemPrompt}\n\n${ARTEFACT_PROTOCOL_PROMPT}\n\n${NARRATION_PROTOCOL_PROMPT}`,
     messages,
     tier: resolveTier(request, pack),
     model,

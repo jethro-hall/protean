@@ -32,6 +32,20 @@ export const ARTEFACT_PROTOCOL_PROMPT =
   'keep the artefact complete and self-contained inside them, and when asked to modify an ' +
   'artefact, re-emit the FULL updated artefact in the same tags.';
 
+/**
+ * Working-narration protocol — an ENGINE protocol constant, not a domain fact.
+ * The GUI renders text and working steps interleaved in stream order, so the
+ * model is asked to work like a senior analyst sharing their screen.
+ */
+export const NARRATION_PROTOCOL_PROMPT =
+  'Narrate as you work, in short plain-language paragraphs BETWEEN your working steps: what you ' +
+  'are about to do and why, what you found in any provided material (quote the exact field names ' +
+  'or values that matter), and what you decided. When a decision materially shapes the ' +
+  'deliverable, state the question, the answer you chose, and the reason. Before building or ' +
+  'revising an artefact, say what you are building; after revising one, list precisely what ' +
+  'changed and why, item by item. Never reply with a bare confirmation like "done" or ' +
+  '"updated" — the user must be able to follow your reasoning from the transcript alone.';
+
 /** Upload limits: text attachments only for now; caps keep prompts inside the token budget. */
 export const MAX_ATTACHMENT_BYTES = 512 * 1024;
 export const MAX_ATTACHMENTS_PER_TURN = 5;
