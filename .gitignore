@@ -19,3 +19,4 @@ coverage/
 
 # Do NOT ignore APP/ARTEFACTS or APP/LLMBUILD_DATA — owner wants the full build data in the repo
 # (only the secrets above are excluded).
+*.md
