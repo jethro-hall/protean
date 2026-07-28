@@ -1,0 +1,46 @@
+/*
+ * Protean theme tokens — THE single source of visual values (Law 2).
+ * Palette: ARCHITECTURE §7 "executive pascal" — cool near-white base, light-blue
+ * primary, warm-orange accent (sparing). No component may inline a colour.
+ *
+ * Growth rule (ADR-0004): this file is the source of truth; the 764-line
+ * design/protean-design-system.css is the *specification* we grow toward. Its
+ * vocabulary is ported here ON DEMAND — only when a component about to ship
+ * consumes a token — never as a bulk paste.
+ */
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #f7f9fc;
+  --color-surface: #ffffff;
+  --color-ink: #1e2a3a;
+  --color-muted: #5b6b7f;
+  --color-accent-blue: #4c8dd6;
+  --color-accent-blue-2: #7fb0e6;
+  --color-accent-orange: #e8894a;
+  --color-line: #e3e9f0;
+  --color-ok: #2e9e6b;
+  --color-warn: #e0a030;
+  --color-err: #c0392b;
+
+  /* Soft fills for status badges/chips (same hues, background weight) */
+  --color-accent-blue-soft: #e4eefa;
+  --color-ok-soft: #e2f3ea;
+  --color-warn-soft: #faf0da;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Touch targets ≥ 44px (ARCHITECTURE §2 responsive contract) */
+  --spacing-touch: 44px;
+
+  /* Pane geometry */
+  --width-rail: 16rem;
+  --width-preview: 26rem;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
