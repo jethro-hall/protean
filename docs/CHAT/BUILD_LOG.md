@@ -619,3 +619,30 @@ and `NAME = '…quoted literal ≥12…'` assignments. Names alone no longer tri
 - `yaml.safe_load` → valid.
 
 Landed on branch `adr-0004-design-system` as a 2nd commit on the open PR.
+
+## 2026-07-28 — Promote design-bundle look into live React GUI (ADR-0005)
+
+**User request:** Adapt the front end already developed to the CSS/templates in
+`docs/protean-design-bundle.zip` (new look and feel).
+
+**Decision:** Owner override of ADR-0004's "Tailwind-only port" — recorded as
+`docs/DECISIONS/ADR-0005-promote-design-system-to-live-theme.md`. Promote design layers into
+`APP/GUI/src/theme/`; restyle React onto design-system classes; keep streaming/uploads/artefacts.
+
+**Changed:**
+- Theme: `src/theme/{tokens,base,components,app,fonts,index}.css` — Layers 1–5 + thin glue;
+  `main.tsx` imports `./theme/index.css`; Inter/JetBrains via `index.html`.
+- Shell restyle: Layout, SettingsMenu, ConversationsRail, ChatPane, PreviewPane, Composer,
+  MessageList, InfoHint → C1/C5/C7/C8/C11 classes.
+- New `Worklog.tsx` (C6): maps real `Activity` events → `data-kind` (no invented steps).
+- Docs: DESIGN.md §1 promoted wording; HUMAN_TEST_GUI.md checklist; design-system.mdc.
+
+**Verified:**
+- `npx tsc --noEmit` + `npm run lint` in `APP/GUI` — pass.
+- Headless Chromium: `.app` / `.brand` / `.composer` / `.rail` present; computed
+  `--accent-blue: #4C8DD6`, body `rgb(247,249,252)` / ink `rgb(30,42,58)`; screenshot
+  `/tmp/protean-gui-design.png` shows paper shell + blue New conversation + composer.
+- Cursor browser MCP cannot reach host `:5173` (network isolation) — local Playwright used.
+- Owner click-through still useful via `docs/HUMAN_TEST_GUI.md` (systemd GUI already running).
+
+**Not done:** replace static prototype with React (correct — behaviour stays in React).

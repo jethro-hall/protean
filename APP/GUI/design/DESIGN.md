@@ -15,9 +15,10 @@
 | `protean-shell-prototype.html` | The interactive three-pane shell prototype (self-contained; predates the extracted CSS). The design system was distilled from it. |
 | `DESIGN.md` | This file. |
 
-At **Phase 1** the CSS promotes into the real frontend as `APP/GUI/src/theme/` split into
-`tokens.css` (Layers 1–3) + `base.css` (Layer 4) + `components.css` (Layer 5). The layering makes
-that split mechanical. Until then, `design/` is the home and the prototype stays portable.
+**Promoted (ADR-0005):** live React theme is `APP/GUI/src/theme/` —
+`tokens.css` (Layers 1–3) + `base.css` (Layer 4) + `components.css` (Layer 5) + thin `app.css` glue.
+`design/protean-design-system.css` remains the visual specification (style guide + prototype link it).
+Visual edits land in `design/` first, then re-promote into `src/theme/`.
 
 ---
 

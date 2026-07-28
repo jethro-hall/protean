@@ -78,7 +78,6 @@ invented numbers.
    `docs/CHAT/BUILD_LOG.md` — do not claim it was done (Law 1).
 
 ## Phase discipline
-Phase 0 has no wired GUI. These files are the **design prototype + system** — safe to iterate. The
-real React GUI is Phase 1. At Phase 1 the CSS promotes to `APP/GUI/src/theme/` split into
-`tokens.css` (Layers 1–3) + `base.css` (Layer 4) + `components.css` (Layer 5) — see DESIGN.md §1.
-Tailwind config must be generated FROM these tokens; do not fork a second palette.
+`design/` is the visual specification (style guide + shell prototype). Live React consumes the
+promoted copy in `APP/GUI/src/theme/` (`tokens` / `base` / `components` / `app`) per **ADR-0005**.
+Edit `design/` first, then re-promote. Tailwind may assist utilities only — no second palette.

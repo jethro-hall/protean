@@ -30,7 +30,7 @@ Live React GUI
 - [ ] Send a message; answer streams; TTFT shows
 - [ ] Attach a small JSON/text file; stage chip appears
 - [ ] Artefact opens preview; drag-resize works
-- [ ] Note honestly: React shell still uses the prior Tailwind theme — design CSS promotion into `src/theme/` is the next wiring step (DESIGN.md §1). Prototype + style guide are the governed look to approve first.
+- [ ] Confirm look matches style guide / prototype (paper bg, blue primary, Inter/JetBrains, C6 worklog on activity) — design CSS is promoted into `src/theme/` (ADR-0005)
 
 ## Logs
 

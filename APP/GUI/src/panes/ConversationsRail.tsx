@@ -5,34 +5,38 @@ export function ConversationsRail() {
   const dispatch = useAppDispatch();
 
   return (
-    <nav aria-label="Conversations" className="flex h-full flex-col bg-surface">
-      <div className="p-3">
+    <>
+      <div className="rail-head">
         <button
           type="button"
+          className="newchat"
           onClick={() => dispatch({ type: 'newConversation' })}
-          className="min-h-touch w-full rounded-xl border border-line px-3 text-left text-sm font-medium hover:border-accent-blue hover:text-accent-blue"
         >
           + New conversation
         </button>
       </div>
-      <ul className="flex-1 overflow-y-auto px-2 pb-2">
+      <div className="eyebrow rail-label">Recent</div>
+      <div className="conv-list">
         {state.conversations.map((conversation) => (
-          <li key={conversation.id}>
-            <button
-              type="button"
-              onClick={() => dispatch({ type: 'selectConversation', id: conversation.id })}
-              aria-current={conversation.id === state.activeId ? 'true' : undefined}
-              className={`min-h-touch w-full truncate rounded-lg px-3 py-2 text-left text-sm ${
-                conversation.id === state.activeId
-                  ? 'bg-bg font-medium text-ink'
-                  : 'text-muted hover:bg-bg hover:text-ink'
-              }`}
-            >
-              {conversation.title}
-            </button>
-          </li>
+          <button
+            key={conversation.id}
+            type="button"
+            data-conv={conversation.id}
+            className={`conv${conversation.id === state.activeId ? ' active' : ''}`}
+            aria-current={conversation.id === state.activeId ? 'true' : undefined}
+            onClick={() => dispatch({ type: 'selectConversation', id: conversation.id })}
+          >
+            <span className="title">{conversation.title}</span>
+            <span className="meta">
+              {conversation.artefacts.length > 0
+                ? `${conversation.artefacts.length} artefact${conversation.artefacts.length === 1 ? '' : 's'}`
+                : conversation.status === 'idle'
+                  ? 'Ready'
+                  : conversation.status}
+            </span>
+          </button>
         ))}
-      </ul>
-    </nav>
+      </div>
+    </>
   );
 }

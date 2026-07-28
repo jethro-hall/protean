@@ -1,0 +1,56 @@
+/* Protean base — Layers 0 + 4. Promoted from design/protean-design-system.css (ADR-0005). */
+
+/* =============================================================================
+   LAYER 0 — RESET & DOCUMENT DEFAULTS
+   Minimal, predictable baseline. No opinionated CSS-reset library — just the
+   handful of rules every Protean surface depends on.
+   ============================================================================= */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; }
+img, svg { display: block; max-width: 100%; }
+[hidden], .hidden { display: none !important; }
+
+
+
+/* =============================================================================
+   LAYER 4 — BASE ELEMENTS
+   Document-level defaults every surface inherits.
+   ============================================================================= */
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font); font-size: var(--fz-14); line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+
+/* Numbers are ALWAYS mono + tabular — the CFO-tool signature. Use .num on any figure. */
+.num, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: var(--track-tight); }
+
+/* Positive / negative figure colours (accounting style: negatives in parentheses in content) */
+.num.pos { color: var(--ok); }
+.num.neg { color: var(--err); }
+
+::selection { background: var(--blue-wash); color: var(--ink); }
+
+/* One focus ring for the whole system — keyboard users always see where they are. */
+:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; border-radius: 4px; }
+
+/* Utility: uppercase micro-label used for section eyebrows and rail headers. */
+.eyebrow {
+  font-size: var(--fz-10); text-transform: uppercase; letter-spacing: var(--track-caps);
+  color: var(--muted); font-weight: var(--fw-semi);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important; scroll-behavior: auto !important;
+  }
+}
+
+
+
+
+#root { height: 100%; }

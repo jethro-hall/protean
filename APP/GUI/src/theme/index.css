@@ -1,0 +1,6 @@
+/* Live theme entry — import order is the layer order (ADR-0005). */
+@import './fonts.css';
+@import './tokens.css';
+@import './base.css';
+@import './components.css';
+@import './app.css';

@@ -2,13 +2,17 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { fieldHints } from '../config/fieldHints';
 
 /**
- * The mandatory (i) affordance (UX_STANDARDS §2): hidden until hover/click,
- * keyboard-focusable, Esc-dismissable, aria-described. Content comes from
- * config data — never from the component.
+ * C11 (i) info affordance — content from FieldHint data, never hardcoded.
+ * Uses design-system .info / .pop markup.
  */
-export function InfoHint({ hintKey, direction = 'down' }: { hintKey: string; direction?: 'down' | 'up' }) {
+export function InfoHint({
+  hintKey,
+  direction = 'down',
+}: {
+  hintKey: string;
+  direction?: 'down' | 'up';
+}) {
   const hint = fieldHints[hintKey];
-  // hover is transient; a click PINS the popover until Esc/click-away (touch support)
   const [hovered, setHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
   const open = hovered || pinned;
@@ -39,39 +43,54 @@ export function InfoHint({ hintKey, direction = 'down' }: { hintKey: string; dir
 
   if (hint === undefined) return null;
 
+  const className = [
+    'info',
+    direction === 'up' ? 'below' : '',
+    open ? 'open' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <span ref={rootRef} className="relative inline-flex">
-      <button
-        type="button"
-        aria-label="Field information"
-        aria-expanded={open}
-        aria-describedby={open ? popoverId : undefined}
-        onClick={() => setPinned((value) => !value)}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onFocus={() => setHovered(true)}
-        onBlur={() => setHovered(false)}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-line text-[10px] leading-none text-muted hover:border-accent-blue hover:text-accent-blue focus:outline-2 focus:outline-accent-blue"
-      >
-        i
-      </button>
-      {open && (
-        <span
-          id={popoverId}
-          role="tooltip"
-          className={`absolute right-0 z-30 w-64 rounded-md border border-line bg-surface p-3 text-left text-xs font-normal normal-case tracking-normal shadow-lg ${
-            direction === 'down' ? 'top-5' : 'bottom-5'
-          }`}
-        >
-          <span className="block font-semibold text-ink">{hint.what}</span>
-          <span className="mt-1 block text-muted">{hint.why}</span>
-          {hint.example !== undefined && (
-            <span className="mt-1 block font-mono text-[11px] text-accent-blue">
-              e.g. {hint.example}
-            </span>
-          )}
+    <span
+      ref={rootRef}
+      className={className}
+      tabIndex={0}
+      role="button"
+      aria-label="Field information"
+      aria-expanded={open}
+      aria-describedby={open ? popoverId : undefined}
+      onClick={() => setPinned((value) => !value)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          setPinned((value) => !value);
+        }
+      }}
+    >
+      i
+      <span id={popoverId} className="pop" role="tooltip">
+        <span className="row">
+          <span className="k">What</span>
+          <span className="v">{hint.what}</span>
         </span>
-      )}
+        <span className="row">
+          <span className="k">Why</span>
+          <span className="v">{hint.why}</span>
+        </span>
+        {hint.example !== undefined && (
+          <span className="row">
+            <span className="k">e.g.</span>
+            <span className="v">
+              <span className="eg">{hint.example}</span>
+            </span>
+          </span>
+        )}
+      </span>
     </span>
   );
 }

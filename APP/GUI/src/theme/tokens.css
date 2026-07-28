@@ -1,41 +1,213 @@
-/*
- * Protean theme tokens — THE single source of visual values (Law 2).
- * Palette: ARCHITECTURE §7 "executive pascal" — cool near-white base, light-blue
- * primary, warm-orange accent (sparing). No component may inline a colour.
+/* Protean theme tokens — Layers 1–3. Promoted from design/protean-design-system.css (ADR-0005).
+ * Law 2: raw hexes ONLY in Layer 1. Components use Layer 2–3 tokens / component classes.
  */
+
 @import 'tailwindcss';
 
+/* Tailwind v4 bridge — utilities resolve to Layer 2 semantics (no duplicate hexes). */
 @theme {
-  --color-bg: #f7f9fc;
-  --color-surface: #ffffff;
-  --color-ink: #1e2a3a;
-  --color-muted: #5b6b7f;
-  --color-accent-blue: #4c8dd6;
-  --color-accent-blue-2: #7fb0e6;
-  --color-accent-orange: #e8894a;
-  --color-line: #e3e9f0;
-  --color-ok: #2e9e6b;
-  --color-warn: #e0a030;
-  --color-err: #c0392b;
-
-  /* Soft fills for status badges/chips (same hues, background weight) */
-  --color-accent-blue-soft: #e4eefa;
-  --color-ok-soft: #e2f3ea;
-  --color-warn-soft: #faf0da;
-
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-
-  /* Touch targets ≥ 44px (ARCHITECTURE §2 responsive contract) */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-blue-2: var(--accent-blue-2);
+  --color-accent-blue-soft: var(--blue-wash);
+  --color-accent-orange: var(--accent-orange);
+  --color-line: var(--line);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-wash);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-wash);
+  --color-err: var(--err);
+  --color-think: var(--think);
+  --font-sans: var(--font);
+  --font-mono: var(--mono);
   --spacing-touch: 44px;
-
-  /* Pane geometry */
-  --width-rail: 16rem;
-  --width-preview: 26rem;
+  --width-rail: var(--rail-w);
+  --width-preview: var(--preview-w);
 }
 
-body {
-  background-color: var(--color-bg);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
+/* =============================================================================
+   LAYER 1 — PRIMITIVE TOKENS  (PRIVATE — the only place raw hexes may appear)
+   These are named by WHAT THEY ARE, not what they're for. Never reference a
+   --c-* or --raw-* token from a component; go through Layer 2.
+   ============================================================================= */
+:root {
+  color-scheme: light;
+
+  /* ---- brand & neutrals: the "pascal / executive" ramp ---- */
+  --c-white:      #FFFFFF;
+  --c-paper:      #F7F9FC;   /* app canvas */
+  --c-ink-900:    #1E2A3A;   /* primary text / deepest ink */
+  --c-ink-500:    #5B6B7F;   /* muted text */
+  --c-line-200:   #E3E9F0;   /* hairline borders */
+  --c-neutral-100:#EEF1F5;   /* inert chip fill */
+
+  /* ---- blue: the primary action + system colour ---- */
+  --c-blue-600:   #4C8DD6;
+  --c-blue-400:   #7FB0E6;
+  --c-blue-200:   #DCE6F1;   /* soft blue hairline (worklog timeline rail) */
+  --c-blue-050:   #EDF3FB;   /* wash */
+  --c-blue-025:   #F2F7FD;   /* faintest wash */
+
+  /* ---- orange: the single warm accent (artefacts, steer, subagents) ---- */
+  --c-orange-500: #E8894A;
+  --c-orange-050: #FBEEE4;   /* wash */
+  --c-orange-ink: #3A1F0C;   /* text ON orange — AA-safe (5.87:1) */
+  --c-orange-deep:#9A5B24;   /* orange text on light wash */
+
+  /* ---- purple: reserved EXCLUSIVELY for model reasoning ("thinking") ---- */
+  --c-purple-600: #6B4FB0;
+  --c-purple-050: #F3F0FB;
+  --c-purple-100: #E4DCF5;
+
+  /* ---- status ---- */
+  --c-green-600:  #2E9E6B;   /* ok / success / positive figure */
+  --c-green-050:  #E7F3EC;
+  --c-amber-600:  #E0A030;   /* warn / estimate */
+  --c-amber-700:  #B57C15;
+  --c-amber-050:  #FBF1DD;
+  --c-red-600:    #C0392B;   /* error / negative figure */
+  --c-red-050:    #F3E7E7;
+
+  /* ---- raw alpha inks (for shadows / scrims / soft text) ---- */
+  --c-ink-a72:    rgba(30,42,58,.72);
+  --c-ink-a32:    rgba(30,42,58,.32);
+  --c-ink-a28:    rgba(30,42,58,.28);
+  --c-ink-a18:    rgba(30,42,58,.18);
+  --c-ink-a14:    rgba(30,42,58,.14);
+  --c-ink-a06:    rgba(30,42,58,.06);
+  --c-ink-a05:    rgba(30,42,58,.05);
+
+  /* ---- frosted-glass tints (translucent surfaces: artpop, snapshot fade, brand sheen) ---- */
+  --c-glass-90:   rgba(255,255,255,.9);
+  --c-glass-85:   rgba(255,255,255,.85);
+  --c-glass-72:   rgba(255,255,255,.72);
+  --c-glass-60:   rgba(255,255,255,.6);
+  --c-glass-35:   rgba(255,255,255,.35);
+  --c-glass-12:   rgba(255,255,255,.12);
+  --c-line-a70:   rgba(227,233,240,.7);   /* hairline over glass */
+
+  /* ---- tint-on-wash text/borders (banner variants) ---- */
+  --c-tip-ink:    #EAF0F7;   /* light text inside the dark (i) tooltip */
+  --c-orange-b:   #F0C9A8;   /* degraded-banner border */
+  --c-red-b:      #F0C0BB;   /* error-banner border */
+
+  /* ---- raw type stacks ---- */
+  --c-font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --c-font-mono: "JetBrains Mono", "SF Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
 }
+
+
+
+/* =============================================================================
+   LAYER 2 — SEMANTIC TOKENS  (the vocabulary components actually use)
+   Role-named. Swap this layer to re-theme; components below never change.
+   ============================================================================= */
+:root {
+  /* surfaces & text */
+  --bg:            var(--c-paper);
+  --surface:       var(--c-white);
+  --ink:           var(--c-ink-900);
+  --ink-soft:      var(--c-ink-a72);
+  --muted:         var(--c-ink-500);
+  --line:          var(--c-line-200);
+  --inert:         var(--c-neutral-100);
+
+  /* primary action / system (blue) */
+  --accent-blue:   var(--c-blue-600);
+  --accent-blue-2: var(--c-blue-400);
+  --blue-wash:     var(--c-blue-050);
+  --blue-wash-2:   var(--c-blue-025);
+
+  /* warm accent (orange) — artefacts, steer, subagents. Use sparingly: ONE per view. */
+  --accent-orange: var(--c-orange-500);
+  --orange-wash:   var(--c-orange-050);
+  --on-orange:     var(--c-orange-ink);
+  --orange-ink:    var(--c-orange-deep);
+
+  /* reasoning (purple) — ONLY the worklog "thinking" voice. Never a general accent. */
+  --think:         var(--c-purple-600);
+  --think-wash:    var(--c-purple-050);
+  --think-line:    var(--c-purple-100);
+
+  /* status */
+  --ok:            var(--c-green-600);
+  --ok-wash:       var(--c-green-050);
+  --warn:          var(--c-amber-600);
+  --warn-ink:      var(--c-amber-700);
+  --warn-wash:     var(--c-amber-050);
+  --err:           var(--c-red-600);
+  --err-wash:      var(--c-red-050);
+
+  /* worklog timeline rail */
+  --wl-rail:       var(--c-blue-200);
+
+  /* scrims & overlays */
+  --scrim:         var(--c-ink-a32);
+  --scrim-soft:    var(--c-ink-a14);
+
+  /* translucent surfaces (glass) */
+  --glass:         var(--c-glass-72);   /* artpop body */
+  --glass-border:  var(--c-glass-60);
+  --glass-sheen:   var(--c-glass-35);   /* brand mark inner highlight */
+  --glass-badge:   var(--c-glass-85);   /* snapshot badge bg */
+  --glass-fade:    var(--c-glass-90);   /* snapshot bottom fade */
+  --glass-chip:    var(--c-glass-12);   /* example chip inside dark tooltip */
+  --line-glass:    var(--c-line-a70);
+
+  /* banner borders + tooltip text */
+  --tip-ink:       var(--c-tip-ink);
+  --border-degraded: var(--c-orange-b);
+  --border-error:  var(--c-red-b);
+
+  /* type roles */
+  --font:          var(--c-font-sans);
+  --mono:          var(--c-font-mono);
+}
+
+
+
+/* =============================================================================
+   LAYER 3 — SCALE TOKENS  (space, radius, shadow, z-index, type, motion, layout)
+   Every geometric or temporal value in the system. Components consume these.
+   ============================================================================= */
+:root {
+  /* ---- spacing scale (4px base; use these, not raw px) ---- */
+  --s-1: 4px;  --s-2: 6px;  --s-3: 8px;  --s-4: 10px; --s-5: 12px;
+  --s-6: 14px; --s-7: 16px; --s-8: 18px; --s-9: 22px; --s-10: 26px;
+
+  /* ---- radii ---- */
+  --r-sm: 7px;  --r: 10px;  --r-lg: 14px;  --r-pill: 99px;
+
+  /* ---- elevation ---- */
+  --shadow-sm: 0 1px 2px var(--c-ink-a06);
+  --shadow:    0 1px 2px var(--c-ink-a05), 0 8px 24px var(--c-ink-a06);
+  --shadow-pop:0 16px 40px var(--c-ink-a18);
+  --shadow-lift:0 20px 60px var(--c-ink-a28);
+  --shadow-tip:0 12px 30px var(--c-ink-a28);
+
+  /* ---- z-index ladder (documented so nothing fights) ----
+     10 scrim(base) · 15 mobile scrim · 20 rail/preview · 30 topbar ·
+     60 (i) tooltip · 70 tool popover · 80 statebar · 90 artpop scrim · 95 artpop */
+  --z-scrim: 15;  --z-panel: 20;  --z-top: 30;  --z-tip: 60;
+  --z-pop: 70;    --z-statebar: 80;  --z-artscrim: 90;  --z-art: 95;
+
+  /* ---- type scale (px, paired with line-heights) ---- */
+  --fz-9: 9px;   --fz-10: 10px; --fz-11: 11px; --fz-12: 12px; --fz-13: 13px;
+  --fz-14: 14px; --fz-15: 15px; --fz-17: 17px;
+  --lh-tight: 1.25;  --lh-base: 1.5;
+  --fw-reg: 400; --fw-med: 500; --fw-semi: 600; --fw-bold: 650; --fw-heavy: 700;
+  --track-caps: .07em;   /* letter-spacing for uppercase labels */
+  --track-tight: -.01em; /* headings */
+
+  /* ---- motion (respect prefers-reduced-motion, see Layer 4) ---- */
+  --step: .19s cubic-bezier(.2,.7,.3,1);
+  --rise: .32s cubic-bezier(.2,.7,.3,1);
+
+  /* ---- layout ---- */
+  --rail-w: 264px;  --preview-w: 420px;  --topbar-h: 52px;
+  --read-w: 720px;  /* max reading measure for the chat thread */
+}
+

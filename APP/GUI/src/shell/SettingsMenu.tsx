@@ -37,68 +37,62 @@ export function SettingsMenu() {
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="protean-settings">
       <button
         type="button"
+        className="gear"
         aria-label="Settings"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex min-h-touch min-w-touch items-center justify-center rounded-lg text-lg text-muted hover:bg-bg hover:text-ink focus:outline-2 focus:outline-accent-blue"
       >
         ⚙
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-40 w-72 rounded-xl border border-line bg-surface p-4 shadow-lg">
+        <div className="protean-settings-panel">
           <fieldset>
-            <legend className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+            <legend>
               Model tier <InfoHint hintKey="modelTier" />
             </legend>
-            <div className="mt-2 flex gap-2">
+            <div className="protean-settings-row">
               {TIERS.map((tier) => (
                 <button
                   key={tier.id}
                   type="button"
+                  className={`pill${state.settings.tier === tier.id ? ' on' : ''}`}
                   aria-pressed={state.settings.tier === tier.id}
                   onClick={() => dispatch({ type: 'setTier', tier: tier.id })}
-                  className={`min-h-touch flex-1 rounded-lg border px-3 text-sm ${
-                    state.settings.tier === tier.id
-                      ? 'border-accent-blue bg-accent-blue text-surface'
-                      : 'border-line text-muted hover:border-accent-blue hover:text-ink'
-                  }`}
                 >
+                  <span className="dot" aria-hidden />
                   {tier.label}
                 </button>
               ))}
             </div>
           </fieldset>
-          <fieldset className="mt-4">
-            <legend className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+          <fieldset>
+            <legend>
               Domain pack <InfoHint hintKey="domainPack" />
             </legend>
             {domains === 'loading' && (
-              <p className="mt-2 text-sm text-muted" role="status">
+              <p className="banner info" role="status">
                 Loading domains…
               </p>
             )}
             {domains === 'unavailable' && (
-              <p className="mt-2 text-sm text-err" role="alert">
+              <p className="banner error" role="alert">
                 Engine unreachable — domain list unavailable.
               </p>
             )}
             {Array.isArray(domains) && (
-              <div className="mt-2 flex flex-col gap-1.5">
+              <div className="protean-settings-col">
                 {domains.map((domain) => (
                   <button
                     key={domain.id}
                     type="button"
+                    className={`pill domain${state.settings.domainId === domain.id ? ' on' : ''}`}
                     aria-pressed={state.settings.domainId === domain.id}
                     onClick={() => dispatch({ type: 'setDomain', domainId: domain.id })}
-                    className={`min-h-touch rounded-lg border px-3 text-left text-sm ${
-                      state.settings.domainId === domain.id
-                        ? 'border-accent-blue text-ink'
-                        : 'border-line text-muted hover:border-accent-blue hover:text-ink'
-                    }`}
                   >
+                    <span className="dot" aria-hidden />
                     {domain.displayName}
                   </button>
                 ))}

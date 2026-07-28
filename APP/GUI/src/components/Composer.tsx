@@ -31,7 +31,7 @@ export function Composer() {
 
   const onFilesPicked = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
-    event.target.value = ''; // allow re-picking the same file
+    event.target.value = '';
     setFileError(null);
     const next = [...attachments];
     for (const file of files) {
@@ -55,28 +55,20 @@ export function Composer() {
     setAttachments(next);
   };
 
-  const removeAttachment = (name: string) => {
-    setAttachments((current) => current.filter((file) => file.name !== name));
-  };
-
   return (
-    <form onSubmit={submit} className="border-t border-line bg-surface p-3">
-      <div className="mx-auto max-w-3xl">
+    <div className="composer-wrap">
+      <form className="composer" onSubmit={submit}>
         {attachments.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1.5">
+          <div className="composer-attach">
             {attachments.map((file) => (
-              <span
-                key={file.name}
-                className="inline-flex items-center gap-1.5 rounded-full border border-line bg-bg px-2.5 py-1 text-xs"
-              >
-                <span aria-hidden>📄</span>
-                <span className="max-w-[12rem] truncate">{file.name}</span>
-                <span className="text-muted">{(file.textContent.length / 1024).toFixed(1)} KB</span>
+              <span key={file.name} className="tag">
+                📄 {file.name}
                 <button
                   type="button"
                   aria-label={`Remove ${file.name}`}
-                  onClick={() => removeAttachment(file.name)}
-                  className="text-muted hover:text-err"
+                  onClick={() =>
+                    setAttachments((current) => current.filter((item) => item.name !== file.name))
+                  }
                 >
                   ×
                 </button>
@@ -84,11 +76,12 @@ export function Composer() {
             ))}
           </div>
         )}
-        {fileError !== null && <p className="mb-2 text-xs text-err">{fileError}</p>}
-        <div className="flex items-end gap-2">
-          <label className="sr-only" htmlFor="composer-input">
-            Message
-          </label>
+        {fileError !== null && (
+          <p className="banner error composer-file-error" role="alert">
+            {fileError}
+          </p>
+        )}
+        <div className="field">
           <input
             ref={fileInputRef}
             type="file"
@@ -99,42 +92,40 @@ export function Composer() {
             aria-hidden
             tabIndex={-1}
           />
-          <div className="flex min-h-touch flex-1 items-center gap-2 rounded-xl border border-line bg-bg px-3 py-2 focus-within:border-accent-blue">
-            <button
-              type="button"
-              aria-label="Attach files"
-              disabled={busy}
-              onClick={() => fileInputRef.current?.click()}
-              className="text-muted hover:text-accent-blue disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              📎
-            </button>
-            <InfoHint hintKey="attachFile" direction="up" />
-            <textarea
-              id="composer-input"
-              rows={1}
-              value={draft}
-              placeholder="Message Protean…"
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  submit(event);
-                }
-              }}
-              className="max-h-40 flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted"
-            />
-            <InfoHint hintKey="composerInput" direction="up" />
-          </div>
+          <button
+            type="button"
+            className="gear"
+            aria-label="Attach files"
+            disabled={busy}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            📎
+          </button>
+          <InfoHint hintKey="attachFile" direction="up" />
+          <textarea
+            id="composer-input"
+            rows={1}
+            value={draft}
+            placeholder="Message Protean…"
+            aria-label="Message"
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                submit(event);
+              }
+            }}
+          />
+          <InfoHint hintKey="composerInput" direction="up" />
           <button
             type="submit"
+            className="btn-primary"
             disabled={busy || draft.trim() === ''}
-            className="min-h-touch rounded-xl bg-accent-blue px-4 text-sm font-medium text-surface hover:bg-accent-blue-2 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? 'Streaming…' : 'Send'}
           </button>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }
