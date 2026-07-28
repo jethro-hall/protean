@@ -1,14 +1,7 @@
 import { SHELL_OPERATOR } from '../config/shell';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
 
-const DEMO_META: Record<string, { tag: string; when: string; generic?: boolean }> = {
-  'design-demo-finance': { tag: 'Finance', when: '2m ago' },
-  'design-demo-bas': { tag: 'Finance', when: '1h ago' },
-  'design-demo-vendor': { tag: 'Generic', when: 'Yesterday', generic: true },
-  'design-demo-stores': { tag: 'Finance', when: '2 days ago' },
-};
-
-/** C3 conversations rail — recent rows, pinned artefacts, operator foot. */
+/** C3 conversations rail — real sessions only (no design-demo fixtures). */
 export function ConversationsRail() {
   const state = useAppState();
   const dispatch = useAppDispatch();
@@ -37,7 +30,6 @@ export function ConversationsRail() {
       <div className="conv-list">
         <div className="rail-label">Recent</div>
         {state.conversations.map((conversation) => {
-          const meta = DEMO_META[conversation.id];
           const artefactCount = conversation.artefacts.length;
           return (
             <button
@@ -50,10 +42,18 @@ export function ConversationsRail() {
             >
               <span className="title">{conversation.title}</span>
               <span className="meta">
-                <span className={`tag${meta?.generic === true ? ' generic' : ''}`}>
-                  {meta?.tag ?? state.settings.domainId}
+                <span
+                  className={`tag${state.settings.domainId === 'generic' ? ' generic' : ''}`}
+                >
+                  {state.settings.domainId}
                 </span>
-                <span>{meta?.when ?? (conversation.status === 'idle' ? 'Ready' : conversation.status)}</span>
+                <span>
+                  {conversation.messages.length === 0
+                    ? 'Ready'
+                    : conversation.status === 'idle'
+                      ? `${conversation.messages.length} msg`
+                      : conversation.status}
+                </span>
                 {artefactCount > 0 && (
                   <span className="clip" title={`${artefactCount} artefact(s)`}>
                     📎 {artefactCount}

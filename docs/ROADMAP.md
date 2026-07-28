@@ -10,7 +10,11 @@ provider-agnosticism, the Watcher's overhead) before we polish.
 
 ---
 
-## Phase 0 — Foundation & the latency spike  ← WE ARE HERE
+## Phase 0 — Foundation & the latency spike  ✅ DONE
+**Evidence:** `docs/CHAT/BUILD_LOG.md` (2026-07-27 live spike) +
+`APP/LLMBUILD_DATA/token-telemetry/spike-2026-07-27T05-48-41-742Z.json` — run 2 cache hit
+**0.56 ms** (&lt; 300 ms gate).
+
 **Goal:** a running, instrumented "hello, streamed answer" through the real Claude Agent SDK, with
 timings, so we have *measured* latency numbers before any product is built.
 
@@ -31,7 +35,10 @@ decide whether the WatcherLLM hop (Phase 2) is affordable.
 
 ---
 
-## Phase 1 — The three-pane GUI shell
+## Phase 1 — The three-pane GUI shell  ✅ DONE
+**Evidence:** BUILD_LOG Phase 1–3 sign-off + ADR-0005 design-system promote +
+`docs/new-frontend` prototype parity (owner-directed theme).
+
 **Goal:** the executive-themed UI with center chat + left rail + settings gear, streaming the
 Phase 0 backend. Preview pane present but stubbed.
 
@@ -41,7 +48,9 @@ switches model tier. TTFT visibly < 800 ms on the fast path.
 
 ---
 
-## Phase 2 — WatcherLLM layer + history store
+## Phase 2 — WatcherLLM layer + history store  ✅ DONE
+**Evidence:** BUILD_LOG — Watcher overhead bench + live A/B; rewrite cut (does not pay for itself).
+
 **Goal:** insert the deterministic-first Watcher and the Session/history store. Prove the Watcher
 adds negligible latency on the deterministic path and *measurably improves results* when it does
 rewrite (needs the eval harness — built here).
@@ -52,7 +61,9 @@ conditional rewrite improves a scored result, or the rewrite is cut. All logged.
 
 ---
 
-## Phase 3 — The live Preview Pane (the differentiator)
+## Phase 3 — The live Preview Pane (the differentiator)  ✅ DONE
+**Evidence:** BUILD_LOG — live Bedrock artefact stream into preview + save under `APP/ARTEFACTS/`.
+
 **Goal:** the interactive artefact surface — the model builds an HTML/doc/table/workflow and the
 user watches it update live and steers it. Optional "second Claude" mode.
 
@@ -62,7 +73,7 @@ saved to `APP/ARTEFACTS/` and logged.
 
 ---
 
-## Phase 4 — Domain Packs & the multi-domain proof
+## Phase 4 — Domain Packs & the multi-domain proof  ← WE ARE HERE
 **Goal:** prove shape-shifting. Ship 2 Domain Packs (finance = Ride Electric; + one of
 medical/education) as **config only**, no engine change.
 

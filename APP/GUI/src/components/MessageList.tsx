@@ -53,6 +53,7 @@ function SegmentFlow({
   const activities = message.activities ?? [];
   const nonActivity = segments.filter((segment) => segment.kind !== 'activity');
   const showWorklog = activities.length > 0;
+  const toolActivities = activities.filter((activity) => activity.kind === 'tool' && activity.done);
 
   return (
     <>
@@ -61,60 +62,42 @@ function SegmentFlow({
           activities={activities}
           streaming={message.streaming === true}
           totalMs={message.stats?.timings.totalMs}
-          summary={message.worklogSummary}
         />
       )}
-      {(message.toolChips ?? []).map((chip) => (
-        <span key={`${chip.tool}-${chip.arg}`} className="toolchip done">
+      {toolActivities.map((activity) => (
+        <span key={activity.id} className="toolchip done">
           <span className="spin" aria-hidden />
-          Called <code>{chip.tool}</code>
-          <span className="toolchip-meta"> · {chip.arg}</span>
-          <span className="ms num">{chip.ms}ms</span>
+          Called <code>{activity.code ?? activity.label}</code>
+          {activity.text !== '' && (
+            <span className="toolchip-meta"> · {activity.text.slice(0, 80)}</span>
+          )}
+          {activity.durationMs !== undefined && activity.durationMs > 0 && (
+            <span className="ms num">{activity.durationMs}ms</span>
+          )}
         </span>
       ))}
-      {message.bodyHtml !== undefined && message.bodyHtml !== '' ? (
-        <div
-          className="assistant-html"
-          dangerouslySetInnerHTML={{ __html: message.bodyHtml }}
-        />
-      ) : (
-        <>
-          {nonActivity.length === 0 && !showWorklog && (
-            <p className="whitespace-pre-wrap">{message.content}</p>
-          )}
-          {nonActivity.map((segment, index) => {
-            if (segment.kind === 'text') {
-              return (
-                <p key={`text-${index}`} className="whitespace-pre-wrap">
-                  {segment.text}
-                  {message.streaming === true && index === nonActivity.length - 1 && (
-                    <span className="cursor" aria-hidden />
-                  )}
-                </p>
-              );
-            }
-            return (
-              <ArtefactChip
-                key={segment.artefactId}
-                segment={segment}
-                conversation={conversation}
-              />
-            );
-          })}
-        </>
+      {nonActivity.length === 0 && !showWorklog && (
+        <p className="whitespace-pre-wrap">{message.content}</p>
       )}
-      {message.bodyHtml !== undefined &&
-        nonActivity
-          .filter((segment) => segment.kind === 'artefact')
-          .map((segment) =>
-            segment.kind === 'artefact' ? (
-              <ArtefactChip
-                key={segment.artefactId}
-                segment={segment}
-                conversation={conversation}
-              />
-            ) : null,
-          )}
+      {nonActivity.map((segment, index) => {
+        if (segment.kind === 'text') {
+          return (
+            <p key={`text-${index}`} className="whitespace-pre-wrap">
+              {segment.text}
+              {message.streaming === true && index === nonActivity.length - 1 && (
+                <span className="cursor" aria-hidden />
+              )}
+            </p>
+          );
+        }
+        return (
+          <ArtefactChip
+            key={segment.artefactId}
+            segment={segment}
+            conversation={conversation}
+          />
+        );
+      })}
     </>
   );
 }
@@ -168,23 +151,16 @@ function Bubble({
           {!isUser &&
             message.streaming === true &&
             message.content === '' &&
-            (message.activities ?? []).length === 0 &&
-            message.bodyHtml === undefined && (
+            (message.activities ?? []).length === 0 && (
               <p className="waiting" role="status">
                 Waiting for first token…
               </p>
             )}
-          {!isUser && (message.cite?.length ?? 0) > 0 && (
+          {!isUser && message.stats !== undefined && (
             <div className="cite">
-              Sources:{' '}
-              {message.cite!.map((source, index) => (
-                <span key={source}>
-                  {index > 0 && ' · '}
-                  <a href="#" onClick={(event) => event.preventDefault()}>
-                    {source}
-                  </a>
-                </span>
-              ))}
+              TTFT <span className="num">{message.stats.timings.ttftMs ?? '–'}</span> ms · total{' '}
+              <span className="num">{message.stats.timings.totalMs ?? '–'}</span> ms ·{' '}
+              {message.stats.cacheHit ? 'cache hit' : 'cache miss'}
               <InfoHint hintKey="turnStats" />
             </div>
           )}

@@ -32,19 +32,16 @@ export function Worklog({
   activities,
   streaming,
   totalMs,
-  summary,
 }: {
   activities: Activity[];
   streaming: boolean;
   totalMs?: number | null;
-  summary?: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   if (activities.length === 0) return null;
 
   const done = !streaming && activities.every((activity) => activity.done);
   const sum =
-    summary ??
     activities.find((activity) => activity.kind === 'thinking')?.label ??
     activities[0]?.label ??
     'Working steps';

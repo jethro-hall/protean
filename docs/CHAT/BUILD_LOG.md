@@ -705,3 +705,18 @@ Note: `docs/new-frontend/src` is still the old Tailwind shell; the visual SOT is
 
 **Verify:** Playwright — worklog 7 steps + think purple, iframe artefact, steer,
 4 convs, brand Finance. lint/tsc clean.
+
+## 2026-07-28 — Remove design-demo fixture; live shell on real engine only
+
+**Owner:** no temp demo data — UI must be tied to the real project code/path.
+
+**Change:**
+- Deleted `APP/GUI/src/config/designDemo.ts`; `initialState()` is one empty conversation again.
+- Rail/MessageList no longer carry demo meta / bodyHtml / fake toolChips.
+- Worklog + preview + design-system chrome remain — they render **real** streamed activities,
+  artefacts, and turns from AgentCore → Gateway.
+- ROADMAP: Phases 0–3 marked done (BUILD_LOG evidence); **WE ARE HERE → Phase 4** (stale
+  Phase 0 marker corrected after phase-gate).
+
+**Verify:** Playwright — empty “Start a conversation”, one “New conversation” row, no worklog,
+preview empty state; lint/tsc clean.
