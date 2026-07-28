@@ -42,6 +42,20 @@
 /* Settings popover (page-scoped; tokens only) */
 .protean-settings {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.rail-label-spaced {
+  margin-top: var(--s-3);
+}
+.toolchip-meta {
+  color: var(--muted);
+}
+.composer-foot .cf-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
 }
 .protean-settings-panel {
   position: absolute;

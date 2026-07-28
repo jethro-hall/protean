@@ -671,3 +671,20 @@ shows an empty `#root` — looks like a blank Protean page. Local `:5173` render
 
 **Verify:** Caddy live routes dial `172.17.0.1:5173` / `:8787`; local Playwright still shows
 `.app` + “Protean · live”. Owner: hard-refresh after Authentik login.
+
+## 2026-07-28 — Design-prototype chrome parity (owner: “same old website”)
+
+**Challenge:** Owner screenshots of `protean.rideai.com.au` showed the *promoted*
+token shell but empty-state chrome — sparse vs the dense design-bundle prototype
+(telemetry, domain pill, open preview, rail foot, composer foot). Fair complaint:
+token promote alone did not look like the prototype they approved.
+
+**Change (no fake data):**
+- Topbar: `TopbarTelemetry` (honest dashes / last-turn TTFT·total·cache) + domain pill
+- Preview **open by default** (3-pane visible)
+- Rail: domain tag, artefact clips, pinned artefacts from real completes, operator foot
+- Empty state + composer send/foot match prototype copy/classes
+- Config: `src/config/shell.ts` for empty copy + operator labels
+
+**Verify:** Playwright — telemetry, domain pill, preview open (`264px 760px 416px`),
+empty “Start a conversation”, composer-foot, rail-foot; lint/tsc clean.

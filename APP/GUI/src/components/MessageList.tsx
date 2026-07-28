@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { SHELL_EMPTY_COPY } from '../config/shell';
 import { InfoHint } from './InfoHint';
 import { Worklog } from './Worklog';
 import {
@@ -36,7 +37,7 @@ function ArtefactChip({
     >
       <span className="spin" aria-hidden />
       {status === 'streaming' ? 'Building' : 'Opened'} <code>{segment.title}</code>
-      <span style={{ color: 'var(--muted)' }}> · {segment.artefactType}</span>
+      <span className="toolchip-meta"> · {segment.artefactType}</span>
     </button>
   );
 }
@@ -150,9 +151,12 @@ export function MessageList() {
   if (conversation.messages.length === 0) {
     return (
       <div className="chat-scroll">
-        <div className="thread empty-hero">
-          <h2>Protean</h2>
-          <p>Ask anything. Answers stream in live, with the full turn recorded.</p>
+        <div className="empty">
+          <div className="ei" aria-hidden>
+            ✎
+          </div>
+          <h3>{SHELL_EMPTY_COPY.title}</h3>
+          <p>{SHELL_EMPTY_COPY.body}</p>
         </div>
       </div>
     );

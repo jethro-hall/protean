@@ -8,6 +8,7 @@ const TIERS: Array<{ id: ModelTier; label: string }> = [
   { id: 'strong', label: 'Strong' },
 ];
 
+/** Domain pill + settings gear (prototype top-actions). */
 export function SettingsMenu() {
   const state = useAppState();
   const dispatch = useAppDispatch();
@@ -16,10 +17,13 @@ export function SettingsMenu() {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return;
     fetchDomains()
       .then(setDomains)
       .catch(() => setDomains('unavailable'));
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
     };
@@ -36,8 +40,23 @@ export function SettingsMenu() {
     };
   }, [open]);
 
+  const domainLabel =
+    Array.isArray(domains)
+      ? (domains.find((domain) => domain.id === state.settings.domainId)?.displayName ??
+        state.settings.domainId)
+      : state.settings.domainId;
+
   return (
     <div ref={rootRef} className="protean-settings">
+      <button
+        type="button"
+        className="pill domain"
+        title="Active domain pack — click to switch"
+        onClick={() => setOpen(true)}
+      >
+        <span className="dot" aria-hidden />
+        <span>{domainLabel}</span>
+      </button>
       <button
         type="button"
         className="gear"

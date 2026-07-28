@@ -149,7 +149,8 @@ export function initialState(): AppState {
     activeId: first.id,
     settings: { tier: 'fast', domainId: 'generic' },
     railOpen: false,
-    previewOpen: false,
+    /** Open by default so the three-pane design-system shell is visible (matches prototype). */
+    previewOpen: true,
     previewWidth: PREVIEW_WIDTH_DEFAULT_PX,
   };
 }

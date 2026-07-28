@@ -4,6 +4,7 @@ import { ConversationsRail } from '../panes/ConversationsRail';
 import { PreviewPane } from '../panes/PreviewPane';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
 import { SettingsMenu } from './SettingsMenu';
+import { TopbarTelemetry } from './TopbarTelemetry';
 
 function PreviewResizeHandle({ currentWidth }: { currentWidth: number }) {
   const dispatch = useAppDispatch();
@@ -33,7 +34,7 @@ function PreviewResizeHandle({ currentWidth }: { currentWidth: number }) {
   );
 }
 
-/** Three-pane shell (C1/C2/C15) — design-system classes; live behaviour preserved. */
+/** Three-pane shell (C1/C2/C15) — matches design prototype chrome; live behaviour preserved. */
 export function Layout() {
   const state = useAppState();
   const dispatch = useAppDispatch();
@@ -63,17 +64,19 @@ export function Layout() {
           Protean <small>· live</small>
         </span>
         <span className="spacer" />
+        <TopbarTelemetry />
         <div className="top-actions">
+          <SettingsMenu />
           <button
             type="button"
-            className={`pill${previewOpen ? ' on' : ''}`}
+            className="gear"
             aria-label="Toggle preview pane"
             aria-pressed={previewOpen}
+            title="Toggle preview pane"
             onClick={() => dispatch({ type: 'togglePreview' })}
           >
-            Preview
+            ▥
           </button>
-          <SettingsMenu />
         </div>
       </header>
 

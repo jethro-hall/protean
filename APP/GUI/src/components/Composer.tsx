@@ -82,6 +82,30 @@ export function Composer() {
           </p>
         )}
         <div className="field">
+          <textarea
+            id="composer-input"
+            rows={1}
+            value={draft}
+            placeholder="Ask anything — summarise, draft, plan, analyse…"
+            aria-label="Message"
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                submit(event);
+              }
+            }}
+          />
+          <button
+            type="submit"
+            className="send"
+            aria-label={busy ? 'Streaming' : 'Send message'}
+            disabled={busy || draft.trim() === ''}
+          >
+            ✈
+          </button>
+        </div>
+        <div className="composer-foot">
           <input
             ref={fileInputRef}
             type="file"
@@ -94,36 +118,23 @@ export function Composer() {
           />
           <button
             type="button"
-            className="gear"
+            className="toolbtn"
             aria-label="Attach files"
             disabled={busy}
             onClick={() => fileInputRef.current?.click()}
           >
-            📎
+            📎 Attach
+            {attachments.length > 0 && <span className="cnt">{attachments.length}</span>}
           </button>
           <InfoHint hintKey="attachFile" direction="up" />
-          <textarea
-            id="composer-input"
-            rows={1}
-            value={draft}
-            placeholder="Message Protean…"
-            aria-label="Message"
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                submit(event);
-              }
-            }}
-          />
-          <InfoHint hintKey="composerInput" direction="up" />
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={busy || draft.trim() === ''}
-          >
-            {busy ? 'Streaming…' : 'Send'}
-          </button>
+          <span className="cf-item">
+            Tier · {state.settings.tier}
+            <InfoHint hintKey="modelTier" direction="up" />
+          </span>
+          <span className="cf-item">
+            Domain · {state.settings.domainId}
+            <InfoHint hintKey="domainPack" direction="up" />
+          </span>
         </div>
       </form>
     </div>
