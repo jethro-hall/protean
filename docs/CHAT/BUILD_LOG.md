@@ -654,3 +654,20 @@ Landed on branch `adr-0004-design-system` as a 2nd commit on the open PR.
 **Fix:** `server.allowedHosts` from `PROTEAN_GUI_ALLOWED_HOSTS` in `APP/GUI/vite.config.ts`
 (default includes `protean.rideai.com.au`); wired via `scripts/run-gui.sh` +
 `infra/systemd/protean-gui.service`. Verified: `Host: protean.rideai.com.au` → HTTP 200.
+
+## 2026-07-28 — Blank screen on protean.rideai.com.au (wrong upstream + Vite origin)
+
+**Symptom:** Blank screen after Host-allow fix.
+
+**Root cause:** Caddy still reverse-proxied `protean.rideai.com.au` to Agentic Workflow
+Studio (`agentic_workflow_web:3000`), not the Protean Vite GUI. Authentik’s loading shell
+shows an empty `#root` — looks like a blank Protean page. Local `:5173` rendered correctly.
+
+**Fix:**
+1. Caddy (`/var/llamaindex/ghoststack-rag/Caddyfile`): UI → `172.17.0.1:5173`,
+   `/api/*` → `172.17.0.1:8787` (backup beside Caddyfile). Outside this git repo.
+2. Vite: `PROTEAN_GUI_PUBLIC_ORIGIN=https://protean.rideai.com.au` for HMR/asset origin
+   behind TLS termination.
+
+**Verify:** Caddy live routes dial `172.17.0.1:5173` / `:8787`; local Playwright still shows
+`.app` + “Protean · live”. Owner: hard-refresh after Authentik login.

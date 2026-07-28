@@ -10,6 +10,7 @@ WorkingDirectory=/var/dcf/protean/APP/GUI
 Environment=NODE_ENV=development
 Environment=PROTEAN_ENGINE_ORIGIN=http://127.0.0.1:8787
 Environment=PROTEAN_GUI_ALLOWED_HOSTS=protean.rideai.com.au,.rideai.com.au,localhost,127.0.0.1
+Environment=PROTEAN_GUI_PUBLIC_ORIGIN=https://protean.rideai.com.au
 ExecStart=/var/dcf/protean/scripts/run-gui.sh
 Restart=on-failure
 RestartSec=3

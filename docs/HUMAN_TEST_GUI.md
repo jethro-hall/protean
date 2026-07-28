@@ -15,10 +15,10 @@ Reinstall / restart: `bash scripts/install-gui-services.sh` · `systemctl --user
 Bound as `0.0.0.0` — replace `127.0.0.1` with this host’s LAN/public IP if testing from another machine
 (e.g. `http://agents.rideai.com.au:5173/` when security groups allow).
 
-**Public host:** Vite must allow the Host header — set `PROTEAN_GUI_ALLOWED_HOSTS` (default
-includes `protean.rideai.com.au`). If Caddy still proxies that hostname to Agentic Workflow
-Studio (`agentic_workflow_web:3000`), you will not see this GUI until the edge is re-pointed
-at `host.docker.internal:5173` / the host Vite port.
+**Public host:** `https://protean.rideai.com.au` → Authentik → host Vite `:5173`
+(`/api/*` → engine `:8787`). Requires `PROTEAN_GUI_ALLOWED_HOSTS` +
+`PROTEAN_GUI_PUBLIC_ORIGIN`. Hard-refresh after login. Workflow Studio is no longer on this
+hostname (still on Docker `:3000`).
 
 ## Click-through checklist (owner)
 
