@@ -2,7 +2,18 @@
  * App state model — types, constants, reducer. No React components so Vite
  * Fast Refresh can patch the provider module independently (Law 3: right module).
  */
+import { designDemoInitialState } from '../config/designDemo';
 import type { ActivityKind, ArtefactType, ModelTier, TurnDone } from '../lib/api';
+
+/** Worklog visual kind (C6 data-kind) — optional override when richer than ActivityKind. */
+export type WorklogKind =
+  | 'think'
+  | 'tool'
+  | 'file'
+  | 'command'
+  | 'subagent'
+  | 'task'
+  | 'watcher';
 
 /** One real working step of a turn (thinking, tool run, engine stage). */
 export interface Activity {
@@ -11,6 +22,17 @@ export interface Activity {
   label: string;
   text: string;
   done: boolean;
+  /** Optional C6 kind when stream kind is too coarse (e.g. stage → watcher/task). */
+  worklogKind?: WorklogKind;
+  code?: string;
+  badge?: string;
+  durationMs?: number;
+}
+
+export interface ToolChip {
+  tool: string;
+  arg: string;
+  ms: number;
 }
 
 /**
@@ -45,6 +67,14 @@ export interface ChatMessage {
   activities?: Activity[];
   /** Assistant only: everything that streamed, in arrival order. */
   segments?: MessageSegment[];
+  /** Optional HTML body (design demo / trusted fixture only — not raw model stream). */
+  bodyHtml?: string;
+  /** Collapsed worklog summary line (design demo or derived). */
+  worklogSummary?: string;
+  /** Tool call chips under the worklog (prototype C5). */
+  toolChips?: ToolChip[];
+  /** Source citations under the answer. */
+  cite?: string[];
 }
 
 export type ConversationStatus = 'idle' | 'waiting' | 'streaming' | 'error';
@@ -143,16 +173,7 @@ function emptyConversation(): Conversation {
 }
 
 export function initialState(): AppState {
-  const first = emptyConversation();
-  return {
-    conversations: [first],
-    activeId: first.id,
-    settings: { tier: 'fast', domainId: 'generic' },
-    railOpen: false,
-    /** Open by default so the three-pane design-system shell is visible (matches prototype). */
-    previewOpen: true,
-    previewWidth: PREVIEW_WIDTH_DEFAULT_PX,
-  };
+  return designDemoInitialState();
 }
 
 function updateConversation(

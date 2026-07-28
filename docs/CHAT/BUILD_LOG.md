@@ -688,3 +688,20 @@ token promote alone did not look like the prototype they approved.
 
 **Verify:** Playwright — telemetry, domain pill, preview open (`264px 760px 416px`),
 empty “Start a conversation”, composer-foot, rail-foot; lint/tsc clean.
+
+## 2026-07-28 — Match docs/new-frontend prototype look (design demo seed)
+
+**Owner:** pointed at screenshot + `docs/new-frontend` as the required look.
+Note: `docs/new-frontend/src` is still the old Tailwind shell; the visual SOT is
+`docs/new-frontend/design/protean-shell-prototype.html` (+ design-system CSS).
+
+**Change:**
+- Seed live app with finance design-demo fixture (thread, 7-step worklog, toolchips,
+  board-memo artefact, rail rows) from the prototype data — labeled as design demo,
+  not a live model answer.
+- MessageList / Worklog / Preview / Rail markup aligned to prototype (bubble/name,
+  C6 icons+kinds, steer bar, styled HTML artefact iframe).
+- Brand `Protean · Finance`; telemetry from demo stats (TTFT 612ms / 4.1s / miss).
+
+**Verify:** Playwright — worklog 7 steps + think purple, iframe artefact, steer,
+4 convs, brand Finance. lint/tsc clean.

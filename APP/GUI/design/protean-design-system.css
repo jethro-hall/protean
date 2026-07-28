@@ -1,7 +1,6 @@
 /* =============================================================================
    PROTEAN DESIGN SYSTEM  ·  protean-design-system.css
-   The design specification for every Protean surface (ADR-0004/0005).
-   Live React runtime: APP/GUI/src/theme/{tokens,base,components}.css.
+   The single, governed source of truth for every Protean surface.
    -----------------------------------------------------------------------------
    WHY THIS FILE EXISTS
      Law 2 (nothing hardcoded): colours, spacing, radii, motion — every visual

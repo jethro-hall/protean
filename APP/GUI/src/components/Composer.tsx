@@ -86,7 +86,11 @@ export function Composer() {
             id="composer-input"
             rows={1}
             value={draft}
-            placeholder="Ask anything — summarise, draft, plan, analyse…"
+            placeholder={
+              state.settings.domainId === 'finance'
+                ? 'Ask about FY24 margins, reconciliations, a board memo…'
+                : 'Ask anything — summarise, draft, plan, analyse…'
+            }
             aria-label="Message"
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {

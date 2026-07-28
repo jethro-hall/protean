@@ -26,7 +26,7 @@ function ArtefactChip({
   return (
     <button
       type="button"
-      className="toolchip"
+      className={`toolchip${status === 'complete' ? ' done' : ''}`}
       onClick={() =>
         dispatch({
           type: 'selectArtefact',
@@ -51,7 +51,6 @@ function SegmentFlow({
 }) {
   const segments = message.segments ?? [];
   const activities = message.activities ?? [];
-  // Worklog once up-front (C6); then text / artefact chips in stream order (skip activity segments)
   const nonActivity = segments.filter((segment) => segment.kind !== 'activity');
   const showWorklog = activities.length > 0;
 
@@ -62,26 +61,60 @@ function SegmentFlow({
           activities={activities}
           streaming={message.streaming === true}
           totalMs={message.stats?.timings.totalMs}
+          summary={message.worklogSummary}
         />
       )}
-      {nonActivity.length === 0 && !showWorklog && (
-        <p className="whitespace-pre-wrap">{message.content}</p>
+      {(message.toolChips ?? []).map((chip) => (
+        <span key={`${chip.tool}-${chip.arg}`} className="toolchip done">
+          <span className="spin" aria-hidden />
+          Called <code>{chip.tool}</code>
+          <span className="toolchip-meta"> · {chip.arg}</span>
+          <span className="ms num">{chip.ms}ms</span>
+        </span>
+      ))}
+      {message.bodyHtml !== undefined && message.bodyHtml !== '' ? (
+        <div
+          className="assistant-html"
+          dangerouslySetInnerHTML={{ __html: message.bodyHtml }}
+        />
+      ) : (
+        <>
+          {nonActivity.length === 0 && !showWorklog && (
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          )}
+          {nonActivity.map((segment, index) => {
+            if (segment.kind === 'text') {
+              return (
+                <p key={`text-${index}`} className="whitespace-pre-wrap">
+                  {segment.text}
+                  {message.streaming === true && index === nonActivity.length - 1 && (
+                    <span className="cursor" aria-hidden />
+                  )}
+                </p>
+              );
+            }
+            return (
+              <ArtefactChip
+                key={segment.artefactId}
+                segment={segment}
+                conversation={conversation}
+              />
+            );
+          })}
+        </>
       )}
-      {nonActivity.map((segment, index) => {
-        if (segment.kind === 'text') {
-          return (
-            <p key={`text-${index}`} className="whitespace-pre-wrap">
-              {segment.text}
-              {message.streaming === true && index === nonActivity.length - 1 && (
-                <span className="cursor" aria-hidden />
-              )}
-            </p>
-          );
-        }
-        return (
-          <ArtefactChip key={segment.artefactId} segment={segment} conversation={conversation} />
-        );
-      })}
+      {message.bodyHtml !== undefined &&
+        nonActivity
+          .filter((segment) => segment.kind === 'artefact')
+          .map((segment) =>
+            segment.kind === 'artefact' ? (
+              <ArtefactChip
+                key={segment.artefactId}
+                segment={segment}
+                conversation={conversation}
+              />
+            ) : null,
+          )}
     </>
   );
 }
@@ -100,40 +133,62 @@ function AttachmentTags({ message }: { message: ChatMessage }) {
   );
 }
 
-function TurnStats({ message }: { message: ChatMessage }) {
-  if (message.stats === undefined) return null;
-  const { timings, cacheHit } = message.stats;
-  return (
-    <div className="cite">
-      TTFT <span className="num">{timings.ttftMs ?? '–'}</span> ms · total{' '}
-      <span className="num">{timings.totalMs ?? '–'}</span> ms · {cacheHit ? 'cache hit' : 'cache miss'}
-      <InfoHint hintKey="turnStats" />
-    </div>
-  );
-}
-
-function Bubble({ message, conversation }: { message: ChatMessage; conversation: Conversation }) {
+function Bubble({
+  message,
+  conversation,
+  tier,
+}: {
+  message: ChatMessage;
+  conversation: Conversation;
+  tier: string;
+}) {
   const isUser = message.role === 'user';
   return (
     <div className={`msg ${isUser ? 'user' : 'assistant'}`}>
       <div className="who-ico" aria-hidden>
         {isUser ? 'JH' : 'P'}
       </div>
-      <div className="body">
-        {isUser && <AttachmentTags message={message} />}
-        {isUser ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
-        ) : (
-          <SegmentFlow message={message} conversation={conversation} />
-        )}
-        {message.streaming === true &&
-          message.content === '' &&
-          (message.activities ?? []).length === 0 && (
-            <p className="waiting" role="status">
-              Waiting for first token…
-            </p>
+      <div className="bubble">
+        <div className="name">
+          {isUser ? 'You' : 'Protean'}
+          {!isUser && (
+            <span className="name-tier">
+              {' '}
+              · {tier.charAt(0).toUpperCase() + tier.slice(1)} tier
+            </span>
           )}
-        {!isUser && <TurnStats message={message} />}
+        </div>
+        <div className="body">
+          {isUser && <AttachmentTags message={message} />}
+          {isUser ? (
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          ) : (
+            <SegmentFlow message={message} conversation={conversation} />
+          )}
+          {!isUser &&
+            message.streaming === true &&
+            message.content === '' &&
+            (message.activities ?? []).length === 0 &&
+            message.bodyHtml === undefined && (
+              <p className="waiting" role="status">
+                Waiting for first token…
+              </p>
+            )}
+          {!isUser && (message.cite?.length ?? 0) > 0 && (
+            <div className="cite">
+              Sources:{' '}
+              {message.cite!.map((source, index) => (
+                <span key={source}>
+                  {index > 0 && ' · '}
+                  <a href="#" onClick={(event) => event.preventDefault()}>
+                    {source}
+                  </a>
+                </span>
+              ))}
+              <InfoHint hintKey="turnStats" />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -166,7 +221,12 @@ export function MessageList() {
     <div className="chat-scroll" aria-live="polite">
       <div className="thread">
         {conversation.messages.map((message) => (
-          <Bubble key={message.id} message={message} conversation={conversation} />
+          <Bubble
+            key={message.id}
+            message={message}
+            conversation={conversation}
+            tier={state.settings.tier}
+          />
         ))}
         {conversation.status === 'error' && conversation.errorMessage !== undefined && (
           <div className="banner error" role="alert">

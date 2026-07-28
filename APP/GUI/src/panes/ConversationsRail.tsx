@@ -1,7 +1,14 @@
 import { SHELL_OPERATOR } from '../config/shell';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
 
-/** C3 conversations rail — recent rows, pinned artefacts from real data, operator foot. */
+const DEMO_META: Record<string, { tag: string; when: string; generic?: boolean }> = {
+  'design-demo-finance': { tag: 'Finance', when: '2m ago' },
+  'design-demo-bas': { tag: 'Finance', when: '1h ago' },
+  'design-demo-vendor': { tag: 'Generic', when: 'Yesterday', generic: true },
+  'design-demo-stores': { tag: 'Finance', when: '2 days ago' },
+};
+
+/** C3 conversations rail — recent rows, pinned artefacts, operator foot. */
 export function ConversationsRail() {
   const state = useAppState();
   const dispatch = useAppDispatch();
@@ -29,33 +36,33 @@ export function ConversationsRail() {
 
       <div className="conv-list">
         <div className="rail-label">Recent</div>
-        {state.conversations.map((conversation) => (
-          <button
-            key={conversation.id}
-            type="button"
-            data-conv={conversation.id}
-            className={`conv${conversation.id === state.activeId ? ' active' : ''}`}
-            aria-current={conversation.id === state.activeId ? 'true' : undefined}
-            onClick={() => dispatch({ type: 'selectConversation', id: conversation.id })}
-          >
-            <span className="title">{conversation.title}</span>
-            <span className="meta">
-              <span className="tag generic">{state.settings.domainId}</span>
-              {conversation.artefacts.length > 0 && (
-                <span className="clip" title="Artefacts in this conversation">
-                  📎 {conversation.artefacts.length}
+        {state.conversations.map((conversation) => {
+          const meta = DEMO_META[conversation.id];
+          const artefactCount = conversation.artefacts.length;
+          return (
+            <button
+              key={conversation.id}
+              type="button"
+              data-conv={conversation.id}
+              className={`conv${conversation.id === state.activeId ? ' active' : ''}`}
+              aria-current={conversation.id === state.activeId ? 'true' : undefined}
+              onClick={() => dispatch({ type: 'selectConversation', id: conversation.id })}
+            >
+              <span className="title">{conversation.title}</span>
+              <span className="meta">
+                <span className={`tag${meta?.generic === true ? ' generic' : ''}`}>
+                  {meta?.tag ?? state.settings.domainId}
                 </span>
-              )}
-              <span>
-                {conversation.status === 'idle'
-                  ? conversation.messages.length === 0
-                    ? 'Ready'
-                    : 'Idle'
-                  : conversation.status}
+                <span>{meta?.when ?? (conversation.status === 'idle' ? 'Ready' : conversation.status)}</span>
+                {artefactCount > 0 && (
+                  <span className="clip" title={`${artefactCount} artefact(s)`}>
+                    📎 {artefactCount}
+                  </span>
+                )}
               </span>
-            </span>
-          </button>
-        ))}
+            </button>
+          );
+        })}
 
         {pinned.length > 0 && (
           <>

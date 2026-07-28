@@ -1,6 +1,8 @@
+import { useState, type FormEvent } from 'react';
 import { InfoHint } from '../components/InfoHint';
 import { activeConversation, type Artefact } from '../state/appState';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
+import { useSendTurn } from '../state/useTurn';
 
 function artefactLabels(artefacts: Artefact[]): Map<string, string> {
   const totals = new Map<string, number>();
@@ -20,20 +22,26 @@ function artefactLabels(artefacts: Artefact[]): Map<string, string> {
   return labels;
 }
 
-function contentSizeLabel(content: string): string {
-  const kb = content.length / 1024;
-  return kb >= 1 ? `${kb.toFixed(1)} KB` : `${content.length} chars`;
-}
-
-/** C8 Preview pane — live artefacts; truthful status. */
+/** C8 Preview pane — live artefacts + steer bar (prototype). */
 export function PreviewPane() {
   const state = useAppState();
   const dispatch = useAppDispatch();
+  const sendTurn = useSendTurn();
+  const [steer, setSteer] = useState('');
   const conversation = activeConversation(state);
   const labels = artefactLabels(conversation.artefacts);
   const artefact =
     conversation.artefacts.find((candidate) => candidate.id === conversation.activeArtefactId) ??
     conversation.artefacts.at(-1);
+  const busy = ['waiting', 'streaming'].includes(conversation.status);
+
+  const applySteer = (event: FormEvent) => {
+    event.preventDefault();
+    const text = steer.trim();
+    if (text === '' || busy) return;
+    setSteer('');
+    sendTurn(`Steer the artefact: ${text}`);
+  };
 
   return (
     <>
@@ -43,6 +51,11 @@ export function PreviewPane() {
           <InfoHint hintKey="previewPane" />
         </span>
         <span className="spacer" />
+        <div className="seg" role="tablist" aria-label="Preview mode">
+          <button type="button" className="on">
+            Artefact
+          </button>
+        </div>
         {artefact !== undefined && <StatusBadge status={artefact.status} />}
         <button
           type="button"
@@ -85,6 +98,19 @@ export function PreviewPane() {
           <ArtefactView artefact={artefact} label={labels.get(artefact.id) ?? artefact.title} />
         )}
       </div>
+      <form className="steer" onSubmit={applySteer}>
+        <input
+          value={steer}
+          onChange={(event) => setSteer(event.target.value)}
+          placeholder="Steer the artefact — “add a risks row”, “make it a chart”…"
+          aria-label="Steer the artefact"
+          disabled={busy || artefact === undefined}
+        />
+        <button className="go" type="submit" disabled={busy || artefact === undefined || steer.trim() === ''}>
+          Apply
+        </button>
+        <InfoHint hintKey="previewPane" />
+      </form>
     </>
   );
 }
@@ -92,34 +118,38 @@ export function PreviewPane() {
 function StatusBadge({ status }: { status: Artefact['status'] }) {
   const label =
     status === 'streaming' ? 'Building…' : status === 'complete' ? 'Complete' : 'Incomplete';
-  const tone =
-    status === 'streaming' ? 'info' : status === 'complete' ? 'ok' : 'warn';
+  const tone = status === 'streaming' ? 'info' : status === 'complete' ? 'ok' : 'warn';
   return <span className={`tag status-${tone}`}>{label}</span>;
 }
 
 function ArtefactView({ artefact, label }: { artefact: Artefact; label: string }) {
+  if (artefact.artefactType === 'html') {
+    const srcDoc = `<!doctype html><html><head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" href="/design/protean-design-system.css"/>
+<style>body{margin:0;background:transparent;font-family:var(--font)}</style>
+</head><body>${artefact.content}</body></html>`;
+    return (
+      <iframe
+        className="artefact-frame"
+        title={label}
+        sandbox="allow-same-origin"
+        srcDoc={srcDoc}
+      />
+    );
+  }
   return (
     <div className="paper">
       <div className="doc-meta">
         <strong>{label}</strong>
         <span className="meta-line">
-          <span className="eyebrow">{artefact.artefactType}</span> ·{' '}
-          <span className="num">{contentSizeLabel(artefact.content)}</span>
+          <span className="eyebrow">{artefact.artefactType}</span>
           {artefact.status === 'streaming' && ' · still streaming'}
         </span>
       </div>
       <div className="doc">
-        {artefact.artefactType === 'html' ? (
-          <iframe title={artefact.title} sandbox="" srcDoc={artefact.content} />
-        ) : (
-          <pre className="mono">{artefact.content}</pre>
-        )}
+        <pre className="mono">{artefact.content}</pre>
       </div>
-      {artefact.savedPath !== null && (
-        <p className="saved-path" title={artefact.savedPath}>
-          Saved: {artefact.savedPath}
-        </p>
-      )}
     </div>
   );
 }
