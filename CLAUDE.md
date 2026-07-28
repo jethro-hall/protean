@@ -27,8 +27,7 @@
   append `docs/CHAT/BUILD_LOG.md` → conventional commit → push.
 
 ## Current phase
-**Phase 0 — Foundation & the latency spike.** Goal: a running, instrumented streamed answer through
-the real Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`) via `AgentCore → Gateway → adapter`,
-with per-stage timings logged, matching Claude-Desktop answer quality; a second identical run returns
-from cache in < 300 ms. SDK option/field names and Bedrock model IDs are version-sensitive — `[VERIFY]`
-against docs.claude.com and `aws bedrock list-inference-profiles --region ap-southeast-2`.
+**Read `docs/ROADMAP.md` — do not trust a cached phase here.** As of 2026-07-28: Phases 0–3 are
+✅ done (evidence in ROADMAP + BUILD_LOG). **Current: Phase 4 — Domain Packs & the multi-domain
+proof.** Owner-directed theme/GUI work under ADR-0005 is already landed; further GUI polish is not
+a Phase 0 gate.

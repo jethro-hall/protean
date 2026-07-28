@@ -720,3 +720,13 @@ Note: `docs/new-frontend/src` is still the old Tailwind shell; the visual SOT is
 
 **Verify:** Playwright — empty “Start a conversation”, one “New conversation” row, no worklog,
 preview empty state; lint/tsc clean.
+
+## 2026-07-28 — Phase-gate follow-up: stale Phase 0 pointers
+
+**Trigger:** [Phase-gate](9efd3c9b-859b-4680-bcce-fd233ae83d69) reported Phase 0 “WE ARE HERE” and
+no-go for `docs/new-frontend` GUI work — **wrong**: it read a stale ROADMAP marker. Phase 0
+acceptance already PASSed (2026-07-27 spike); Phases 1–3 signed off; owner-directed theme is
+ADR-0005 / Phase 1+ territory.
+
+**Fix:** ROADMAP already marks Phase 4 current. Synced `CLAUDE.md` “Current phase” and
+`.cursor/rules/gui-ux.mdc` so agents stop claiming Phase 0 / “no GUI”.

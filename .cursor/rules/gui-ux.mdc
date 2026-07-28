@@ -15,7 +15,8 @@ Full text: `docs/UX_STANDARDS.md`. Hard constraints when editing UI:
 - **No clutter.** If removing an element doesn't hurt understanding or action, remove it.
 - **Truthful state.** Loading, streaming, degraded, and error are visible and honest.
 - **Browser-verify** every GUI change (desktop / iPad / mobile). "It compiles" is not evidence.
-- Phase 0 has no GUI — if asked to build UI during Phase 0, stop and say so.
+- Confirm current phase in `docs/ROADMAP.md` before GUI work. Phases 0–3 are done; Phase 0 “no GUI”
+  no longer applies. Owner-directed theme work uses ADR-0005 + `docs/new-frontend` design assets.
 
 **Design system:** the token architecture, colour contract, worklog + (i) contracts, and the
 verification gate are enforced in detail by `design-system.mdc` and documented in
