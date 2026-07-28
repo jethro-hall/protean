@@ -646,3 +646,11 @@ Landed on branch `adr-0004-design-system` as a 2nd commit on the open PR.
 - Owner click-through still useful via `docs/HUMAN_TEST_GUI.md` (systemd GUI already running).
 
 **Not done:** replace static prototype with React (correct — behaviour stays in React).
+
+## 2026-07-28 — Vite allowedHosts for protean.rideai.com.au
+
+**Symptom:** Browser showed Vite "Blocked request. This host (protean.rideai.com.au) is not allowed."
+
+**Fix:** `server.allowedHosts` from `PROTEAN_GUI_ALLOWED_HOSTS` in `APP/GUI/vite.config.ts`
+(default includes `protean.rideai.com.au`); wired via `scripts/run-gui.sh` +
+`infra/systemd/protean-gui.service`. Verified: `Host: protean.rideai.com.au` → HTTP 200.

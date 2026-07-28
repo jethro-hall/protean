@@ -12,7 +12,13 @@ Reinstall / restart: `bash scripts/install-gui-services.sh` · `systemctl --user
 | 3 | Live React GUI (engine-backed chat / uploads / preview) | http://127.0.0.1:5173/ |
 | 4 | Engine health | http://127.0.0.1:8787/healthz |
 
-Bound as `0.0.0.0` — replace `127.0.0.1` with this host’s LAN/public IP if testing from another machine.
+Bound as `0.0.0.0` — replace `127.0.0.1` with this host’s LAN/public IP if testing from another machine
+(e.g. `http://agents.rideai.com.au:5173/` when security groups allow).
+
+**Public host:** Vite must allow the Host header — set `PROTEAN_GUI_ALLOWED_HOSTS` (default
+includes `protean.rideai.com.au`). If Caddy still proxies that hostname to Agentic Workflow
+Studio (`agentic_workflow_web:3000`), you will not see this GUI until the edge is re-pointed
+at `host.docker.internal:5173` / the host Vite port.
 
 ## Click-through checklist (owner)
 
