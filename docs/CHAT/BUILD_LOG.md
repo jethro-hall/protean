@@ -593,3 +593,29 @@ present for human testing; bring GUI back correctly — **not** as a Cursor-hang
 
 **URLs:** http://127.0.0.1:5173/design/protean-style-guide.html ·
 …/design/protean-shell-prototype.html · …/ · engine :8787/healthz
+
+## 2026-07-28 — Fix red CI check: secret-guard matched NAMES not VALUES
+
+**Symptom:** the ADR-0004 PR showed 1 failing check. Initial hypothesis was CRLF/LF
+line-ending noise — **disproven** by reproducing CI locally.
+
+**Real cause:** the `Guard — no secrets committed` step in `.github/workflows/ci.yml`
+grepped for the *literal strings* `ANTHROPIC_API_KEY` / `AWS_BEARER_TOKEN`. Legitimate
+source must reference those env-var **names** to read them — e.g.
+`APP/CODE/src/config/defaults.ts` (`anthropicApiKey: 'ANTHROPIC_API_KEY'`),
+`APP/CODE/src/gateway/adapters/claude.ts` (header comment), `BUILD_LOG.md`. So the guard
+false-positived on real code and would fail **every** PR (Law 1 spirit: the gate must be
+meaningful, not blunt).
+
+**Fix:** rewrote the pattern to match secret **values**, not names:
+`sk-ant-…{20,}` (Anthropic), `sk-…{32,}` (long API keys), `ABSK…{16,}` (AWS bearer),
+and `NAME = '…quoted literal ≥12…'` assignments. Names alone no longer trip it.
+
+**Verified (agent, before commit):**
+- exact YAML command vs real repo → **0 matches (green)**;
+- vs 4 staged leak fixtures (env-assign, quoted sk-ant, ABSK token, NAME='literal')
+  → **all 4 caught (red)**;
+- legit `'ANTHROPIC_API_KEY'` name-references → **correctly ignored**;
+- `yaml.safe_load` → valid.
+
+Landed on branch `adr-0004-design-system` as a 2nd commit on the open PR.

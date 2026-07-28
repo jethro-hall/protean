@@ -25,6 +25,10 @@ jobs:
       - name: Test
         run: npm test --if-present
       - name: Guard — no secrets committed
+        # Matches secret VALUES, not variable NAMES. Legit source must reference
+        # ANTHROPIC_API_KEY / AWS_BEARER_TOKEN as env-var keys — flagging those is a
+        # false positive. We flag: real Anthropic keys (sk-ant-…), long sk- keys,
+        # AWS bearer tokens (ABSK…), and any NAME assigned a quoted literal value.
         run: |
-          if git grep -nE "(ANTHROPIC_API_KEY|AWS_BEARER_TOKEN|sk-[A-Za-z0-9]{20,})" -- ':!*.example' ':!.github/*' ; then
+          if git grep -nE "(sk-ant-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{32,}|ABSK[A-Za-z0-9+/]{16,}|(ANTHROPIC_API_KEY|AWS_BEARER_TOKEN[A-Z_]*)[[:space:]]*=[[:space:]]*['\"][^'\"$}]{12,})" -- ':!*.example' ':!.github/*' ; then
             echo "::error::Possible secret committed"; exit 1; fi
