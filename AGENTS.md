@@ -64,3 +64,40 @@ is the short, enforceable version.
 - Charter, Architecture, Roadmap in `docs/`.
 - The module map in `ARCHITECTURE.md §9`.
 - The build log is the shared memory across agents — read the tail before you start.
+
+## Cursor Cloud specific instructions
+
+Durable, non-obvious notes for agents starting in a Cursor Cloud VM (dependencies already
+installed by the startup update script — `npm ci` in `APP/CODE` and `APP/GUI`).
+
+- **No monorepo tool.** There is no root `package.json`. The two runnable apps are separate npm
+  packages: the backend engine `APP/CODE` and the frontend `APP/GUI`. Run npm scripts from inside
+  each directory. Standard scripts are already in each package's `package.json` (`dev`, `start`,
+  `build`, `typecheck`, `lint`, `test`); don't reinvent them.
+- **Run order (dev):** start the engine first (`cd APP/CODE && npm run dev`, port `8787`), then the
+  GUI (`cd APP/GUI && npm run dev`, port `5173`). The GUI proxies `/api/*` to the engine origin
+  (`PROTEAN_ENGINE_ORIGIN`, default `http://localhost:8787`, see `APP/GUI/vite.config.ts`).
+- **Vite binds to `localhost` (IPv6), not `127.0.0.1`.** Use `http://localhost:5173/` — a curl to
+  `127.0.0.1:5173` returns connection refused. The engine answers on both `localhost` and
+  `127.0.0.1`.
+- **Live chat turns need LLM provider credentials — they are NOT in the repo or the base VM.** The
+  engine boots, and `GET /healthz` + `GET /api/domains` work with no creds, but `POST /api/turn`
+  fails loudly by design (Law 1: no silent fallback) with e.g. `No model configured for tier
+  "fast"`. To run a real turn, create a repo-root `.env` (copy `.env.example`) and set either the
+  AWS Bedrock path (`CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION=ap-southeast-2`,
+  `AWS_BEARER_TOKEN_BEDROCK`, plus a model in `PROTEAN_STRONG_MODEL`/`ANTHROPIC_MODEL` and
+  `PROTEAN_FAST_MODEL`) or the direct Anthropic path (`ANTHROPIC_API_KEY` + models). The `generic`
+  domain defaults to the `fast` tier, so `PROTEAN_FAST_MODEL` must be set for a default turn; the
+  `finance` pack uses the `strong` tier. BUILD_LOG records live proofs on Bedrock with
+  `au.anthropic.claude-sonnet-5`. Provide credentials via Cursor Secrets, never commit them.
+- **State is file-backed, no external DB required.** Sessions, prompt history, token telemetry and
+  uploads persist as files under `APP/LLMBUILD_DATA/`; artefacts under `APP/ARTEFACTS/`. Postgres,
+  Redis, Qdrant and the GPU service in `infra/docker-compose.yml` are future seams and are NOT
+  wired into the engine yet — do not assume Docker is needed to run or test the app. (Docker is
+  also not installed in the base VM.) The LLM Gateway runs in-process inside `APP/CODE`, not as a
+  separate container.
+- **Agent tools:** the Claude Agent SDK loop is restricted to `Read,Grep,Glob`. `Bash` is refused
+  at config load until a sandbox is proven (see `config/loadConfig.ts` and BUILD_LOG 2026-07-28).
+- **Headless checks (no creds, no GUI):** `npm test` (vitest, LLM mocked), `npm run typecheck`,
+  `npm run lint` in `APP/CODE`; `npm run lint` and `npm run build` in `APP/GUI`. These mirror
+  `.github/workflows/ci.yml`.
