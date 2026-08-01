@@ -96,6 +96,8 @@ export interface StreamTurnParams {
   responseDepth?: ResponseDepth;
   /** Advanced manual override — wins over responseDepth's own budget. */
   turnTokenBudget?: number;
+  /** Advanced per-request override of the agent-loop step ceiling. Omitted = server default. */
+  agentMaxTurns?: number;
   onEvent: (event: TurnStreamEvent) => void;
   signal?: AbortSignal;
 }
@@ -111,6 +113,7 @@ export async function streamTurn(params: StreamTurnParams): Promise<void> {
     grounded,
     responseDepth,
     turnTokenBudget,
+    agentMaxTurns,
     onEvent,
     signal,
   } = params;
@@ -126,6 +129,7 @@ export async function streamTurn(params: StreamTurnParams): Promise<void> {
       ...(grounded === true ? { grounded } : {}),
       ...(responseDepth !== undefined ? { responseDepth } : {}),
       ...(turnTokenBudget !== undefined ? { turnTokenBudget } : {}),
+      ...(agentMaxTurns !== undefined ? { agentMaxTurns } : {}),
     }),
     ...(signal !== undefined ? { signal } : {}),
   });

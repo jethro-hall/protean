@@ -2,11 +2,30 @@ import { describe, expect, it } from 'vitest';
 import { listDomainPacks, loadDomainPack } from '../src/config/domainPacks.js';
 import { loadConfig, requireModel } from '../src/config/loadConfig.js';
 import { parseEnvFile } from '../src/config/env.js';
+import { resolveEffectiveAgentMaxTurns } from '../src/config/defaults.js';
 
 describe('parseEnvFile', () => {
   it('parses KEY=VALUE lines, ignoring comments and blanks', () => {
     const parsed = parseEnvFile('# comment\nA=1\n\nB = two \nC="quoted value"\n');
     expect(parsed).toEqual({ A: '1', B: 'two', C: 'quoted value' });
+  });
+});
+
+describe('resolveEffectiveAgentMaxTurns', () => {
+  it('falls back to the configured default when no override is requested', () => {
+    expect(resolveEffectiveAgentMaxTurns(undefined, 8, 20)).toBe(8);
+  });
+
+  it('lets a smaller per-request override win', () => {
+    expect(resolveEffectiveAgentMaxTurns(3, 8, 20)).toBe(3);
+  });
+
+  it('clamps a per-request override at the hard ceiling, even above the configured default', () => {
+    expect(resolveEffectiveAgentMaxTurns(999, 8, 20)).toBe(20);
+  });
+
+  it('clamps the configured default itself if it somehow exceeds the ceiling', () => {
+    expect(resolveEffectiveAgentMaxTurns(undefined, 50, 20)).toBe(20);
   });
 });
 

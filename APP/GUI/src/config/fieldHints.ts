@@ -63,4 +63,9 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'For when none of the three presets fit \u2014 e.g. a very long document that needs more room than "Professor" budgets by default.',
     example: '24000 for a long multi-section report; leave blank to use the selected depth preset.',
   },
+  agentMaxTurns: {
+    what: 'Maximum number of agent-loop steps (tool calls / reasoning turns) this turn is allowed to take.',
+    why: 'Lower it to force a quicker, more contained answer; raise it for a task that genuinely needs many tool calls to finish. Capped server-side regardless of what\u2019s entered here.',
+    example: '3 for a quick single-file lookup; leave blank to use the server\u2019s own default.',
+  },
 };

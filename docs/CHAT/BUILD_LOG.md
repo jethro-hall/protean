@@ -1496,3 +1496,44 @@ utf8 attachments, same as always.
   further live confirmation the Phase A telemetry fix holds.
 - Restarted `protean-engine.service` (systemd --user) to pick up the backend change — the GUI's
   Vite dev server hot-reloads automatically but the engine does not (`npm start`, not `tsx watch`).
+
+## 2026-08-01 · Claude · Phase 6 · agentMaxTurns becomes a per-request override
+
+Phase C of the GUI overhaul. The agent-loop step ceiling (`maxTurns`, Claude Agent SDK's
+multi-step-tool-call bound) was previously a server-wide env var only
+(`PROTEAN_AGENT_MAX_TURNS`/`DEFAULT_AGENT_MAX_TURNS = 8`), with no per-request control at all.
+
+**Backend:**
+- `config/defaults.ts`: `AGENT_MAX_TURNS_CEILING = 20` (hard cap regardless of what's requested)
+  and the pure helper `resolveEffectiveAgentMaxTurns(requested, configuredDefault, ceiling)` —
+  override wins over the server's configured default, but never past the ceiling.
+- `server.ts` `turnBodySchema`: new `agentMaxTurns: z.number().int().min(1).max(CEILING).optional()`
+  — zod itself rejects an out-of-range request with a clear 400 before the handler even runs (a
+  second, independent layer on top of the resolve helper's own clamp).
+- `handleTurn` computes the effective value via the new helper and threads it into the
+  `resolveToolset` call's `agentLoop.maxTurns` — everything downstream (`ToolPolicy`, the SDK
+  adapter) already consumed `maxTurns` generically, so no other file needed changes. The
+  `server.turn.registry` log line and its lineage `data` now record the effective `maxTurns` too.
+
+**GUI:**
+- `appState.ts`: `Settings.agentMaxTurns?: number` + `setAgentMaxTurns` action, mirroring
+  `turnTokenBudget`'s existing plumbing exactly.
+- `lib/api.ts` / `useTurn.ts`: threads `agentMaxTurns` into the `/api/turn` POST body when set.
+- `config/fieldHints.ts`: new `agentMaxTurns` hint.
+- Landed as a new "Max steps" number input in the *existing* Settings panel's Advanced disclosure,
+  next to Token budget override, for now — Phase D relocates both into the new Settings popup's
+  "Runtime & agent behavior" group. Kept it usable/live immediately rather than leaving the feature
+  invisible until Phase D lands.
+
+**Proof:**
+- Backend: `tsc --noEmit` + `eslint` clean; Vitest 142/142 (was 138) — 4 new cases for
+  `resolveEffectiveAgentMaxTurns` (default fallback, override wins, override clamped at ceiling,
+  configured-default-itself clamped at ceiling).
+- GUI: `tsc --noEmit` + `eslint` clean.
+- **Live proof against the real engine** (curl, post-restart): `agentMaxTurns: 2` → log line reads
+  `Registry wired ... (maxTurns 2)` with `registryVersion` reflecting `loop-t2-...` (down from the
+  default `t8`) — confirms the override actually reaches the tool policy. `agentMaxTurns: 999` →
+  rejected with 400 `"Too big: expected number to be <=20"` — confirms the hard ceiling rejects
+  out-of-range requests outright, not just silently clamping them.
+- **Live browser proof** (Playwright): opened Settings → Advanced, found the new "Max steps" input
+  right below Token budget override, set it to 3, confirmed the value persists in the field.

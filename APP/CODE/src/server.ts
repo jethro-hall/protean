@@ -4,11 +4,13 @@ import { z } from 'zod';
 import type { AgentCore } from './agent/AgentCore.js';
 import { createClaudeSdkAgentCore } from './agent/adapters/claudeSdk.js';
 import {
+  AGENT_MAX_TURNS_CEILING,
   DEFAULT_DOMAIN_ID,
   GROUNDING_TOOL_ID,
   MAX_ATTACHMENTS_PER_TURN,
   MAX_ATTACHMENT_BYTES,
   MAX_ZIP_BYTES,
+  resolveEffectiveAgentMaxTurns,
   SSE_HEADERS,
 } from './config/defaults.js';
 import { listDomainPacks, loadDomainPack } from './config/domainPacks.js';
@@ -44,6 +46,12 @@ const turnBodySchema = z.object({
   responseDepth: responseDepthSchema.optional(),
   /** Advanced manual override — wins over responseDepth's own budget. */
   turnTokenBudget: z.number().int().positive().max(64000).optional(),
+  /**
+   * Advanced per-request override of the agent-loop step ceiling. Clamped to
+   * AGENT_MAX_TURNS_CEILING server-side regardless of what the client asks —
+   * omitted = the server's own configured default (Phase 6).
+   */
+  agentMaxTurns: z.number().int().min(1).max(AGENT_MAX_TURNS_CEILING).optional(),
   attachments: z
     .array(
       attachmentSchema.refine(
@@ -162,12 +170,18 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
     // Grounded-knowledge POC: the knowledge tool is wired in only for this turn's
     // request, never as a pack default (Law 1 — no silent always-on behaviour).
     const grounding = resolveGrounding(request, pack);
+    // Per-request override wins, but never past the hard ceiling regardless
+    // of what the client asks for (Phase 6 agentMaxTurns control).
+    const effectiveMaxTurns = resolveEffectiveAgentMaxTurns(
+      body.agentMaxTurns,
+      deps.config.agentLoop.maxTurns,
+    );
     toolset = resolveToolset({
       packToolIds: grounding.grounded ? [...pack.tools, GROUNDING_TOOL_ID] : pack.tools,
       agentLoop: {
         availableTools: deps.config.agentLoop.availableTools,
         allowedTools: deps.config.agentLoop.allowedTools,
-        maxTurns: deps.config.agentLoop.maxTurns,
+        maxTurns: effectiveMaxTurns,
         permissionMode: deps.config.agentLoop.permissionMode,
       },
       catalog: loadConnectorCatalog(),
@@ -181,12 +195,13 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
 
   log.info(
     'server.turn.registry',
-    `Registry wired ${toolset.wired.length} pack tools → [${toolset.toolPolicy.availableTools.join(', ')}]`,
+    `Registry wired ${toolset.wired.length} pack tools → [${toolset.toolPolicy.availableTools.join(', ')}] (maxTurns ${toolset.toolPolicy.maxTurns})`,
     {
       sessionId: request.sessionId,
       data: {
         registryVersion: toolset.registryVersion,
         mcpServers: toolset.mcpServers.map((server) => server.serverId),
+        maxTurns: toolset.toolPolicy.maxTurns,
       },
     },
   );

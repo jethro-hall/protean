@@ -59,6 +59,9 @@ export function useSendTurn(): (input: string, attachments?: Attachment[]) => vo
         ...(state.settings.turnTokenBudget !== undefined
           ? { turnTokenBudget: state.settings.turnTokenBudget }
           : {}),
+        ...(state.settings.agentMaxTurns !== undefined
+          ? { agentMaxTurns: state.settings.agentMaxTurns }
+          : {}),
         signal: controller.signal,
         onEvent: (event) => {
           if (event.type === 'text') {

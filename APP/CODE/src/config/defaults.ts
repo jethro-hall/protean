@@ -74,6 +74,18 @@ export const DEFAULT_AGENT_ALLOWED_TOOLS = ['Read', 'Grep', 'Glob'] as const;
 export const DEFAULT_AGENT_MAX_TURNS = 8;
 export const DEFAULT_AGENT_PERMISSION_MODE = 'dontAsk' as const;
 
+/** Hard ceiling on a per-request agentMaxTurns override, regardless of what the client asks for. */
+export const AGENT_MAX_TURNS_CEILING = 20;
+
+/** Per-request override wins over the server's configured default, but never past the ceiling. */
+export function resolveEffectiveAgentMaxTurns(
+  requested: number | undefined,
+  configuredDefault: number,
+  ceiling: number = AGENT_MAX_TURNS_CEILING,
+): number {
+  return Math.min(requested ?? configuredDefault, ceiling);
+}
+
 /** Deterministic cache-key stamp derived from the effective tool policy. */
 export function toolsetVersionFromPolicy(policy: {
   availableTools: readonly string[];

@@ -188,6 +188,24 @@ export function SettingsMenu() {
                     });
                   }}
                 />
+                <label>
+                  Max steps <InfoHint hintKey="agentMaxTurns" />
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  placeholder="Use server default"
+                  value={state.settings.agentMaxTurns ?? ''}
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    const parsed = raw === '' ? undefined : Number.parseInt(raw, 10);
+                    dispatch({
+                      type: 'setAgentMaxTurns',
+                      agentMaxTurns: parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined,
+                    });
+                  }}
+                />
               </div>
             )}
           </fieldset>

@@ -85,6 +85,8 @@ export interface Settings {
   responseDepth?: ResponseDepth;
   /** Advanced manual override — wins over responseDepth's own budget. Undefined = no override. */
   turnTokenBudget?: number;
+  /** Advanced per-request override of the agent-loop step ceiling (Phase 6). Undefined = server default. */
+  agentMaxTurns?: number;
 }
 
 export interface AppState {
@@ -148,6 +150,7 @@ export type Action =
   | { type: 'setGrounded'; grounded: boolean }
   | { type: 'setResponseDepth'; responseDepth: ResponseDepth | undefined }
   | { type: 'setTurnTokenBudget'; turnTokenBudget: number | undefined }
+  | { type: 'setAgentMaxTurns'; agentMaxTurns: number | undefined }
   | { type: 'toggleRail' }
   | { type: 'togglePreview' }
   | { type: 'setPreviewWidth'; width: number };
@@ -424,6 +427,15 @@ export function reducer(state: AppState, action: Action): AppState {
         delete settings.turnTokenBudget;
       } else {
         settings.turnTokenBudget = action.turnTokenBudget;
+      }
+      return { ...state, settings };
+    }
+    case 'setAgentMaxTurns': {
+      const settings: Settings = { ...state.settings };
+      if (action.agentMaxTurns === undefined) {
+        delete settings.agentMaxTurns;
+      } else {
+        settings.agentMaxTurns = action.agentMaxTurns;
       }
       return { ...state, settings };
     }
