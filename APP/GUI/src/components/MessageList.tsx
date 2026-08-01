@@ -137,7 +137,10 @@ function Bubble({
           {!isUser && (
             <span className="name-tier">
               {' '}
-              · {tier.charAt(0).toUpperCase() + tier.slice(1)} tier
+              ·{' '}
+              {message.stats !== undefined
+                ? message.stats.model
+                : `${tier.charAt(0).toUpperCase() + tier.slice(1)} tier`}
             </span>
           )}
         </div>

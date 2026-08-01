@@ -62,6 +62,7 @@ export function useSendTurn(): (input: string, attachments?: Attachment[]) => vo
         ...(state.settings.agentMaxTurns !== undefined
           ? { agentMaxTurns: state.settings.agentMaxTurns }
           : {}),
+        ...(state.settings.providerId !== undefined ? { providerId: state.settings.providerId } : {}),
         signal: controller.signal,
         onEvent: (event) => {
           if (event.type === 'text') {

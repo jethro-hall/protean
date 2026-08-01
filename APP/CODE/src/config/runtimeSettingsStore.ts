@@ -20,6 +20,8 @@ export interface ProviderRecord {
   label: string;
   createdAt: string;
   config: ProviderAdminConfig;
+  /** Which of this provider's models the quick picker (Phase 6) sends turns to. */
+  model?: string;
 }
 
 export interface ProviderSummary {
@@ -31,6 +33,8 @@ export interface ProviderSummary {
   detail: string;
   /** Last 4 chars only -- never the real secret. */
   secretRedacted: string;
+  /** Which model the quick picker sends turns to, if set. */
+  model?: string;
 }
 
 function providersFile(runtimeConfigDir: string): string {
@@ -88,6 +92,7 @@ export function toSummary(record: ProviderRecord): ProviderSummary {
     createdAt: record.createdAt,
     detail: detailOf(record.config),
     secretRedacted: redact(secretOf(record.config)),
+    ...(record.model !== undefined ? { model: record.model } : {}),
   };
 }
 
@@ -99,9 +104,14 @@ export function getProviderConfig(runtimeConfigDir: string, id: string): Provide
   return readAll(runtimeConfigDir).find((record) => record.id === id)?.config;
 }
 
+/** Full record (config + selected model) -- used to actually execute a turn against this provider. */
+export function getProviderRecord(runtimeConfigDir: string, id: string): ProviderRecord | undefined {
+  return readAll(runtimeConfigDir).find((record) => record.id === id);
+}
+
 export function saveProvider(
   runtimeConfigDir: string,
-  input: { id?: string | undefined; label: string; config: ProviderAdminConfig },
+  input: { id?: string | undefined; label: string; config: ProviderAdminConfig; model?: string | undefined },
 ): ProviderRecord {
   const records = readAll(runtimeConfigDir);
   const existingIndex = input.id !== undefined ? records.findIndex((r) => r.id === input.id) : -1;
@@ -111,6 +121,7 @@ export function saveProvider(
     label: input.label,
     createdAt: existingIndex >= 0 ? records[existingIndex]!.createdAt : new Date().toISOString(),
     config: input.config,
+    ...(input.model !== undefined ? { model: input.model } : {}),
   };
   if (existingIndex >= 0) {
     records[existingIndex] = record;

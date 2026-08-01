@@ -37,6 +37,7 @@ import {
   deleteProvider,
   deleteMcpOverlayEntry,
   getProviderConfig,
+  getProviderRecord,
   listProviders,
   readMcpOverlay,
   saveMcpOverlayEntry,
@@ -44,6 +45,8 @@ import {
 } from './config/runtimeSettingsStore.js';
 import { listProviderModels, testProviderConnection } from './gateway/providerAdmin/dispatch.js';
 import type { ProviderAdminConfig } from './gateway/providerAdmin/types.js';
+import { createCustomProviderGateway } from './gateway/adapters/customProvider.js';
+import { createRawGatewayAgentCore } from './agent/adapters/rawGatewayAgent.js';
 import { stdioMcpConnectorSchema } from './contracts/connectors.js';
 import { testStdioMcpServer } from './tools/mcpAdmin.js';
 
@@ -65,6 +68,11 @@ const turnBodySchema = z.object({
    * omitted = the server's own configured default (Phase 6).
    */
   agentMaxTurns: z.number().int().min(1).max(AGENT_MAX_TURNS_CEILING).optional(),
+  /**
+   * Quick model picker (Phase 6): a saved custom provider id to answer this
+   * turn instead of the built-in Fast/Strong tiers. Omitted = tier as usual.
+   */
+  providerId: z.string().min(1).optional(),
   attachments: z
     .array(
       attachmentSchema.refine(
@@ -169,6 +177,7 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
   let pack;
   let model: string;
   let toolset;
+  let customAgent: AgentCore | undefined;
   try {
     pack = loadDomainPack(deps.config.paths.domainsDir, request.domainId);
     // Same call runTurn.ts makes with the same watcher config — deterministic, so
@@ -180,6 +189,21 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
         autoTierEscalationTokens: deps.config.watcher.autoTierEscalationTokens,
       }).tier,
     );
+    // Quick model picker (Phase 6): a saved custom provider answers this turn
+    // instead of the built-in Fast/Strong tiers -- no tool use/MCP for these,
+    // an honest non-agentic path (agent/adapters/rawGatewayAgent.ts), not the
+    // Claude Agent SDK loop.
+    if (body.providerId !== undefined) {
+      const record = getProviderRecord(deps.config.paths.runtimeConfigDir, body.providerId);
+      if (record === undefined) {
+        throw new Error(`No saved provider with id "${body.providerId}".`);
+      }
+      if (record.model === undefined) {
+        throw new Error(`Provider "${record.label}" has no model selected — pick one in Settings first.`);
+      }
+      model = record.model;
+      customAgent = createRawGatewayAgentCore(createCustomProviderGateway(record.config));
+    }
     // Grounded-knowledge POC: the knowledge tool is wired in only for this turn's
     // request, never as a pack default (Law 1 — no silent always-on behaviour).
     const grounding = resolveGrounding(request, pack);
@@ -254,7 +278,7 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
 
   try {
     for await (const event of runTurn(request, {
-      agent: deps.agent,
+      agent: customAgent ?? deps.agent,
       gateway: deps.gateway,
       cache: deps.cache,
       pack,
@@ -317,6 +341,7 @@ const saveProviderBodySchema = z.object({
   id: z.string().min(1).optional(),
   label: z.string().min(1),
   config: providerConfigSchema,
+  model: z.string().min(1).optional(),
 });
 
 /** Test/list-models accepts either a not-yet-saved draft config, or a reference to a saved one. */

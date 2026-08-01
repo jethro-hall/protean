@@ -98,6 +98,8 @@ export interface StreamTurnParams {
   turnTokenBudget?: number;
   /** Advanced per-request override of the agent-loop step ceiling. Omitted = server default. */
   agentMaxTurns?: number;
+  /** Quick model picker (Phase 6): answer via this saved custom provider instead of `tier`. */
+  providerId?: string;
   onEvent: (event: TurnStreamEvent) => void;
   signal?: AbortSignal;
 }
@@ -114,6 +116,7 @@ export async function streamTurn(params: StreamTurnParams): Promise<void> {
     responseDepth,
     turnTokenBudget,
     agentMaxTurns,
+    providerId,
     onEvent,
     signal,
   } = params;
@@ -130,6 +133,7 @@ export async function streamTurn(params: StreamTurnParams): Promise<void> {
       ...(responseDepth !== undefined ? { responseDepth } : {}),
       ...(turnTokenBudget !== undefined ? { turnTokenBudget } : {}),
       ...(agentMaxTurns !== undefined ? { agentMaxTurns } : {}),
+      ...(providerId !== undefined ? { providerId } : {}),
     }),
     ...(signal !== undefined ? { signal } : {}),
   });
@@ -174,6 +178,8 @@ export interface ProviderSummary {
   createdAt: string;
   detail: string;
   secretRedacted: string;
+  /** Which model the quick picker sends turns to, if set. */
+  model?: string;
 }
 
 export interface ProviderAdminResult {
@@ -209,6 +215,7 @@ export async function saveProvider(input: {
   id?: string;
   label: string;
   config: ProviderDraftConfig;
+  model?: string;
 }): Promise<{ id: string }> {
   const res = await settingsFetch('/api/settings/providers', { method: 'POST', body: JSON.stringify(input) });
   const body = await settingsJson<{ provider: { id: string } }>(res, 'Failed to save provider.');

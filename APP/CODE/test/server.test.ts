@@ -2,13 +2,14 @@ import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AgentCore } from '../src/agent/AgentCore.js';
 import { loadConfig } from '../src/config/loadConfig.js';
 import { createLogger } from '../src/logging/logger.js';
 import type { LlmGateway } from '../src/gateway/LlmGateway.js';
 import { createMemoryCacheStore } from '../src/watcher/cache.js';
 import { createMemorySessionStore } from '../src/watcher/sessionStore.js';
+import { saveProvider } from '../src/config/runtimeSettingsStore.js';
 import { startServer, type AppDeps } from '../src/server.js';
 
 const fakeAgent: AgentCore = {
@@ -239,5 +240,59 @@ describe('engine HTTP surface', () => {
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: string };
     expect(body.error).toContain('does-not-exist');
+  });
+
+  describe('quick model picker: providerId routes a turn to a custom provider', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('answers via the saved custom provider instead of the built-in gateway', async () => {
+      const record = saveProvider(join(dataDir, 'runtime-config'), {
+        label: 'Test Custom Provider',
+        config: { type: 'anthropic', apiKey: 'sk-test-key' },
+        model: 'claude-custom-test',
+      });
+
+      // Only intercept the outbound call to the vendor -- the test's own call
+      // to the local test server must still go through the real fetch.
+      const realFetch = globalThis.fetch;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string, init?: RequestInit) => {
+          if (String(url).includes('api.anthropic.com')) {
+            return new Response(
+              JSON.stringify({ content: [{ type: 'text', text: 'answer from custom provider' }], usage: { input_tokens: 1, output_tokens: 1 } }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            );
+          }
+          return realFetch(url, init);
+        }),
+      );
+
+      const res = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: 'hello', sessionId: 'custom-provider-test', providerId: record.id }),
+      });
+      expect(res.status).toBe(200);
+      const raw = await res.text();
+      expect(raw).toContain('answer from custom provider');
+      const doneLine = raw.split('\n').find((line) => line.startsWith('data:') && line.includes('"type":"done"'));
+      if (doneLine === undefined) throw new Error('no done event payload');
+      const done = JSON.parse(doneLine.slice('data:'.length)) as { model: string };
+      expect(done.model).toBe('claude-custom-test');
+    });
+
+    it('rejects a turn referencing an unknown providerId with a specific error', async () => {
+      const res = await fetch(`${baseUrl}/api/turn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: 'hello', sessionId: 'custom-provider-missing', providerId: 'does-not-exist' }),
+      });
+      expect(res.status).toBe(422);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain('does-not-exist');
+    });
   });
 });

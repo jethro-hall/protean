@@ -1701,3 +1701,90 @@ implying otherwise.
   with the full spawn command and raw stdout JSON-RPC response in the log; saved it, confirmed it
   appeared under "Saved by you"; deleted it — `mcp-overlay.json` back to `[]`, no debris left in
   the live service.
+
+## 2026-08-01 · Claude · Phase 6 · Quick model picker: real execution wiring for custom providers
+
+Phase G — originally planned as "a picker next to Attach listing Fast/Strong + saved providers."
+Mid-implementation this turned out to be dishonest as scoped: Phase E only built *admin*
+capabilities (test/list-models) — the live chat turn still only ever executed through the single
+hardcoded Claude Agent SDK adapter. Letting someone "select" a custom provider without it actually
+changing what answers would be exactly the kind of fake control this app's own codebase explicitly
+guards against (truthful-state banners, "never fakes a number"). Flagged this to the owner
+mid-build rather than either shipping a non-functional control or silently expanding scope — owner
+chose the real wiring.
+
+**Key discovery that made this tractable:** `AgentEvent` (what `AgentCore.runTurn()` yields) and
+`GatewayEvent` (what `LlmGateway.streamTurn()` yields) are *literally the same type*. A custom
+provider therefore needs no new orchestration at all — just a `LlmGateway` implementation plus a
+trivial passthrough `AgentCore` that calls it directly, dropped into `runTurn.ts`'s existing
+`agent` slot. Caching, budget, rewrite, lineage, session history, and SSE streaming all keep
+working completely unchanged.
+
+**Backend:**
+- New `gateway/adapters/customProvider.ts`: `createCustomProviderGateway(config)` — one non-streaming
+  HTTP call per vendor (Anthropic `/v1/messages`, Bedrock-runtime `/model/{id}/invoke` using the
+  Anthropic-on-Bedrock body shape — this app's own built-in Bedrock connection is Anthropic-only
+  too, so this matches existing scope rather than attempting every Bedrock model family generically
+  — and OpenAI-compatible `/chat/completions`), yielding one `text` event with the full response
+  then `done`. An honest simplification (built-in Fast/Strong still stream token-by-token; this
+  trades true streaming for supporting arbitrary vendor HTTP APIs without a vendor SDK per
+  provider), not a fake control.
+- New `agent/adapters/rawGatewayAgent.ts`: `createRawGatewayAgentCore(gateway)` — the passthrough
+  described above. No tool use / MCP for custom providers (the Claude Agent SDK's loop is
+  Claude-specific) — an honest, simpler, non-agentic response path, not a degraded version of the
+  built-in one.
+- `config/runtimeSettingsStore.ts`: `ProviderRecord`/`ProviderSummary` gain an optional `model`
+  field — a connection alone isn't enough to answer a turn; new `getProviderRecord()` for full
+  record lookup (config + model) at turn-execution time.
+- `server.ts` `turnBodySchema` gains `providerId` (a saved provider id). In `handleTurn`, when set:
+  looks up the record, fails loud with a specific message if the provider is unknown or has no
+  model selected, overrides `model`, and swaps in the raw custom agent for `runTurn`'s `agent`
+  slot — everything else in the call is unchanged.
+- **Known accepted limitation:** the turn cache key already includes `model`, so two different
+  custom providers happening to share an identical model *string* (e.g. two different
+  OpenAI-compatible endpoints both serving "llama-3-70b") with an identical prompt could serve each
+  other's cached response. Rare in practice (needs same prompt + same model name + different
+  backend); logged here rather than expanding `AssembledTurn`'s cache-key material further this
+  session.
+
+**GUI:**
+- `ProvidersModelsSection.tsx`: after a successful "List available models," a plain `<select>`
+  lets the user pick one to associate with the saved provider ("not a select" was about the
+  *add-provider* flow specifically, not picking among already-fetched options) — Save button label
+  reflects the chosen model.
+- `Composer.tsx`: the previously-static "Tier · fast" label is now a real `<select>` next to
+  Attach, listing built-in Fast/Strong plus any saved provider that has a model set. Picking a
+  provider sets `state.settings.providerId`; picking a tier clears it (so the picker's own
+  selection visibly wins). **Real bug caught and fixed during live verification:** the picker's
+  provider list was fetched once on mount and never refreshed, so a provider saved in Settings
+  didn't appear until a full page reload — fixed by refetching `onFocus` of the picker.
+- `MessageList.tsx`: **second real bug caught and fixed during live verification** — the per-message
+  "· Fast tier" label was hardcoded to the *current* global tier setting, not what actually
+  answered that specific historical message (wrong for custom-provider turns, and would even
+  relabel old tier-based messages if the user changed tier mid-conversation). Now shows
+  `message.stats.model` (the real model that answered) once the turn completes, falling back to
+  the live tier label only while a turn is still in progress and stats aren't available yet.
+- `appState.ts`/`lib/api.ts`/`useTurn.ts`: `providerId` threaded through settings → turn request,
+  mirroring `agentMaxTurns`'s existing plumbing.
+
+**Proof:**
+- Backend: `tsc --noEmit` + `eslint` clean; Vitest 173/173 (was 165) — 7 new cases in
+  `customProvider.test.ts` (all three vendors' success/error paths, secret redaction in gateway
+  calls, the raw agent's passthrough behaviour) plus 2 new `server.test.ts` HTTP-level cases: a
+  full `/api/turn` round trip with `providerId` set (mocked vendor call, real server, real SSE
+  parsing) confirming the `done` event's `model` field matches the saved provider's model, and a
+  422 with a specific message for an unknown `providerId`.
+- GUI: `tsc --noEmit` + `eslint` clean.
+- **Live proof against the real Anthropic API** (Playwright, using the already-trusted key from
+  `.env` — read directly by the script, never printed/logged): added a custom Anthropic provider,
+  listed its real models (11 returned), picked `claude-opus-5`, saved it. First run exposed the
+  stale-picker-list bug (message still answered via Fast tier — caught because the engine log's
+  `costUsd:null` + zero cache-token fields, a signature only the new custom-provider path
+  produces, didn't match). Fixed, re-ran: picker correctly listed and selected "Quick Picker Verify
+  (claude-opus-5)", sent a message, got the correct reply, and the bubble now honestly reads
+  "· claude-opus-5" — confirmed via the engine log's distinctive fingerprint that the custom
+  provider, not the built-in tier, actually answered. Cleaned up the test provider afterward — no
+  debris in the live service.
+
+**This closes the owner-directed GUI overhaul (Phases A–G).** All 7 phases landed as separate,
+independently-verified commits per the plan on file.

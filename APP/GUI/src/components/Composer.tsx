@@ -1,15 +1,21 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { InfoHint } from './InfoHint';
 import { useSendTurn, useStopTurn } from '../state/useTurn';
 import { activeConversation } from '../state/appState';
-import { useAppState } from '../state/useAppStore';
+import { useAppDispatch, useAppState } from '../state/useAppStore';
 import {
   ATTACHMENT_ACCEPT,
   MAX_ATTACHMENTS_PER_TURN,
   MAX_ATTACHMENT_BYTES,
   MAX_ZIP_BYTES,
 } from '../config/uploads';
-import type { Attachment } from '../lib/api';
+import { fetchProviders, type Attachment, type ModelTier, type ProviderSummary } from '../lib/api';
+
+/** Quick model picker (Phase 6): built-in tiers + any saved provider that has a model set. */
+const BUILTIN_TIER_OPTIONS: Array<{ value: string; tier: ModelTier; label: string }> = [
+  { value: 'tier:fast', tier: 'fast', label: 'Fast' },
+  { value: 'tier:strong', tier: 'strong', label: 'Strong' },
+];
 
 function isZipFile(file: File): boolean {
   return file.type === 'application/zip' || file.name.toLowerCase().endsWith('.zip');
@@ -29,11 +35,33 @@ export function Composer() {
   const [draft, setDraft] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sendTurn = useSendTurn();
   const stopTurn = useStopTurn();
   const state = useAppState();
+  const dispatch = useAppDispatch();
   const busy = ['waiting', 'streaming'].includes(activeConversation(state).status);
+
+  const reloadProviders = (): void => {
+    fetchProviders()
+      .then((list) => setProviders(list.filter((p) => p.model !== undefined)))
+      .catch(() => setProviders([]));
+  };
+
+  useEffect(reloadProviders, []);
+
+  const modelPickerValue =
+    state.settings.providerId !== undefined ? `provider:${state.settings.providerId}` : `tier:${state.settings.tier}`;
+
+  const handleModelPickerChange = (value: string): void => {
+    if (value.startsWith('provider:')) {
+      dispatch({ type: 'setProviderId', providerId: value.slice('provider:'.length) });
+    } else {
+      const tier = BUILTIN_TIER_OPTIONS.find((option) => option.value === value)?.tier ?? 'fast';
+      dispatch({ type: 'setTier', tier });
+    }
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -171,8 +199,32 @@ export function Composer() {
           </button>
           <InfoHint hintKey="attachFile" direction="up" />
           <span className="cf-item">
-            Tier · {state.settings.tier}
-            <InfoHint hintKey="modelTier" direction="up" />
+            <select
+              className="cf-model-picker"
+              aria-label="Model for the next message"
+              value={modelPickerValue}
+              disabled={busy}
+              onFocus={reloadProviders}
+              onChange={(event) => handleModelPickerChange(event.target.value)}
+            >
+              <optgroup label="Built-in">
+                {BUILTIN_TIER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </optgroup>
+              {providers.length > 0 && (
+                <optgroup label="Your providers">
+                  {providers.map((provider) => (
+                    <option key={provider.id} value={`provider:${provider.id}`}>
+                      {provider.label} ({provider.model})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <InfoHint hintKey="quickModelPicker" direction="up" />
           </span>
           <span className="cf-item">
             Domain · {state.settings.domainId}

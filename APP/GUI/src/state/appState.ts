@@ -87,6 +87,8 @@ export interface Settings {
   turnTokenBudget?: number;
   /** Advanced per-request override of the agent-loop step ceiling (Phase 6). Undefined = server default. */
   agentMaxTurns?: number;
+  /** Quick model picker (Phase 6): a saved custom provider id answering instead of `tier`. Undefined = use tier. */
+  providerId?: string;
 }
 
 export interface AppState {
@@ -151,6 +153,7 @@ export type Action =
   | { type: 'setResponseDepth'; responseDepth: ResponseDepth | undefined }
   | { type: 'setTurnTokenBudget'; turnTokenBudget: number | undefined }
   | { type: 'setAgentMaxTurns'; agentMaxTurns: number | undefined }
+  | { type: 'setProviderId'; providerId: string | undefined }
   | { type: 'toggleRail' }
   | { type: 'togglePreview' }
   | { type: 'setPreviewWidth'; width: number };
@@ -405,8 +408,13 @@ export function reducer(state: AppState, action: Action): AppState {
           ),
         status: 'idle',
       }));
-    case 'setTier':
-      return { ...state, settings: { ...state.settings, tier: action.tier } };
+    case 'setTier': {
+      // Picking a built-in tier means "use the built-in tier" -- clear any
+      // custom-provider override so the picker's own selection wins visibly.
+      const settings: Settings = { ...state.settings, tier: action.tier };
+      delete settings.providerId;
+      return { ...state, settings };
+    }
     case 'setDomain':
       return { ...state, settings: { ...state.settings, domainId: action.domainId } };
     case 'setGrounded':
@@ -436,6 +444,15 @@ export function reducer(state: AppState, action: Action): AppState {
         delete settings.agentMaxTurns;
       } else {
         settings.agentMaxTurns = action.agentMaxTurns;
+      }
+      return { ...state, settings };
+    }
+    case 'setProviderId': {
+      const settings: Settings = { ...state.settings };
+      if (action.providerId === undefined) {
+        delete settings.providerId;
+      } else {
+        settings.providerId = action.providerId;
       }
       return { ...state, settings };
     }

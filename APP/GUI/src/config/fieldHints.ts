@@ -19,6 +19,11 @@ export const fieldHints: Record<string, FieldHint> = {
     what: 'The speed/quality tier answering you.',
     why: 'Fast answers simple turns cheaply; Strong reasons more deeply but costs more and takes longer.',
   },
+  quickModelPicker: {
+    what: 'Which model answers your next message — a built-in tier, or one of your saved providers.',
+    why: 'A saved provider only appears here once it has a model selected in Settings > Providers & models. Picking one here overrides Settings’ tier just for this conversation until you change it back.',
+    example: 'Pick "Fast" for a quick answer, or your own OpenAI-compatible endpoint for a specific model.',
+  },
   domainPack: {
     what: 'The active domain pack (vocabulary, tools, and behaviour).',
     why: 'Protean shape-shifts per domain \u2014 switching packs changes how answers are framed, with no code change.',
@@ -92,6 +97,11 @@ export const fieldHints: Record<string, FieldHint> = {
     what: 'A Bedrock API key (bearer token) \u2014 AWS\u2019s newer, simpler alternative to full IAM credentials.',
     why: 'Same auth style this platform\u2019s own built-in Bedrock connection already uses \u2014 no AWS SDK/IAM setup needed here.',
     example: 'ABSK...',
+  },
+  providerModel: {
+    what: 'Which of this provider’s models the quick picker (next to Attach) sends turns to.',
+    why: 'A provider connection alone isn’t enough to answer a turn — a specific model id is required. Pick one from the list you just fetched.',
+    example: 'claude-sonnet-5, gpt-4o, llama-3-70b-instruct',
   },
   providerBaseUrl: {
     what: 'The base URL of an OpenAI-compatible API endpoint.',

@@ -210,7 +210,8 @@
 .protean-settings-advanced input[type='number'],
 .protean-settings-advanced input[type='text'],
 .protean-settings-advanced input[type='password'],
-.protean-settings-advanced input[type='url'] {
+.protean-settings-advanced input[type='url'],
+.protean-settings-advanced select {
   width: 100%;
   height: 32px;
   padding: 0 var(--s-3);

@@ -50,6 +50,7 @@ export function ProvidersModelsSection() {
   const [result, setResult] = useState<ProviderAdminResult | null>(null);
   const [rowResult, setRowResult] = useState<{ id: string; result: ProviderAdminResult } | null>(null);
   const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
 
   const reload = () => {
     fetchProviders()
@@ -76,6 +77,7 @@ export function ProvidersModelsSection() {
   const handleListModels = async () => {
     setBusy('listing');
     setResult(null);
+    setSelectedModel(undefined);
     try {
       setResult(await listProviderModels(draftConfig(type, form)));
     } catch (error) {
@@ -88,9 +90,14 @@ export function ProvidersModelsSection() {
   const handleSave = async () => {
     setBusy('saving');
     try {
-      await saveProvider({ label: form.label.trim(), config: draftConfig(type, form) });
+      await saveProvider({
+        label: form.label.trim(),
+        config: draftConfig(type, form),
+        ...(selectedModel !== undefined ? { model: selectedModel } : {}),
+      });
       setForm(EMPTY_FORM);
       setResult(null);
+      setSelectedModel(undefined);
       reload();
     } catch (error) {
       setResult({ ok: false, message: error instanceof Error ? error.message : String(error), log: [] });
@@ -241,11 +248,27 @@ export function ProvidersModelsSection() {
             disabled={!complete || busy !== null}
             onClick={() => void handleSave()}
           >
-            {busy === 'saving' ? 'Saving…' : 'Save provider'}
+            {busy === 'saving' ? 'Saving…' : selectedModel !== undefined ? `Save provider (${selectedModel})` : 'Save provider'}
           </button>
         </div>
 
         {result !== null && <AdminResultPanel result={result} />}
+
+        {result?.ok === true && result.models !== undefined && result.models.length > 0 && (
+          <>
+            <label>
+              Model for the quick picker <InfoHint hintKey="providerModel" />
+            </label>
+            <select value={selectedModel ?? ''} onChange={(event) => setSelectedModel(event.target.value || undefined)}>
+              <option value="">Don’t set one yet</option>
+              {result.models.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
 
       {providers === 'loading' && (
@@ -267,6 +290,7 @@ export function ProvidersModelsSection() {
                 <div className="detail">
                   {provider.type}
                   {provider.detail !== '' ? ` · ${provider.detail}` : ''} · {provider.secretRedacted}
+                  {provider.model !== undefined ? ` · ${provider.model}` : ' · no model set'}
                 </div>
               </div>
               <button
