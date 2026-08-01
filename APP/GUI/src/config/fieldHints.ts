@@ -68,4 +68,34 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'Lower it to force a quicker, more contained answer; raise it for a task that genuinely needs many tool calls to finish. Capped server-side regardless of what\u2019s entered here.',
     example: '3 for a quick single-file lookup; leave blank to use the server\u2019s own default.',
   },
+  providersModels: {
+    what: 'LLM providers you\u2019ve connected, beyond the platform\u2019s built-in Fast/Strong tiers.',
+    why: 'Bring your own Anthropic, Bedrock, or OpenAI-compatible account to use a specific model \u2014 test the connection and list its models before saving, so a typo in a key fails here, not mid-conversation.',
+    example: 'Add an OpenAI-compatible endpoint for a self-hosted model, test it, then pick it in the composer.',
+  },
+  providerLabel: {
+    what: 'A name for this provider, just for your own reference.',
+    why: 'You\u2019ll see this label in the saved-providers list and in the model picker \u2014 pick something you\u2019ll recognise later.',
+    example: 'Prod Bedrock, My Claude account, Local vLLM',
+  },
+  providerApiKey: {
+    what: 'The API key for this provider.',
+    why: 'Stored server-side only \u2014 never sent back to your browser in plain text after saving, only ever shown redacted (last 4 characters).',
+    example: 'sk-ant-...',
+  },
+  providerAwsRegion: {
+    what: 'The AWS region this Bedrock account/key is provisioned in.',
+    why: 'Bedrock model availability and endpoints are region-specific \u2014 the wrong region behaves like a bad key even if the key itself is valid.',
+    example: 'us-east-1',
+  },
+  providerBearerToken: {
+    what: 'A Bedrock API key (bearer token) \u2014 AWS\u2019s newer, simpler alternative to full IAM credentials.',
+    why: 'Same auth style this platform\u2019s own built-in Bedrock connection already uses \u2014 no AWS SDK/IAM setup needed here.',
+    example: 'ABSK...',
+  },
+  providerBaseUrl: {
+    what: 'The base URL of an OpenAI-compatible API endpoint.',
+    why: 'Any service that implements the OpenAI /models and /chat/completions shape can be connected this way \u2014 self-hosted or third-party.',
+    example: 'https://your-endpoint.example.com/v1',
+  },
 };

@@ -207,7 +207,10 @@
   font-size: 11.5px;
   color: var(--muted);
 }
-.protean-settings-advanced input[type='number'] {
+.protean-settings-advanced input[type='number'],
+.protean-settings-advanced input[type='text'],
+.protean-settings-advanced input[type='password'],
+.protean-settings-advanced input[type='url'] {
   width: 100%;
   height: 32px;
   padding: 0 var(--s-3);
@@ -216,6 +219,60 @@
   background: var(--surface);
   color: var(--ink);
   font-size: var(--fz-13);
+}
+
+/* Providers & Models / MCP sections (Phase 6) -- reuse the same field rhythm. */
+.protean-settings-segmented {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+.protean-settings-log {
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  background: var(--ink);
+  color: var(--c-white);
+  border-radius: var(--r-sm);
+  font-family: var(--mono);
+  font-size: var(--fz-11);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.protean-settings-provider-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+}
+.protean-settings-provider-row:last-child {
+  border-bottom: none;
+}
+.protean-settings-provider-row .meta {
+  flex: 1;
+  min-width: 0;
+}
+.protean-settings-provider-row .meta .label {
+  font-weight: var(--fw-semi);
+  color: var(--ink);
+}
+.protean-settings-provider-row .meta .detail {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--fz-11);
+}
+.protean-settings-model-list {
+  margin-top: var(--s-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.protean-settings-model-list .tag {
+  cursor: default;
 }
 
 /* Message / preview helpers (namespaced or thin glue on design classes) */

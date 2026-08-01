@@ -1574,3 +1574,71 @@ Escape closes it, same as every other popover in the app; it just isn't anchored
   clicking the scrim outside the card closes it; "Runtime & agent behavior" legend and its "Max
   steps" field are both visible immediately on open with no extra click, confirming the Advanced
   disclosure is gone.
+
+## 2026-08-01 · Claude · Phase 6 · Providers & Models: add/test/list-models (Anthropic, Bedrock, OpenAI-compatible)
+
+Phase E of the GUI overhaul — the biggest lift. Today Protean has exactly one hardcoded adapter
+(`gateway/adapters/claude.ts`), env-var credentials only, no registry, no test-connection, no
+list-models, no persistence for provider configs. **Explicit owner override of ROADMAP's backlog**
+("additional providers beyond the first two adapters" is listed as deferred) — asked for a real,
+working OpenAI-compatible adapter alongside Anthropic-direct and Bedrock, not just the two already
+wired. Logged here as a deliberate scope decision, not an oversight.
+
+**Backend (`gateway/providerAdmin/`, new directory — admin/settings-time calls only, never the live
+chat-turn path, which still goes through `claude.ts` exclusively; a narrow, documented exception to
+"only claude.ts touches vendor surfaces" for this reason):**
+- `types.ts`: shared `ProviderAdminResult { ok, message, models?, log }` and a shared
+  `fetchJson()` helper (10s timeout, consistent specific error messages for HTTP failure / network
+  error / timeout / non-JSON response — every failure path produces an actionable sentence, never a
+  bare "error", per the owner's explicit ask).
+- `anthropicAdmin.ts`: `GET https://api.anthropic.com/v1/models` (`x-api-key` header).
+- `bedrockAdmin.ts`: `GET https://bedrock.{region}.amazonaws.com/foundation-models` with
+  `Authorization: Bearer <token>` -- **no new AWS SDK dependency needed**: this app's own Bedrock
+  connection already authenticates via a bearer-token API key (`AWS_BEARER_TOKEN_BEDROCK` in
+  `config/defaults.ts`), not full IAM/SigV4, so a plain `fetch` matches the platform's own existing
+  auth posture exactly.
+- `openAiCompatibleAdmin.ts`: `GET {baseUrl}/models` with `Authorization: Bearer` — the new,
+  owner-approved third provider type, works against any OpenAI-shaped endpoint.
+- `dispatch.ts`: routes by `ProviderType` to the right adapter.
+- New `config/runtimeSettingsStore.ts` — file-backed (`LLMBUILD_DATA/runtime-config/providers.json`,
+  same convention as `sessionStore.ts`/`uploads.ts`, no DB). Secrets live server-side only, same
+  posture this app already has for `.env`-held keys (not a regression; ROADMAP already defers
+  auth/tenant isolation at this pre-SaaS stage) and are **never** sent back to the GUI in plaintext
+  -- every read redacts to `***<last 4 chars>`.
+- New `loadConfig.ts` path: `paths.runtimeConfigDir`.
+- New routes on `server.ts`: `GET/POST /api/settings/providers`, `DELETE
+  /api/settings/providers/:id`, `POST /api/settings/providers/test`, `POST
+  /api/settings/providers/models` — test/list-models accept either a saved provider's `id` or a
+  not-yet-saved draft config, so "Test connection" works before you've committed to saving a
+  possibly-wrong key.
+
+**GUI:**
+- New `shell/ProvidersModelsSection.tsx` (rendered inside the Phase D Settings modal): "Add
+  provider" is a real form (segmented Anthropic / Bedrock / OpenAI-compatible control, not a
+  `<select>` of a fixed list) — matches the owner's explicit "add provider/model, not select"
+  instruction. **Test connection** and **List available models** buttons work on the in-progress
+  form before saving; results show a specific pass/fail message, any listed models as chips, and
+  the full request/response log always visible (never collapsed away) via a new `.protean-settings-log`
+  block. Saved providers list below with per-row re-test and delete.
+- New `.banner.success` CSS variant (only `.info`/`.degraded`/`.error` existed before).
+- `lib/api.ts`: `ProviderDraftConfig`/`ProviderSummary`/`ProviderAdminResult` types +
+  `fetchProviders`/`saveProvider`/`deleteProvider`/`testProvider`/`listProviderModels` client calls.
+- `config/fieldHints.ts`: 6 new hints (providersModels, providerLabel, providerApiKey,
+  providerAwsRegion, providerBearerToken, providerBaseUrl).
+
+**Proof:**
+- Backend: `tsc --noEmit` + `eslint` clean; Vitest 160/160 (was 142) — 18 new cases:
+  `runtimeSettingsStore.test.ts` (save/list/redact/update-in-place/delete/unknown-id), `providerAdmin.test.ts`
+  (all three adapters' list/test paths mocked via `vi.stubGlobal('fetch', ...)`, secret-redaction-in-log
+  assertions, a fake-timers-based timeout test that doesn't cost 10 real seconds, dispatch routing),
+  and 3 new `server.test.ts` route-level cases (save→list→delete round trip, 400 on an invalid
+  config, 404 with a specific message when testing an unknown saved provider id).
+- **Live proof against the real Anthropic API** (Playwright, not mocked): entered an intentionally
+  invalid key, clicked Test connection — got back a genuine `401 Unauthorized from api.anthropic.com`
+  with Anthropic's real `request_id` and error body, plus the full GET request + response log —
+  confirms the entire path (browser → engine → real vendor HTTPS call → parsed, specific,
+  actionable error) works end-to-end, not just against mocks.
+- **Live proof of persistence**: saved a placeholder Anthropic provider through the real form —
+  appeared in the saved-providers list immediately with the secret correctly redacted
+  (`***0000`, matching only the last 4 characters); deleted it afterward, list returned to empty.
+  No test debris left in the live service's saved providers.

@@ -60,6 +60,7 @@ beforeAll(async () => {
         tokenTelemetryDir: join(dataDir, 'token-telemetry'),
         artefactsDir: join(dataDir, 'artefacts'),
         uploadsDir: join(dataDir, 'uploads'),
+        runtimeConfigDir: join(dataDir, 'runtime-config'),
       },
     },
     logger: createLogger('error', () => {}),
@@ -191,5 +192,52 @@ describe('engine HTTP surface', () => {
       .find((line) => line.startsWith('data:') && line.includes('"type":"done"'));
     if (doneLine === undefined) throw new Error('no done event payload');
     expect(JSON.parse(doneLine.slice('data:'.length)).cacheHit).toBe(true);
+  });
+
+  it('saves, lists (redacted), and deletes a provider', async () => {
+    const headers = { 'Content-Type': 'application/json' };
+    const saveRes = await fetch(`${baseUrl}/api/settings/providers`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ label: 'Route Test Provider', config: { type: 'anthropic', apiKey: 'sk-route-test-1234' } }),
+    });
+    expect(saveRes.status).toBe(200);
+    const saved = (await saveRes.json()) as { provider: { id: string } };
+
+    const listRes = await fetch(`${baseUrl}/api/settings/providers`);
+    const listed = (await listRes.json()) as { providers: Array<{ id: string; secretRedacted: string }> };
+    const found = listed.providers.find((p) => p.id === saved.provider.id);
+    expect(found).toBeDefined();
+    expect(found?.secretRedacted).toBe('***1234');
+    expect(JSON.stringify(listed)).not.toContain('sk-route-test-1234');
+
+    const deleteRes = await fetch(`${baseUrl}/api/settings/providers/${saved.provider.id}`, { method: 'DELETE' });
+    expect(deleteRes.status).toBe(200);
+    const afterDelete = (await (await fetch(`${baseUrl}/api/settings/providers`)).json()) as {
+      providers: Array<{ id: string }>;
+    };
+    expect(afterDelete.providers.some((p) => p.id === saved.provider.id)).toBe(false);
+  });
+
+  it('rejects an invalid provider config with a specific 400, not a bare crash', async () => {
+    const res = await fetch(`${baseUrl}/api/settings/providers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: 'Bad', config: { type: 'openai-compatible', baseUrl: 'not-a-url', apiKey: 'k' } }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain('Invalid provider');
+  });
+
+  it('returns 404 with a specific message when testing an unknown saved provider id', async () => {
+    const res = await fetch(`${baseUrl}/api/settings/providers/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'does-not-exist' }),
+    });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain('does-not-exist');
   });
 });

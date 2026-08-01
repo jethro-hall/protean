@@ -60,6 +60,8 @@ export interface ProteanConfig {
     artefactsDir: string;
     /** CSV/JSON datasets for registry MCP connectors (data lake, calendar). */
     datasetsDir: string;
+    /** User-added providers + MCP overlay (Phase 6 settings UI) -- file-backed, no DB. */
+    runtimeConfigDir: string;
   };
 }
 
@@ -166,6 +168,7 @@ export function loadConfig(): ProteanConfig {
       uploadsDir: join(dataDir, 'uploads'),
       artefactsDir: process.env[ENV.artefactsDir] ?? join(root, 'APP', 'ARTEFACTS'),
       datasetsDir: process.env[ENV.datasetsDir] ?? join(dataDir, 'datasets'),
+      runtimeConfigDir: join(dataDir, 'runtime-config'),
     },
   };
 }

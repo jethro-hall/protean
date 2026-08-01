@@ -33,6 +33,14 @@ import { runTurn } from './watcher/runTurn.js';
 import { createFileSessionStore, type SessionStore } from './watcher/sessionStore.js';
 import { saveUpload } from './watcher/uploads.js';
 import { expandZipAttachments } from './watcher/expandZipAttachments.js';
+import {
+  deleteProvider,
+  getProviderConfig,
+  listProviders,
+  saveProvider,
+} from './config/runtimeSettingsStore.js';
+import { listProviderModels, testProviderConnection } from './gateway/providerAdmin/dispatch.js';
+import type { ProviderAdminConfig } from './gateway/providerAdmin/types.js';
 
 /** What the GUI/CLI actually posts — session/domain default server-side. */
 const turnBodySchema = z.object({
@@ -288,6 +296,90 @@ function handleDomains(deps: AppDeps, res: ServerResponse): void {
   writeJson(res, 200, { domains: packs });
 }
 
+// ---------------------------------------------------------------------------
+// Settings: Providers & Models (Phase 6). Admin/settings-time calls only --
+// never the live chat-turn path, which still goes through
+// gateway/adapters/claude.ts exclusively.
+// ---------------------------------------------------------------------------
+
+const providerConfigSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('anthropic'), apiKey: z.string().min(1) }),
+  z.object({ type: z.literal('bedrock'), awsRegion: z.string().min(1), bearerToken: z.string().min(1) }),
+  z.object({ type: z.literal('openai-compatible'), baseUrl: z.url(), apiKey: z.string().min(1) }),
+]);
+
+const saveProviderBodySchema = z.object({
+  id: z.string().min(1).optional(),
+  label: z.string().min(1),
+  config: providerConfigSchema,
+});
+
+/** Test/list-models accepts either a not-yet-saved draft config, or a reference to a saved one. */
+const providerRefOrDraftSchema = z.union([z.object({ id: z.string().min(1) }), providerConfigSchema]);
+
+function resolveProviderConfig(
+  deps: AppDeps,
+  body: z.infer<typeof providerRefOrDraftSchema>,
+): ProviderAdminConfig | { error: string } {
+  if ('id' in body) {
+    const config = getProviderConfig(deps.config.paths.runtimeConfigDir, body.id);
+    if (config === undefined) return { error: `No saved provider with id "${body.id}".` };
+    return config;
+  }
+  return body;
+}
+
+function handleListProviders(deps: AppDeps, res: ServerResponse): void {
+  writeJson(res, 200, { providers: listProviders(deps.config.paths.runtimeConfigDir) });
+}
+
+async function handleSaveProvider(deps: AppDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = saveProviderBodySchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid provider: ${parsed.error.message}` });
+    return;
+  }
+  const record = saveProvider(deps.config.paths.runtimeConfigDir, parsed.data);
+  writeJson(res, 200, { ok: true, provider: record });
+}
+
+function handleDeleteProvider(deps: AppDeps, id: string, res: ServerResponse): void {
+  const removed = deleteProvider(deps.config.paths.runtimeConfigDir, id);
+  if (!removed) {
+    writeJson(res, 404, { error: `No saved provider with id "${id}".` });
+    return;
+  }
+  writeJson(res, 200, { ok: true });
+}
+
+async function handleTestProvider(deps: AppDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = providerRefOrDraftSchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid provider config: ${parsed.error.message}` });
+    return;
+  }
+  const config = resolveProviderConfig(deps, parsed.data);
+  if ('error' in config) {
+    writeJson(res, 404, { error: config.error });
+    return;
+  }
+  writeJson(res, 200, await testProviderConnection(config));
+}
+
+async function handleListProviderModels(deps: AppDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = providerRefOrDraftSchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid provider config: ${parsed.error.message}` });
+    return;
+  }
+  const config = resolveProviderConfig(deps, parsed.data);
+  if ('error' in config) {
+    writeJson(res, 404, { error: config.error });
+    return;
+  }
+  writeJson(res, 200, await listProviderModels(config));
+}
+
 export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
   const log = deps.logger.child('server');
   const server = createServer((req, res) => {
@@ -308,6 +400,35 @@ export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
         else res.end();
       });
       return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/settings/providers') {
+      handleListProviders(deps, res);
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/providers') {
+      void handleSaveProvider(deps, req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/providers/test') {
+      void handleTestProvider(deps, req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/providers/models') {
+      void handleListProviderModels(deps, req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'DELETE' && url.pathname.startsWith('/api/settings/providers/')) {
+      const id = url.pathname.slice('/api/settings/providers/'.length);
+      if (id !== '') {
+        handleDeleteProvider(deps, id, res);
+        return;
+      }
     }
     writeJson(res, 404, { error: `No route for ${req.method} ${url.pathname}` });
   });

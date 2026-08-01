@@ -154,3 +154,81 @@ export async function streamTurn(params: StreamTurnParams): Promise<void> {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Settings: Providers & Models (Phase 6). Mirrors APP/CODE's
+// gateway/providerAdmin/types.ts + config/runtimeSettingsStore.ts shapes.
+// ---------------------------------------------------------------------------
+
+export type ProviderType = 'anthropic' | 'bedrock' | 'openai-compatible';
+
+export type ProviderDraftConfig =
+  | { type: 'anthropic'; apiKey: string }
+  | { type: 'bedrock'; awsRegion: string; bearerToken: string }
+  | { type: 'openai-compatible'; baseUrl: string; apiKey: string };
+
+export interface ProviderSummary {
+  id: string;
+  type: ProviderType;
+  label: string;
+  createdAt: string;
+  detail: string;
+  secretRedacted: string;
+}
+
+export interface ProviderAdminResult {
+  ok: boolean;
+  message: string;
+  models?: string[];
+  log: string[];
+}
+
+async function settingsFetch(path: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(path, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+  });
+  return res;
+}
+
+async function settingsJson<T>(res: Response, fallbackError: string): Promise<T> {
+  const body = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) {
+    throw new Error(body.error ?? fallbackError);
+  }
+  return body;
+}
+
+export async function fetchProviders(): Promise<ProviderSummary[]> {
+  const res = await settingsFetch('/api/settings/providers');
+  const body = await settingsJson<{ providers: ProviderSummary[] }>(res, 'Failed to load providers.');
+  return body.providers;
+}
+
+export async function saveProvider(input: {
+  id?: string;
+  label: string;
+  config: ProviderDraftConfig;
+}): Promise<{ id: string }> {
+  const res = await settingsFetch('/api/settings/providers', { method: 'POST', body: JSON.stringify(input) });
+  const body = await settingsJson<{ provider: { id: string } }>(res, 'Failed to save provider.');
+  return body.provider;
+}
+
+export async function deleteProvider(id: string): Promise<void> {
+  const res = await settingsFetch(`/api/settings/providers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  await settingsJson(res, 'Failed to delete provider.');
+}
+
+/** Test/list-models accept either a saved provider's id or a not-yet-saved draft config. */
+export type ProviderRefOrDraft = { id: string } | ProviderDraftConfig;
+
+export async function testProvider(input: ProviderRefOrDraft): Promise<ProviderAdminResult> {
+  const res = await settingsFetch('/api/settings/providers/test', { method: 'POST', body: JSON.stringify(input) });
+  return settingsJson<ProviderAdminResult>(res, 'Failed to test provider connection.');
+}
+
+export async function listProviderModels(input: ProviderRefOrDraft): Promise<ProviderAdminResult> {
+  const res = await settingsFetch('/api/settings/providers/models', { method: 'POST', body: JSON.stringify(input) });
+  return settingsJson<ProviderAdminResult>(res, 'Failed to list provider models.');
+}

@@ -421,6 +421,7 @@ table.fin tr.total td.n { color: var(--ok); }
 .banner.info { background: var(--blue-wash-2); border: 1px solid var(--line); color: var(--muted); }
 .banner.degraded { background: var(--orange-wash); border: 1px solid var(--border-degraded); color: var(--orange-ink); }
 .banner.error { background: var(--err-wash); border: 1px solid var(--border-error); color: var(--err); }
+.banner.success { background: var(--ok-wash); border: 1px solid var(--ok); color: var(--ok); }
 .banner.error .retry { margin-left: auto; border: 1px solid currentColor; background: transparent; color: inherit; font-weight: var(--fw-semi); font-size: 11.5px; padding: 4px var(--s-4); border-radius: var(--r-sm); }
 
 /* C12a · empty state */
