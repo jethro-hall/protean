@@ -3,6 +3,7 @@ import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import {
   createStreamBlockState,
   gatewayEventsFromSdkMessage,
+  isVacuousSuccess,
   renderPromptFromMessages,
 } from '../src/gateway/adapters/claude.js';
 
@@ -89,5 +90,40 @@ describe('gatewayEventsFromSdkMessage', () => {
 describe('renderPromptFromMessages', () => {
   it('passes a single message through unchanged', () => {
     expect(renderPromptFromMessages([{ role: 'user', content: 'hi' }])).toBe('hi');
+  });
+});
+
+describe('isVacuousSuccess', () => {
+  it('flags a result with zero usage on every axis', () => {
+    expect(
+      isVacuousSuccess({
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_read_input_tokens: 0,
+        cache_creation_input_tokens: 0,
+      }),
+    ).toBe(true);
+  });
+
+  it('does not flag a real result with billable output tokens', () => {
+    expect(
+      isVacuousSuccess({
+        input_tokens: 10,
+        output_tokens: 5,
+        cache_read_input_tokens: 0,
+        cache_creation_input_tokens: 0,
+      }),
+    ).toBe(false);
+  });
+
+  it('does not flag a cache-only turn (real work, just no fresh tokens)', () => {
+    expect(
+      isVacuousSuccess({
+        input_tokens: 0,
+        output_tokens: 3,
+        cache_read_input_tokens: 500,
+        cache_creation_input_tokens: 0,
+      }),
+    ).toBe(false);
   });
 });

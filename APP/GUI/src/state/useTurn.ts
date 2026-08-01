@@ -3,6 +3,22 @@ import { streamTurn, type Attachment } from '../lib/api';
 import { activeConversation } from './appState';
 import { useAppDispatch, useAppState } from './useAppStore';
 
+/** One in-flight turn's abort handle per conversation — ephemeral UI wiring, not app state. */
+const activeTurnAborts = new Map<string, AbortController>();
+
+function isAbortError(cause: unknown): boolean {
+  return cause instanceof Error && cause.name === 'AbortError';
+}
+
+/** Stop the active conversation's in-flight turn, if any (Stop button in Composer). */
+export function useStopTurn(): () => void {
+  const state = useAppState();
+  return useCallback(() => {
+    const conversationId = activeConversation(state).id;
+    activeTurnAborts.get(conversationId)?.abort();
+  }, [state]);
+}
+
 /** Send the user's input (plus any attached files) as a turn and stream the reply in. */
 export function useSendTurn(): (input: string, attachments?: Attachment[]) => void {
   const state = useAppState();
@@ -27,12 +43,16 @@ export function useSendTurn(): (input: string, attachments?: Attachment[]) => vo
       });
       dispatch({ type: 'assistantStart', conversationId, messageId });
 
+      const controller = new AbortController();
+      activeTurnAborts.set(conversationId, controller);
+
       void streamTurn({
         input,
         sessionId: conversationId,
         domainId: state.settings.domainId,
         tier: state.settings.tier,
         ...(attachments !== undefined && attachments.length > 0 ? { attachments } : {}),
+        signal: controller.signal,
         onEvent: (event) => {
           if (event.type === 'text') {
             dispatch({ type: 'assistantDelta', conversationId, messageId, text: event.text });
@@ -85,10 +105,20 @@ export function useSendTurn(): (input: string, attachments?: Attachment[]) => vo
             dispatch({ type: 'turnError', conversationId, messageId, message: event.message });
           }
         },
-      }).catch((cause: unknown) => {
-        const message = cause instanceof Error ? cause.message : String(cause);
-        dispatch({ type: 'turnError', conversationId, messageId, message });
-      });
+      })
+        .catch((cause: unknown) => {
+          if (isAbortError(cause)) {
+            dispatch({ type: 'assistantStopped', conversationId, messageId });
+          } else {
+            const message = cause instanceof Error ? cause.message : String(cause);
+            dispatch({ type: 'turnError', conversationId, messageId, message });
+          }
+        })
+        .finally(() => {
+          if (activeTurnAborts.get(conversationId) === controller) {
+            activeTurnAborts.delete(conversationId);
+          }
+        });
     },
     [state, dispatch],
   );

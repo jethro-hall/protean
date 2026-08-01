@@ -134,6 +134,26 @@ export function buildClaudeQueryOptions(request: GatewayRequest): Options {
   return options;
 }
 
+/**
+ * A `result` message with subtype 'success' but zero usage on every axis means
+ * the provider did no billable work — a transient hang (subprocess spawn /
+ * Bedrock auth) surfacing as a vacuous success rather than an error. Law 6
+ * ("evidence or nothing") forbids treating that as a real, honest done event.
+ */
+export function isVacuousSuccess(usage: {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens: number;
+  cache_creation_input_tokens: number;
+}): boolean {
+  return (
+    usage.input_tokens === 0 &&
+    usage.output_tokens === 0 &&
+    usage.cache_read_input_tokens === 0 &&
+    usage.cache_creation_input_tokens === 0
+  );
+}
+
 function isAbortError(cause: unknown): boolean {
   if (cause instanceof Error && cause.name === 'AbortError') return true;
   const message = cause instanceof Error ? cause.message : String(cause);
@@ -243,7 +263,18 @@ export function createClaudeGateway(log: LayerLogger): LlmGateway {
           }
           yield* gatewayEventsFromSdkMessage(message, request.turnId, blockState);
           if (message.type === 'result') {
-            if (message.subtype === 'success') {
+            if (message.subtype === 'success' && isVacuousSuccess(message.usage)) {
+              log.error(
+                'gateway.vacuous_success',
+                'Provider reported success with zero usage on every axis — treating as a failed run, not a silent stub',
+                { turnId: request.turnId, data: { durationApiMs: message.duration_api_ms } },
+              );
+              yield {
+                type: 'error',
+                message:
+                  'Provider run reported success but did no billable work (zero tokens) — likely a hung run. Please retry.',
+              };
+            } else if (message.subtype === 'success') {
               yield {
                 type: 'done',
                 model: request.model,

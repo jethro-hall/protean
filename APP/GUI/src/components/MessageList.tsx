@@ -156,6 +156,11 @@ function Bubble({
                 Waiting for first token…
               </p>
             )}
+          {!isUser && message.stopped === true && (
+            <p className="stopped-tag" role="status">
+              [stopped]
+            </p>
+          )}
           {!isUser && message.stats !== undefined && (
             <div className="cite">
               TTFT <span className="num">{message.stats.timings.ttftMs ?? '–'}</span> ms · total{' '}
