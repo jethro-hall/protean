@@ -35,7 +35,7 @@ export function TopbarTelemetry() {
         <span>cache</span>
         <b className="num">{cache}</b>
       </span>
-      <InfoHint hintKey="turnStats" />
+      <InfoHint hintKey="turnStats" direction="down" />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { fieldHints } from '../config/fieldHints';
  */
 export function InfoHint({
   hintKey,
-  direction = 'down',
+  direction = 'up',
 }: {
   hintKey: string;
   direction?: 'down' | 'up';
@@ -45,7 +45,7 @@ export function InfoHint({
 
   const className = [
     'info',
-    direction === 'up' ? 'below' : '',
+    direction === 'down' ? 'below' : '',
     open ? 'open' : '',
   ]
     .filter(Boolean)

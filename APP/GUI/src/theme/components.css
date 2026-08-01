@@ -146,7 +146,7 @@
          comfortable reading measure.
    ----------------------------------------------------------------------------- */
 .chat { grid-area: chat; display: flex; flex-direction: column; min-height: 0; background: var(--bg); position: relative; }
-.chat-scroll { flex: 1; overflow-y: auto; padding: var(--s-10) 0 var(--s-3); scroll-behavior: smooth; }
+.chat-scroll { flex: 1; overflow-y: auto; min-height: 0; padding: var(--s-10) 0 var(--s-3); scroll-behavior: smooth; }
 .thread { max-width: var(--read-w); margin: 0 auto; padding: 0 var(--s-10); display: flex; flex-direction: column; gap: var(--s-9); }
 
 .msg { display: flex; gap: var(--s-5); animation: rise var(--rise) both; }

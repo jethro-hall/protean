@@ -1384,3 +1384,53 @@ revealing a numeric token-budget override, with its own InfoHint. Wired through 
 **Residual:** only `turnTokenBudget` is exposed in Advanced today — the other adjustable settings
 (tier, domain, grounded) already have their own top-level controls, so nothing else currently needs
 a manual-override home; the Advanced section is there to grow into, not a stub for its own sake.
+
+## 2026-08-01 · Claude · Phase 6 · Fix layout scroll bug + TTFT/Total/Cache info-popup positioning
+
+Owner reported two real GUI bugs while using the live chat: growing the composer (e.g. long
+messages) scrolled the *whole page* instead of just the thread, and the TTFT/Total/Cache (i) info
+popup in the topbar looked broken.
+
+**Root cause 1 — whole-page scroll:** `theme/components.css` — `.chat-scroll` was missing
+`min-height: 0`. Its sibling `.conv-list` correctly has it. A flex child's default `min-height` is
+`auto` (its content's intrinsic height), not `0`; without the override, `.chat-scroll` couldn't
+shrink below the thread's content height, so `.chat`'s column overflowed its CSS-grid cell — and
+since nothing in the chain (`.chat`, `.app`, `body`, `html`) declared `overflow: hidden`, that
+overflow escaped to the document itself.
+- Fix: `min-height: 0` added to `.chat-scroll`.
+- Defensive: `overflow: hidden` added to `html, body` (`theme/base.css`) — every scrollable region
+  already owns its own overflow (`.conv-list`, `.chat-scroll`, the fixed-position mobile
+  drawers/scrims), so the outer document never legitimately needs to scroll; this closes the whole
+  bug class, not just today's instance.
+
+**Root cause 2 — TTFT/Total/Cache popup off-screen:** `components/InfoHint.tsx`'s `direction` prop
+was inverted from its own doc comment ("Flips below near top"): default was `'down'`, and the class
+logic added the `below` (pop-downward) CSS class only when `direction === 'up'` — backwards.
+`TopbarTelemetry.tsx` calls `InfoHint` with no `direction`, so under the old logic it fell through to
+"pop above" — for an icon sitting in the topbar at the very top of the viewport, that pushed the
+popup off-screen above y=0.
+- Fixed the prop's default (`'down'` → `'up'`) and the class ternary (`direction === 'down' ?
+  'below' : ''`) so the name is literal.
+- `TopbarTelemetry.tsx` now explicitly passes `direction="down"`.
+- Composer's 3 existing `direction="up"` hints needed no change — under the corrected logic they
+  already do the right thing (pop above, appropriate near the bottom of the viewport).
+- Investigated whether TTFT/Total/Cache were also wrong on the *data* side (owner said "not
+  working," not just "looks wrong") — `watcher/runTurn.ts` computes `ttftMs`/`totalMs`/`cacheHit`
+  correctly and `server.ts`'s `handleTurn` streams `TurnEvent`s through generically with no
+  field-level handling, so nothing strips them in transit. Backend computation reads as correct;
+  the popup bug is the most likely full explanation. [VERIFY] live after this fix — flagged back
+  rather than guessed further if the numbers are still wrong once the popup itself is fixed.
+
+**Proof:**
+- `tsc --noEmit` clean (GUI).
+- Live browser proof (Playwright against the running dev server, :5173): topbar popup bounding box
+  now `{x:825, y:40, w:248, h:168}` — fully on-screen, arrow pointing up at the anchor. Grew the
+  composer with a 15-line message; `document.documentElement.scrollHeight` (720) equals
+  `clientHeight` (720) — confirms no outer-page scroll, only the intended inner regions scroll.
+  Attach button's info popup still renders correctly above its anchor near the bottom of the
+  viewport.
+
+**Context:** first phase of a larger owner-directed GUI overhaul (settings popup redesign,
+provider/model management, MCP/tool config UI, zip attach support) — plan on file, phases land as
+separate commits so the live dev server reflects progress incrementally instead of one big-bang
+change.
