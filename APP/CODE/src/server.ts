@@ -19,6 +19,7 @@ import { loadConfig, requireModel, type ProteanConfig } from './config/loadConfi
 import { resolveToolset } from './tools/registry.js';
 import {
   attachmentSchema,
+  effortLevelSchema,
   modelTierSchema,
   responseDepthSchema,
   type TurnEvent,
@@ -68,6 +69,12 @@ const turnBodySchema = z.object({
    * omitted = the server's own configured default (Phase 6).
    */
   agentMaxTurns: z.number().int().min(1).max(AGENT_MAX_TURNS_CEILING).optional(),
+  /** Reasoning effort (Phase 6) — built-in Fast/Strong tiers only, a real SDK field. */
+  effort: effortLevelSchema.optional(),
+  /** Sampling temperature (Phase 6) — custom providers only, no effect on built-in tiers. */
+  temperature: z.number().min(0).max(2).optional(),
+  /** Max response tokens (Phase 6) — custom providers only. */
+  maxTokens: z.number().int().positive().max(32000).optional(),
   /**
    * Quick model picker (Phase 6): a saved custom provider id to answer this
    * turn instead of the built-in Fast/Strong tiers. Omitted = tier as usual.
@@ -157,6 +164,9 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
     ...(body.grounded !== undefined ? { grounded: body.grounded } : {}),
     ...(body.responseDepth !== undefined ? { responseDepth: body.responseDepth } : {}),
     ...(body.turnTokenBudget !== undefined ? { turnTokenBudget: body.turnTokenBudget } : {}),
+    ...(body.effort !== undefined ? { effort: body.effort } : {}),
+    ...(body.temperature !== undefined ? { temperature: body.temperature } : {}),
+    ...(body.maxTokens !== undefined ? { maxTokens: body.maxTokens } : {}),
     ...(expandedAttachments.length > 0 ? { attachments: expandedAttachments } : {}),
   };
 

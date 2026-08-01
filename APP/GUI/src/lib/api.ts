@@ -7,6 +7,9 @@ export type ModelTier = 'fast' | 'strong';
 /** Friendly response-depth presets (Phase 6). Mirrors src/contracts/turn.ts responseDepthSchema. */
 export type ResponseDepth = 'hscLevel' | 'uniDegree' | 'professor';
 
+/** Reasoning effort (Phase 6). Mirrors src/contracts/turn.ts effortLevelSchema — a real Claude Agent SDK field. */
+export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
 export interface TurnTimings {
   assembleMs?: number;
   cacheCheckMs?: number;
@@ -109,6 +112,12 @@ export interface StreamTurnParams {
   agentMaxTurns?: number;
   /** Quick model picker (Phase 6): answer via this saved custom provider instead of `tier`. */
   providerId?: string;
+  /** Reasoning effort (Phase 6) — built-in Fast/Strong tiers only, a no-op for a custom provider. */
+  effort?: EffortLevel;
+  /** Sampling temperature (Phase 6) — custom providers only, a no-op for the built-in tiers. */
+  temperature?: number;
+  /** Max response tokens (Phase 6) — custom providers only. */
+  maxTokens?: number;
   onEvent: (event: TurnStreamEvent) => void;
   signal?: AbortSignal;
 }
@@ -126,6 +135,9 @@ export async function streamTurn(params: StreamTurnParams): Promise<void> {
     turnTokenBudget,
     agentMaxTurns,
     providerId,
+    effort,
+    temperature,
+    maxTokens,
     onEvent,
     signal,
   } = params;
@@ -143,6 +155,9 @@ export async function streamTurn(params: StreamTurnParams): Promise<void> {
       ...(turnTokenBudget !== undefined ? { turnTokenBudget } : {}),
       ...(agentMaxTurns !== undefined ? { agentMaxTurns } : {}),
       ...(providerId !== undefined ? { providerId } : {}),
+      ...(effort !== undefined ? { effort } : {}),
+      ...(temperature !== undefined ? { temperature } : {}),
+      ...(maxTokens !== undefined ? { maxTokens } : {}),
     }),
     ...(signal !== undefined ? { signal } : {}),
   });

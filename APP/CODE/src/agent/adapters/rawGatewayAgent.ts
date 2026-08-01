@@ -24,6 +24,8 @@ export function createRawGatewayAgentCore(gateway: LlmGateway): AgentCore {
         model: turn.model,
         systemPrompt,
         messages: turn.messages,
+        ...(turn.temperature !== undefined ? { temperature: turn.temperature } : {}),
+        ...(turn.maxTokens !== undefined ? { maxTokens: turn.maxTokens } : {}),
         ...(turn.abortSignal !== undefined ? { abortSignal: turn.abortSignal } : {}),
       };
       yield* gateway.streamTurn(request);

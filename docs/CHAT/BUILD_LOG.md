@@ -1864,3 +1864,82 @@ timings}`. This phase is almost entirely a types-and-rendering fix, no new backe
   per-message line read "TTFT 1857ms · total 4.7s · cache miss · 10 in · 210 out · $0.0062"; the
   topbar session chip read "220 tok · $0.0062" — 10+210=220, matching exactly, confirming the
   session total is a correct live sum of real provider-reported figures, not a placeholder.
+
+## 2026-08-01 · Claude · Phase 6 · Settings v2 Phase J — reasoning effort + temperature/max tokens
+
+Owner asked for "temp and other important options." Before building anything, read the installed
+`@anthropic-ai/claude-agent-sdk` type declarations directly (`node_modules/.../sdk.d.ts`) to check
+what's actually real rather than guessing: the built-in Fast/Strong tiers run through
+`Options` from that SDK, which has **no `temperature` field anywhere** — confirmed by reading the
+full type, not by trial and error. It does, however, expose a genuine
+`effort?: 'low'|'medium'|'high'|'xhigh'|'max'` field (`sdk.d.ts:1664`), separate from the
+already-hardcoded `thinking: { type: 'adaptive' }`. So this phase wires up **two** different real
+controls for **two** different execution paths, rather than faking one control for both:
+reasoning effort for the built-in tiers, temperature + max tokens for the custom-provider path
+(`gateway/adapters/customProvider.ts`, Phase G) where all three vendor HTTP APIs accept both
+natively. Confirmed via AskUserQuestion before building — the owner chose "both, not one."
+
+**Backend:**
+- `contracts/turn.ts`: new `effortLevelSchema`, and `effort`/`temperature`/`maxTokens` added to
+  `turnRequestSchema` and `AssembledTurn`.
+- `contracts/gateway.ts` `GatewayRequest`: same three fields, each documented with which adapter
+  actually reads it.
+- `watcher/assemble.ts` `assembleTurn()`: copies the three fields from `TurnRequest` onto
+  `AssembledTurn` when set (same conditional-spread convention as the existing `abortSignal`).
+- `agent/adapters/claudeSdk.ts`: threads `turn.effort` onto the `GatewayRequest` it builds.
+  `agent/adapters/rawGatewayAgent.ts`: threads `turn.temperature`/`turn.maxTokens` onto its own.
+  Each adapter only forwards what its execution path can actually use — neither fakes the other's
+  field.
+- `gateway/adapters/claude.ts` `buildClaudeQueryOptions`: sets `options.effort` when present, right
+  next to the existing hardcoded `thinking` config. Explicitly does **not** set a temperature
+  field — module doc comment now records the "no temperature field, confirmed by reading sdk.d.ts"
+  finding so a future session doesn't have to re-derive it.
+- `gateway/adapters/customProvider.ts`: all three vendor call functions (`callAnthropic`,
+  `callBedrock`, `callOpenAiCompatible`) now send `temperature: request.temperature` and
+  `max_tokens: request.maxTokens ?? 4096` (was a bare hardcoded `4096`) — `JSON.stringify` drops
+  the `temperature` key entirely when unset, so an unset value never becomes a literal `0`.
+- `server.ts` `turnBodySchema` + request construction: mirrors the three fields through from the
+  HTTP body, same conditional-spread pattern as `turnTokenBudget`/`agentMaxTurns`.
+- **Real bug caught before it shipped, not live:** `watcher/cache.ts`'s `computeCacheKey()` didn't
+  include these new fields — a second turn with an identical prompt but a different
+  temperature/effort would have silently served the *first* temperature's cached output, making
+  the whole feature look broken ("I changed temperature and nothing changed"). Fixed by adding
+  `effort`/`temperature`/`maxTokens` to the key material before any GUI work started.
+
+**GUI:**
+- `appState.ts` `Settings`: `effort?`, `providerTemperature?`, `providerMaxTokens?`, same
+  delete-on-undefined reducer pattern as the existing advanced overrides.
+- `lib/api.ts`/`useTurn.ts`: threaded through to `/api/turn` the same conditional-spread way as
+  `agentMaxTurns`.
+- `SettingsMenu.tsx` Runtime tab: two new `<fieldset>` groups. Reasoning effort (5-way segmented
+  control) is `disabled` via the native HTML `fieldset disabled` attribute — not just visually
+  dimmed — whenever `settings.providerId !== undefined`, with a banner explaining why; Temperature
+  &amp; max tokens is disabled the opposite way. Both groups stay visible rather than one vanishing,
+  so nothing looks like it silently disappeared (the same "no fake controls" instinct from Phase G's
+  quick-picker decision) — a real `disabled` state plus an explanatory banner is what keeps it
+  honest instead of a control that quietly does nothing. Temperature's input `max` is computed live
+  from the selected provider's `type` (fetched via the existing `fetchProviders()`) — 1 for
+  Anthropic/Bedrock, 2 for OpenAI-compatible — instead of always allowing 2 and letting the vendor
+  reject it.
+- `theme/app.css`: `fieldset:disabled` opacity rule so a disabled group is visibly, not just
+  functionally, different.
+- `config/fieldHints.ts`: `reasoningEffort`, `providerTemperature`, `providerMaxTokens`.
+
+**Proof:**
+- Backend: `tsc --noEmit` + `eslint` clean; Vitest 180/180 (was 173) — 7 new cases: cache-key
+  sensitivity to all three new fields (`cache.test.ts`), `buildClaudeQueryOptions` setting/omitting
+  `effort` and never setting `temperature` (`claudeAdapter.test.ts`), the custom-provider adapter
+  sending real `temperature`/`max_tokens` values and defaulting `max_tokens` to 4096 when unset
+  (`customProvider.test.ts`), and `rawGatewayAgent` threading `temperature`/`maxTokens` onto its
+  `GatewayRequest` (`customProvider.test.ts`).
+- GUI: `tsc --noEmit` + `eslint` clean.
+- **Live proof against the real Anthropic API** (Playwright): confirmed the effort fieldset starts
+  enabled and the temperature fieldset starts disabled with no provider selected; set effort to
+  "High," sent a real Fast-tier ("haiku") turn — completed with no error. Added a real custom
+  Anthropic provider, confirmed the temperature fieldset stayed disabled until the composer's model
+  picker was actually switched to it (not just saved), then became enabled; set temperature to 0.1,
+  sent a real turn — answered by `claude-opus-5` via the custom-provider path. The resulting
+  conversation incidentally proved Phase I's `costIncomplete` flag works in a real mixed session
+  too: the session-total chip read "912 tok · $0.0063+" — the trailing "+" correctly present
+  because the second (custom-provider) turn had no cost figure to add. Test provider deleted
+  afterward — no debris in the live service.

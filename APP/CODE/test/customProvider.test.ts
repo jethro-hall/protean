@@ -47,6 +47,32 @@ describe('createCustomProviderGateway (anthropic)', () => {
     ]);
   });
 
+  it('sends temperature and max_tokens through to the vendor body when set (Phase 6 sampling controls)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(200, { content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 } }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const gateway = createCustomProviderGateway({ type: 'anthropic', apiKey: 'sk-x' });
+    await collect(gateway.streamTurn({ ...baseRequest, temperature: 0.3, maxTokens: 512 }));
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const sentBody = JSON.parse(init.body as string) as { temperature?: number; max_tokens?: number };
+    expect(sentBody.temperature).toBe(0.3);
+    expect(sentBody.max_tokens).toBe(512);
+  });
+
+  it('defaults max_tokens to 4096 and omits temperature when neither is set', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(200, { content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 1, output_tokens: 1 } }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const gateway = createCustomProviderGateway({ type: 'anthropic', apiKey: 'sk-x' });
+    await collect(gateway.streamTurn(baseRequest));
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const sentBody = JSON.parse(init.body as string) as { temperature?: number; max_tokens?: number };
+    expect(sentBody.max_tokens).toBe(4096);
+    expect('temperature' in sentBody).toBe(false);
+  });
+
   it('yields a specific error event on HTTP failure, not a bare "error"', async () => {
     vi.stubGlobal(
       'fetch',
@@ -126,5 +152,30 @@ describe('createRawGatewayAgentCore', () => {
     expect(seen[0]?.model).toBe('my-model');
     expect(seen[0]?.systemPrompt).toEqual({ staticPrefix: 'static part', dynamicSuffix: 'dynamic part' });
     expect(agent.name).toBe('raw-fake');
+  });
+
+  it('threads temperature/maxTokens onto the GatewayRequest when the assembled turn has them (Phase 6)', async () => {
+    const seen: GatewayRequest[] = [];
+    const fakeGateway = {
+      provider: 'fake',
+      async *streamTurn(request: GatewayRequest) {
+        seen.push(request);
+        yield { type: 'text' as const, text: 'ok' };
+      },
+    };
+    const agent = createRawGatewayAgentCore(fakeGateway);
+    const turn = {
+      turnId: 'abc',
+      model: 'my-model',
+      systemPromptStatic: '',
+      systemPromptDynamic: '',
+      systemPrompt: 'be helpful',
+      messages: [{ role: 'user' as const, content: 'hi' }],
+      temperature: 0.4,
+      maxTokens: 1024,
+    } as unknown as AssembledTurn;
+    await collect(agent.runTurn(turn));
+    expect(seen[0]?.temperature).toBe(0.4);
+    expect(seen[0]?.maxTokens).toBe(1024);
   });
 });

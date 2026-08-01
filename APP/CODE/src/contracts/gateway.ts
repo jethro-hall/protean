@@ -1,6 +1,6 @@
 import type { ToolPolicy } from './agentLoop.js';
 import type { ProteanMcpServerBinding } from './connectors.js';
-import type { ChatMessage, TokenUsage } from './turn.js';
+import type { ChatMessage, EffortLevel, TokenUsage } from './turn.js';
 
 /**
  * The ONE internal protocol the app speaks to the gateway (INFRASTRUCTURE decision).
@@ -34,6 +34,12 @@ export interface GatewayRequest {
   domainsDir?: string;
   /** Knowledge collection ids the knowledgeBase MCP handler may query this turn. */
   knowledgeCollectionIds?: string[];
+  /** Reasoning effort (Phase 6) — the Claude adapter maps this to Options.effort. */
+  effort?: EffortLevel;
+  /** Sampling temperature (Phase 6) — the custom-provider adapter only; the Claude adapter has no such vendor field. */
+  temperature?: number;
+  /** Max response tokens (Phase 6) — the custom-provider adapter only. */
+  maxTokens?: number;
   /** When aborted, the provider adapter must seize the model run immediately. */
   abortSignal?: AbortSignal;
 }

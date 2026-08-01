@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { InfoHint } from '../components/InfoHint';
-import { fetchDomains, type DomainSummary, type ModelTier, type ResponseDepth } from '../lib/api';
+import {
+  fetchDomains,
+  fetchProviders,
+  type DomainSummary,
+  type EffortLevel,
+  type ModelTier,
+  type ProviderSummary,
+  type ResponseDepth,
+} from '../lib/api';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
 import { ProvidersModelsSection } from './ProvidersModelsSection';
 import { McpToolsSection } from './McpToolsSection';
@@ -8,6 +16,14 @@ import { McpToolsSection } from './McpToolsSection';
 const TIERS: Array<{ id: ModelTier; label: string }> = [
   { id: 'fast', label: 'Fast' },
   { id: 'strong', label: 'Strong' },
+];
+
+const EFFORT_LEVELS: Array<{ id: EffortLevel; label: string }> = [
+  { id: 'low', label: 'Low' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'high', label: 'High' },
+  { id: 'xhigh', label: 'X-High' },
+  { id: 'max', label: 'Max' },
 ];
 
 /** undefined = "Standard" (platform default) — always one pill selected, like Tier above. */
@@ -134,48 +150,145 @@ function RuntimeTab({
   state: ReturnType<typeof useAppState>;
   dispatch: ReturnType<typeof useAppDispatch>;
 }) {
+  const [providers, setProviders] = useState<ProviderSummary[]>([]);
+  useEffect(() => {
+    fetchProviders()
+      .then(setProviders)
+      .catch(() => setProviders([]));
+  }, []);
+
+  const usingCustomProvider = state.settings.providerId !== undefined;
+  const activeProvider = providers.find((provider) => provider.id === state.settings.providerId);
+  // Anthropic/Bedrock reject temperature above 1; OpenAI-compatible allows up to 2.
+  const temperatureMax = activeProvider?.type === 'openai-compatible' ? 2 : 1;
+
   return (
-    <fieldset>
-      <legend>Runtime &amp; agent behavior</legend>
-      <div className="protean-settings-advanced">
-        <label>
-          Token budget override <InfoHint hintKey="advancedTurnTokenBudget" />
-        </label>
-        <input
-          type="number"
-          min={1}
-          max={64000}
-          placeholder="Use selected depth preset"
-          value={state.settings.turnTokenBudget ?? ''}
-          onChange={(event) => {
-            const raw = event.target.value;
-            const parsed = raw === '' ? undefined : Number.parseInt(raw, 10);
-            dispatch({
-              type: 'setTurnTokenBudget',
-              turnTokenBudget: parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined,
-            });
-          }}
-        />
-        <label>
-          Max steps <InfoHint hintKey="agentMaxTurns" />
-        </label>
-        <input
-          type="number"
-          min={1}
-          max={20}
-          placeholder="Use server default"
-          value={state.settings.agentMaxTurns ?? ''}
-          onChange={(event) => {
-            const raw = event.target.value;
-            const parsed = raw === '' ? undefined : Number.parseInt(raw, 10);
-            dispatch({
-              type: 'setAgentMaxTurns',
-              agentMaxTurns: parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined,
-            });
-          }}
-        />
-      </div>
-    </fieldset>
+    <>
+      <fieldset>
+        <legend>Runtime &amp; agent behavior</legend>
+        <div className="protean-settings-advanced">
+          <label>
+            Token budget override <InfoHint hintKey="advancedTurnTokenBudget" />
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={64000}
+            placeholder="Use selected depth preset"
+            value={state.settings.turnTokenBudget ?? ''}
+            onChange={(event) => {
+              const raw = event.target.value;
+              const parsed = raw === '' ? undefined : Number.parseInt(raw, 10);
+              dispatch({
+                type: 'setTurnTokenBudget',
+                turnTokenBudget: parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined,
+              });
+            }}
+          />
+          <label>
+            Max steps <InfoHint hintKey="agentMaxTurns" />
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            placeholder="Use server default"
+            value={state.settings.agentMaxTurns ?? ''}
+            onChange={(event) => {
+              const raw = event.target.value;
+              const parsed = raw === '' ? undefined : Number.parseInt(raw, 10);
+              dispatch({
+                type: 'setAgentMaxTurns',
+                agentMaxTurns: parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined,
+              });
+            }}
+          />
+        </div>
+      </fieldset>
+
+      <fieldset disabled={usingCustomProvider}>
+        <legend>
+          Reasoning effort <InfoHint hintKey="reasoningEffort" />
+        </legend>
+        {usingCustomProvider && (
+          <p className="banner info" role="status">
+            Only applies to the built-in Fast/Strong tiers — switch off your custom provider in the composer to use it.
+          </p>
+        )}
+        <div className="protean-settings-row protean-settings-row-wrap">
+          {EFFORT_LEVELS.map((level) => (
+            <button
+              key={level.id}
+              type="button"
+              className={`pill${state.settings.effort === level.id ? ' on' : ''}`}
+              aria-pressed={state.settings.effort === level.id}
+              disabled={usingCustomProvider}
+              onClick={() =>
+                dispatch({
+                  type: 'setEffort',
+                  effort: state.settings.effort === level.id ? undefined : level.id,
+                })
+              }
+            >
+              <span className="dot" aria-hidden />
+              {level.label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset disabled={!usingCustomProvider}>
+        <legend>
+          Temperature &amp; max tokens <InfoHint hintKey="providerTemperature" />
+        </legend>
+        {!usingCustomProvider && (
+          <p className="banner info" role="status">
+            Only applies to a custom provider — pick one in the composer's model picker to use these.
+          </p>
+        )}
+        <div className="protean-settings-advanced">
+          <label>
+            Temperature (0–{temperatureMax}) <InfoHint hintKey="providerTemperature" />
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={temperatureMax}
+            step={0.1}
+            placeholder="Provider default"
+            disabled={!usingCustomProvider}
+            value={state.settings.providerTemperature ?? ''}
+            onChange={(event) => {
+              const raw = event.target.value;
+              const parsed = raw === '' ? undefined : Number.parseFloat(raw);
+              dispatch({
+                type: 'setProviderTemperature',
+                providerTemperature: parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined,
+              });
+            }}
+          />
+          <label>
+            Max tokens <InfoHint hintKey="providerMaxTokens" />
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={32000}
+            placeholder="4096"
+            disabled={!usingCustomProvider}
+            value={state.settings.providerMaxTokens ?? ''}
+            onChange={(event) => {
+              const raw = event.target.value;
+              const parsed = raw === '' ? undefined : Number.parseInt(raw, 10);
+              dispatch({
+                type: 'setProviderMaxTokens',
+                providerMaxTokens: parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined,
+              });
+            }}
+          />
+        </div>
+      </fieldset>
+    </>
   );
 }
 

@@ -70,6 +70,14 @@ describe('computeCacheKey', () => {
     expect(computeCacheKey(turn({ domainId: 'finance' }))).not.toBe(base);
     expect(computeCacheKey(turn({ toolsetVersion: 'v1' }))).not.toBe(base);
   });
+
+  it('changes when sampling controls change, so a different effort/temperature/maxTokens never serves a stale cached answer', () => {
+    const base = computeCacheKey(turn());
+    expect(computeCacheKey(turn({ effort: 'high' }))).not.toBe(base);
+    expect(computeCacheKey(turn({ temperature: 0.7 }))).not.toBe(base);
+    expect(computeCacheKey(turn({ maxTokens: 2048 }))).not.toBe(base);
+    expect(computeCacheKey(turn({ temperature: 0.2 }))).not.toBe(computeCacheKey(turn({ temperature: 0.9 })));
+  });
 });
 
 describe('createMemoryCacheStore', () => {

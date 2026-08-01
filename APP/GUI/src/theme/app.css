@@ -215,6 +215,13 @@
 .protean-settings-panel fieldset + fieldset {
   margin-top: var(--s-6);
 }
+.protean-settings-panel fieldset:disabled {
+  opacity: 0.5;
+}
+.protean-settings-panel fieldset:disabled .pill,
+.protean-settings-panel fieldset:disabled input {
+  cursor: not-allowed;
+}
 .protean-settings-row {
   display: flex;
   gap: var(--s-3);

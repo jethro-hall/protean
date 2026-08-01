@@ -254,5 +254,8 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     wiredTools,
     grounded,
     knowledgeCollectionsUsed,
+    ...(request.effort !== undefined ? { effort: request.effort } : {}),
+    ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
+    ...(request.maxTokens !== undefined ? { maxTokens: request.maxTokens } : {}),
   };
 }

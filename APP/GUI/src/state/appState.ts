@@ -2,7 +2,7 @@
  * App state model — types, constants, reducer. No React components so Vite
  * Fast Refresh can patch the provider module independently (Law 3: right module).
  */
-import type { ActivityKind, ArtefactType, ModelTier, ResponseDepth, TurnDone } from '../lib/api';
+import type { ActivityKind, ArtefactType, EffortLevel, ModelTier, ResponseDepth, TurnDone } from '../lib/api';
 
 /** Worklog visual kind (C6 data-kind) — optional override when richer than ActivityKind. */
 export type WorklogKind =
@@ -89,6 +89,12 @@ export interface Settings {
   agentMaxTurns?: number;
   /** Quick model picker (Phase 6): a saved custom provider id answering instead of `tier`. Undefined = use tier. */
   providerId?: string;
+  /** Reasoning effort (Phase 6) — a real Claude Agent SDK field, applies to the built-in Fast/Strong tiers only. */
+  effort?: EffortLevel;
+  /** Sampling temperature (Phase 6) — applies to a custom provider only; the built-in tiers' SDK has no such field. */
+  providerTemperature?: number;
+  /** Max response tokens (Phase 6) — applies to a custom provider only. */
+  providerMaxTokens?: number;
 }
 
 export interface AppState {
@@ -154,6 +160,9 @@ export type Action =
   | { type: 'setTurnTokenBudget'; turnTokenBudget: number | undefined }
   | { type: 'setAgentMaxTurns'; agentMaxTurns: number | undefined }
   | { type: 'setProviderId'; providerId: string | undefined }
+  | { type: 'setEffort'; effort: EffortLevel | undefined }
+  | { type: 'setProviderTemperature'; providerTemperature: number | undefined }
+  | { type: 'setProviderMaxTokens'; providerMaxTokens: number | undefined }
   | { type: 'toggleRail' }
   | { type: 'togglePreview' }
   | { type: 'setPreviewWidth'; width: number };
@@ -453,6 +462,33 @@ export function reducer(state: AppState, action: Action): AppState {
         delete settings.providerId;
       } else {
         settings.providerId = action.providerId;
+      }
+      return { ...state, settings };
+    }
+    case 'setEffort': {
+      const settings: Settings = { ...state.settings };
+      if (action.effort === undefined) {
+        delete settings.effort;
+      } else {
+        settings.effort = action.effort;
+      }
+      return { ...state, settings };
+    }
+    case 'setProviderTemperature': {
+      const settings: Settings = { ...state.settings };
+      if (action.providerTemperature === undefined) {
+        delete settings.providerTemperature;
+      } else {
+        settings.providerTemperature = action.providerTemperature;
+      }
+      return { ...state, settings };
+    }
+    case 'setProviderMaxTokens': {
+      const settings: Settings = { ...state.settings };
+      if (action.providerMaxTokens === undefined) {
+        delete settings.providerMaxTokens;
+      } else {
+        settings.providerMaxTokens = action.providerMaxTokens;
       }
       return { ...state, settings };
     }

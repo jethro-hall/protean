@@ -36,6 +36,12 @@ export function computeCacheKey(turn: AssembledTurn): string {
     model: turn.model,
     domainId: turn.domainId,
     toolsetVersion: turn.toolsetVersion,
+    // Sampling controls (Phase 6) change the output for an otherwise-identical
+    // prompt -- must be part of the key or a temperature/effort change would
+    // silently serve a stale cached answer from a different setting.
+    effort: turn.effort,
+    temperature: turn.temperature,
+    maxTokens: turn.maxTokens,
   });
   return createHash('sha256').update(material).digest('hex');
 }

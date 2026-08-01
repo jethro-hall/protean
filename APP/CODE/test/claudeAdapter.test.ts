@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { GatewayRequest } from '../src/contracts/gateway.js';
 import {
+  buildClaudeQueryOptions,
   createStreamBlockState,
   gatewayEventsFromSdkMessage,
   isVacuousSuccess,
   renderPromptFromMessages,
 } from '../src/gateway/adapters/claude.js';
+
+function gatewayRequest(overrides: Partial<GatewayRequest> = {}): GatewayRequest {
+  return {
+    turnId: 'turn-1',
+    model: 'model-a',
+    systemPrompt: 'be helpful',
+    messages: [{ role: 'user', content: 'hi' }],
+    ...overrides,
+  };
+}
 
 /** Build a minimal stream_event SDK message (only fields the mapper reads). */
 function streamEvent(event: unknown): SDKMessage {
@@ -84,6 +96,23 @@ describe('gatewayEventsFromSdkMessage', () => {
     expect(events).toEqual([
       { type: 'activity-start', activityId: 'turn1-b2', kind: 'tool', label: 'Using tool: Bash' },
     ]);
+  });
+});
+
+describe('buildClaudeQueryOptions', () => {
+  it('passes effort through to Options.effort when the request sets it (Phase 6 reasoning effort)', () => {
+    const options = buildClaudeQueryOptions(gatewayRequest({ effort: 'high' }));
+    expect(options.effort).toBe('high');
+  });
+
+  it('omits Options.effort when the request has no effort set — never a fabricated default', () => {
+    const options = buildClaudeQueryOptions(gatewayRequest());
+    expect(options.effort).toBeUndefined();
+  });
+
+  it('never sets a temperature field — the installed SDK has no such Options field', () => {
+    const options = buildClaudeQueryOptions(gatewayRequest({ temperature: 0.7 }));
+    expect('temperature' in options).toBe(false);
   });
 });
 

@@ -73,6 +73,21 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'Lower it to force a quicker, more contained answer; raise it for a task that genuinely needs many tool calls to finish. Capped server-side regardless of what\u2019s entered here.',
     example: '3 for a quick single-file lookup; leave blank to use the server\u2019s own default.',
   },
+  reasoningEffort: {
+    what: 'How hard the model thinks before answering \u2014 a real Claude Agent SDK setting, only wired up for the built-in Fast/Strong tiers.',
+    why: 'Lower effort answers faster and cheaper for simple turns; higher effort reasons more deeply for hard ones. Greyed out when a custom provider is selected in the composer \u2014 the vendor HTTP APIs behind custom providers don\u2019t have this control, so it would be a fake button there.',
+    example: 'Low for a quick lookup; Max for a genuinely hard multi-step problem.',
+  },
+  providerTemperature: {
+    what: 'Sampling temperature and max response tokens for a custom provider\u2019s HTTP calls.',
+    why: 'These are real fields on the Anthropic/Bedrock/OpenAI-compatible HTTP APIs \u2014 but the built-in Fast/Strong tiers run through the Claude Agent SDK, which has no temperature field at all, so these controls are greyed out unless you\u2019ve picked a custom provider in the composer. Anthropic/Bedrock accept 0\u20131; OpenAI-compatible endpoints accept 0\u20132.',
+    example: '0.2 for consistent, focused answers; 0.9 for more varied/creative ones.',
+  },
+  providerMaxTokens: {
+    what: 'The maximum number of tokens a custom provider\u2019s response may use.',
+    why: 'Caps response length and cost for that call \u2014 defaults to 4096 when left blank. Only applies when a custom provider is selected.',
+    example: '512 for a short answer; 4096 for a longer one.',
+  },
   providersModels: {
     what: 'LLM providers you\u2019ve connected, beyond the platform\u2019s built-in Fast/Strong tiers.',
     why: 'Bring your own Anthropic, Bedrock, or OpenAI-compatible account to use a specific model \u2014 test the connection and list its models before saving, so a typo in a key fails here, not mid-conversation.',

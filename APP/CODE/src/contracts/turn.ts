@@ -26,6 +26,15 @@ export const responseDepthSchema = z.enum(['hscLevel', 'uniDegree', 'professor']
 export type ResponseDepth = z.infer<typeof responseDepthSchema>;
 
 /**
+ * How hard the model should think (Phase 6 sampling controls). A real Claude
+ * Agent SDK field (Options.effort) — confirmed against the installed
+ * @anthropic-ai/claude-agent-sdk type declarations — so it genuinely applies
+ * to the built-in Fast/Strong tiers, unlike temperature (see below).
+ */
+export const effortLevelSchema = z.enum(['low', 'medium', 'high', 'xhigh', 'max']);
+export type EffortLevel = z.infer<typeof effortLevelSchema>;
+
+/**
  * A file the user attached to a turn. `encoding: 'utf8'` (the default) is the
  * original text-only path. `encoding: 'base64'` is a zip archive — the engine
  * unpacks it server-side and expands it into individual utf8 attachments
@@ -58,6 +67,16 @@ export const turnRequestSchema = z.object({
   responseDepth: responseDepthSchema.optional(),
   /** Advanced manual override — takes precedence over responseDepth's own budget. */
   turnTokenBudget: z.number().int().positive().max(64000).optional(),
+  /** Reasoning effort (Phase 6) — only applies to the built-in Fast/Strong tiers. */
+  effort: effortLevelSchema.optional(),
+  /**
+   * Sampling temperature (Phase 6) — only applies to a custom provider
+   * (gateway/adapters/customProvider.ts). The Claude Agent SDK behind the
+   * built-in tiers has no such field; this is a no-op there, never faked.
+   */
+  temperature: z.number().min(0).max(2).optional(),
+  /** Max response tokens (Phase 6) — only applies to a custom provider. */
+  maxTokens: z.number().int().positive().max(32000).optional(),
 });
 export type TurnRequest = z.infer<typeof turnRequestSchema>;
 
@@ -94,6 +113,12 @@ export interface AssembledTurn {
   grounded: boolean;
   /** Collection ids actually consulted to build the digest, when grounded. */
   knowledgeCollectionsUsed: string[];
+  /** Reasoning effort (Phase 6) — built-in tiers only, see effortLevelSchema. */
+  effort?: EffortLevel;
+  /** Sampling temperature (Phase 6) — custom providers only. */
+  temperature?: number;
+  /** Max response tokens (Phase 6) — custom providers only. */
+  maxTokens?: number;
   /** Runtime cancel — not part of the cache key; seize the model when aborted. */
   abortSignal?: AbortSignal;
 }

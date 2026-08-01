@@ -28,7 +28,8 @@ async function callAnthropic(
     headers: { 'x-api-key': config.apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({
       model: request.model,
-      max_tokens: 4096,
+      max_tokens: request.maxTokens ?? 4096,
+      temperature: request.temperature,
       system: systemText(request.systemPrompt),
       messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
     }),
@@ -60,7 +61,8 @@ async function callBedrock(
     headers: { Authorization: `Bearer ${config.bearerToken}`, 'content-type': 'application/json', accept: 'application/json' },
     body: JSON.stringify({
       anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 4096,
+      max_tokens: request.maxTokens ?? 4096,
+      temperature: request.temperature,
       system: systemText(request.systemPrompt),
       messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
     }),
@@ -89,7 +91,8 @@ async function callOpenAiCompatible(
     headers: { Authorization: `Bearer ${config.apiKey}`, 'content-type': 'application/json' },
     body: JSON.stringify({
       model: request.model,
-      max_tokens: 4096,
+      max_tokens: request.maxTokens ?? 4096,
+      temperature: request.temperature,
       messages: [
         ...(system !== '' ? [{ role: 'system', content: system }] : []),
         ...request.messages.map((m) => ({ role: m.role, content: m.content })),

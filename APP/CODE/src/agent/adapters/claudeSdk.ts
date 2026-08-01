@@ -28,6 +28,7 @@ export function createClaudeSdkAgentCore(gateway: LlmGateway, log: LayerLogger):
         datasetsDir: turn.datasetsDir,
         domainsDir: turn.domainsDir,
         knowledgeCollectionIds: turn.knowledgeCollectionsUsed,
+        ...(turn.effort !== undefined ? { effort: turn.effort } : {}),
         ...(turn.abortSignal !== undefined ? { abortSignal: turn.abortSignal } : {}),
       };
       log.info('agent.turn.start', `Agent turn via ${gateway.provider} gateway, tier ${turn.tier}`, {

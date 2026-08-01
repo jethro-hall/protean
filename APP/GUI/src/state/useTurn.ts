@@ -63,6 +63,13 @@ export function useSendTurn(): (input: string, attachments?: Attachment[]) => vo
           ? { agentMaxTurns: state.settings.agentMaxTurns }
           : {}),
         ...(state.settings.providerId !== undefined ? { providerId: state.settings.providerId } : {}),
+        ...(state.settings.effort !== undefined ? { effort: state.settings.effort } : {}),
+        ...(state.settings.providerTemperature !== undefined
+          ? { temperature: state.settings.providerTemperature }
+          : {}),
+        ...(state.settings.providerMaxTokens !== undefined
+          ? { maxTokens: state.settings.providerMaxTokens }
+          : {}),
         signal: controller.signal,
         onEvent: (event) => {
           if (event.type === 'text') {

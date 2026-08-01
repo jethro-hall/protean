@@ -7,7 +7,10 @@
  * API surface verified against installed @anthropic-ai/claude-agent-sdk 0.3.220
  * type declarations: query({ prompt, options }),
  * Options.{model,systemPrompt,tools,allowedTools,maxTurns,permissionMode,cwd,
- * includePartialMessages,persistSession,thinking}, stream + tool_progress.
+ * includePartialMessages,persistSession,thinking,effort}, stream + tool_progress.
+ * Confirmed there is NO temperature field anywhere in Options (Phase 6 sampling
+ * controls) — only `effort` is real for this SDK; temperature only applies to
+ * the custom-provider adapter (gateway/adapters/customProvider.ts).
  */
 import {
   query,
@@ -121,6 +124,9 @@ export function buildClaudeQueryOptions(request: GatewayRequest): Options {
     abortController: abortControllerFromSignal(request.abortSignal),
     strictMcpConfig: true,
   };
+  if (request.effort !== undefined) {
+    options.effort = request.effort;
+  }
   if (request.workspaceDir !== undefined && request.workspaceDir !== '') {
     options.cwd = request.workspaceDir;
   }
