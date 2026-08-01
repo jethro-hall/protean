@@ -147,6 +147,58 @@
   min-height: 0;
   padding: var(--s-6);
 }
+
+/* Settings tabs (Phase H) -- top nav across the modal, panels slide in on switch. */
+.settings-tabs {
+  display: flex;
+  gap: var(--s-2);
+  padding: 0 var(--s-6);
+  border-bottom: 1px solid var(--line-glass);
+  flex: none;
+  overflow-x: auto;
+}
+.settings-tab {
+  padding: var(--s-4) var(--s-2);
+  font-size: var(--fz-12);
+  font-weight: var(--fw-semi);
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color var(--step), border-color var(--step);
+}
+.settings-tab:hover {
+  color: var(--ink);
+}
+.settings-tab[aria-selected='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--accent-blue-2);
+}
+.settings-tab-panel {
+  animation: settings-tab-in-right 0.18s ease;
+}
+.settings-tab-panel.dir-left {
+  animation-name: settings-tab-in-left;
+}
+@keyframes settings-tab-in-right {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes settings-tab-in-left {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
 .protean-settings-panel {
   padding: 0;
 }

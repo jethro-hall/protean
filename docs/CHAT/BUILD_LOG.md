@@ -1788,3 +1788,37 @@ working completely unchanged.
 
 **This closes the owner-directed GUI overhaul (Phases A–G).** All 7 phases landed as separate,
 independently-verified commits per the plan on file.
+
+## 2026-08-01 · Claude · Phase 6 · Settings v2 Phase H — tabbed Settings modal
+
+Follow-up round after A–G: owner reported the Settings modal had grown too long to scroll
+comfortably and asked for top tabs. Plan for the full follow-up round (tabs, token/cost display,
+temperature/effort controls, domain-pack CRUD, weighted knowledge retrieval) is on file at
+`/home/ec2-user/.claude/plans/floofy-pondering-scroll.md` — this entry covers Phase H only.
+
+**GUI-only change, `SettingsMenu.tsx`:** pure re-parenting, no logic changes. The 237-line modal's
+serial fieldsets are now split into 4 tabs — General (Model tier, Domain pack, Response depth,
+Grounded knowledge), Runtime (Token budget override, Max steps), Providers
+(`<ProvidersModelsSection />`, unchanged), Tools (`<McpToolsSection />`, unchanged). Tab bar is a
+data-driven `TABS` array (`{id, label}`) so a 5th tab (Domain Packs, landing in a later phase of
+this round) is a one-line addition, not new prop-drilling.
+
+"Slide" is a lightweight CSS keyframe animation on tab switch rather than a full multi-panel
+carousel — only the active panel is rendered (`key={activeTab}` forces remount), direction
+(`dir-left`/default-right) computed from whether the new tab's index is before or after the
+previous one. Avoided a real sliding carousel because panels have very different heights
+(Providers/Tools sections are much taller than General) and equal-width carousel tracks would
+either clip content or force every panel to the tallest panel's height — the animation gives the
+same "sliding" feel the owner asked for without that fragility.
+
+New CSS in `theme/app.css`: `.settings-tabs`/`.settings-tab`/`.settings-tab-panel` plus the two
+`settings-tab-in-{left,right}` keyframes, sitting next to the existing `.settings-modal*` rules
+from the Phase D popup shell.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean on `APP/GUI`.
+- Live Playwright run against the running dev server: opened Settings, clicked through all 4 tabs
+  in order, confirmed `aria-selected` moves correctly and each panel's rendered text matches its
+  section (General → Model tier; Runtime → Token budget/Max steps; Providers → Providers & Models
+  copy; Tools → MCP/Tools JSON editor + catalog list, screenshotted). Existing Providers/MCP
+  sections render and their own copy/controls are untouched by the re-parenting.
