@@ -15,7 +15,7 @@ import type { TurnRequest } from '../contracts/turn.js';
 import { createClaudeGateway } from '../gateway/adapters/claude.js';
 import { createLogger } from '../logging/logger.js';
 import { createMemoryCacheStore } from '../watcher/cache.js';
-import { resolveTier } from '../watcher/assemble.js';
+import { resolveEffectiveTier, resolveTier } from '../watcher/assemble.js';
 import { runTurn, type TurnPipelineDeps } from '../watcher/runTurn.js';
 import { loadEvalSet, type EvalItem, type EvalSet } from './evalSet.js';
 import { scoreOutput } from './score.js';
@@ -24,7 +24,7 @@ const DEFAULT_EVAL_SET_ID = 'baseline';
 
 interface ItemResult {
   itemId: string;
-  arm: 'A-noRewrite' | 'B-rewrite';
+  arm: 'A-noRewrite' | 'B-rewrite' | 'C-autoTier';
   score: number;
   failures: string[];
   ttftMs: number | null;
@@ -32,6 +32,8 @@ interface ItemResult {
   rewriteMs: number | null;
   outputChars: number;
   error: string | null;
+  /** Arm C only: did the deterministic gate actually escalate this item to strong? */
+  tierEscalated?: boolean;
 }
 
 function argValue(flag: string): string | undefined {
@@ -44,6 +46,7 @@ async function runItem(
   set: EvalSet,
   arm: ItemResult['arm'],
   deps: TurnPipelineDeps,
+  tierEscalated?: boolean,
 ): Promise<ItemResult> {
   const request: TurnRequest = {
     sessionId: `eval-${arm}-${randomUUID()}`,
@@ -74,6 +77,7 @@ async function runItem(
     rewriteMs,
     outputChars: output.length,
     error,
+    ...(tierEscalated !== undefined ? { tierEscalated } : {}),
   };
 }
 
@@ -117,25 +121,54 @@ async function main(): Promise<void> {
 
   const results: ItemResult[] = [];
   for (const item of set.items) {
-    // fresh cache per arm/item so A and B are both genuine model runs
+    // fresh cache per arm/item so A, B, and C are all genuine model runs
     results.push(
       await runItem(item, set, 'A-noRewrite', {
         ...baseDeps,
         cache: createMemoryCacheStore(config.cache.ttlSeconds, config.cache.maxEntries),
-        watcher: { ...config.watcher, rewriteEnabled: false, fastModel },
+        watcher: { ...config.watcher, rewriteEnabled: false, autoTierEnabled: false, fastModel },
       }),
     );
     results.push(
       await runItem(item, set, 'B-rewrite', {
         ...baseDeps,
         cache: createMemoryCacheStore(config.cache.ttlSeconds, config.cache.maxEntries),
-        watcher: { ...config.watcher, rewriteEnabled: true, fastModel },
+        watcher: { ...config.watcher, rewriteEnabled: true, autoTierEnabled: false, fastModel },
       }),
+    );
+    // Arm C tests auto-tier escalation. Unlike A/B (which reuse the fixed baseline
+    // `model`), escalation is per-item input-dependent — reusing the fixed model
+    // here would let the lineage `tier` claim strong while a fast model actually
+    // ran (Law 6). Resolve tier+model per item, exactly as server.ts does live.
+    const itemRequest: TurnRequest = {
+      sessionId: `eval-tier-probe-${randomUUID()}`,
+      domainId: set.domainId,
+      input: item.prompt,
+    };
+    const tierDecision = resolveEffectiveTier(itemRequest, pack, {
+      autoTierEnabled: true,
+      autoTierEscalationTokens: config.watcher.autoTierEscalationTokens,
+    });
+    results.push(
+      await runItem(
+        item,
+        set,
+        'C-autoTier',
+        {
+          ...baseDeps,
+          model: requireModel(config, tierDecision.tier),
+          cache: createMemoryCacheStore(config.cache.ttlSeconds, config.cache.maxEntries),
+          watcher: { ...config.watcher, rewriteEnabled: false, autoTierEnabled: true, fastModel },
+        },
+        tierDecision.escalated,
+      ),
     );
   }
 
   const armA = results.filter((r) => r.arm === 'A-noRewrite');
   const armB = results.filter((r) => r.arm === 'B-rewrite');
+  const armC = results.filter((r) => r.arm === 'C-autoTier');
+  const tierEscalations = armC.filter((r) => r.tierEscalated === true).length;
   const summary = {
     ts: new Date().toISOString(),
     setId: set.id,
@@ -144,10 +177,14 @@ async function main(): Promise<void> {
     items: set.items.length,
     meanScoreA: mean(armA.map((r) => r.score)),
     meanScoreB: mean(armB.map((r) => r.score)),
+    meanScoreC: mean(armC.map((r) => r.score)),
     meanTotalMsA: mean(armA.map((r) => r.totalMs ?? 0)),
     meanTotalMsB: mean(armB.map((r) => r.totalMs ?? 0)),
+    meanTotalMsC: mean(armC.map((r) => r.totalMs ?? 0)),
     rewritesApplied: armB.filter((r) => r.rewriteMs !== null).length,
+    tierEscalations,
     verdict: '' as string,
+    tierVerdict: '' as string,
     results,
   };
   // A verdict is only evidence if arm B actually rewrote something; otherwise
@@ -159,6 +196,17 @@ async function main(): Promise<void> {
       : summary.meanScoreB > summary.meanScoreA
         ? 'B (rewrite) improves the score — consider enabling PROTEAN_REWRITE_ENABLED=1'
         : 'rewrite does NOT pay for itself on this set — keep it off (per charter, cut it)';
+  // Same honesty rule for the tier gate: bloat (rewrite's signal) and complexity
+  // (auto-tier's signal) are deliberately different thresholds — a set built to
+  // fire the rewrite gate is not evidence either way for auto-tier.
+  summary.tierVerdict =
+    tierEscalations === 0
+      ? 'INVALID for auto-tier — this set never crossed the auto-tier threshold (it targets ' +
+        'rewrite/bloat, a different signal); build a complexity-focused eval set before judging ' +
+        'PROTEAN_AUTO_TIER_ENABLED=1'
+      : summary.meanScoreC > summary.meanScoreA
+        ? 'C (auto-tier) improves the score on the items it escalated — consider enabling PROTEAN_AUTO_TIER_ENABLED=1'
+        : 'auto-tier escalation does NOT pay for itself on this set — keep it off';
 
   mkdirSync(config.paths.evalResultsDir, { recursive: true });
   const outPath = join(
@@ -166,9 +214,13 @@ async function main(): Promise<void> {
     `${set.id}-${summary.ts.replace(/[:.]/g, '-')}.json`,
   );
   writeFileSync(outPath, JSON.stringify(summary, null, 2) + '\n', 'utf8');
-  logger.log('info', 'watcher', 'eval.done', `A/B eval "${set.id}" complete: A=${summary.meanScoreA.toFixed(3)} B=${summary.meanScoreB.toFixed(3)} — ${summary.verdict}`, {
-    data: { outPath },
-  });
+  logger.log(
+    'info',
+    'watcher',
+    'eval.done',
+    `A/B/C eval "${set.id}" complete: A=${summary.meanScoreA.toFixed(3)} B=${summary.meanScoreB.toFixed(3)} C=${summary.meanScoreC.toFixed(3)} — ${summary.verdict} | ${summary.tierVerdict}`,
+    { data: { outPath } },
+  );
 }
 
 void main();

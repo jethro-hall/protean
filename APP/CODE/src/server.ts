@@ -23,7 +23,7 @@ import type { LlmGateway } from './gateway/LlmGateway.js';
 import { createClaudeGateway } from './gateway/adapters/claude.js';
 import { createLogger, type Logger } from './logging/logger.js';
 import { createMemoryCacheStore, type CacheStore } from './watcher/cache.js';
-import { resolveTier } from './watcher/assemble.js';
+import { resolveEffectiveTier } from './watcher/assemble.js';
 import { runTurn } from './watcher/runTurn.js';
 import { createFileSessionStore, type SessionStore } from './watcher/sessionStore.js';
 import { saveUpload } from './watcher/uploads.js';
@@ -124,7 +124,15 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
   let toolset;
   try {
     pack = loadDomainPack(deps.config.paths.domainsDir, request.domainId);
-    model = requireModel(deps.config, resolveTier(request, pack));
+    // Same call runTurn.ts makes with the same watcher config — deterministic, so
+    // the model picked here and the tier recorded in lineage always agree (Law 6).
+    model = requireModel(
+      deps.config,
+      resolveEffectiveTier(request, pack, {
+        autoTierEnabled: deps.config.watcher.autoTierEnabled,
+        autoTierEscalationTokens: deps.config.watcher.autoTierEscalationTokens,
+      }).tier,
+    );
     toolset = resolveToolset({
       packToolIds: pack.tools,
       agentLoop: {
@@ -188,6 +196,8 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
         turnTokenBudget: deps.config.watcher.turnTokenBudget,
         rewriteEnabled: deps.config.watcher.rewriteEnabled,
         rewriteBloatTokens: deps.config.watcher.rewriteBloatTokens,
+        autoTierEnabled: deps.config.watcher.autoTierEnabled,
+        autoTierEscalationTokens: deps.config.watcher.autoTierEscalationTokens,
         ...(deps.config.models.fast !== undefined ? { fastModel: deps.config.models.fast } : {}),
       },
       toolPolicy: toolset.toolPolicy,

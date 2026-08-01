@@ -15,6 +15,7 @@ import {
   NARRATION_PROTOCOL_PROMPT,
   toolsetVersionFromPolicy,
 } from '../config/defaults.js';
+import { estimateTokens } from './budget.js';
 
 /**
  * Watcher step 1 — ASSEMBLE (pure code, Law 4). Pulls the domain pack's system
@@ -26,6 +27,10 @@ export interface AssembleInput {
   pack: DomainPack;
   history: ChatMessage[];
   model: string;
+  /** Resolved by the caller (server.ts / runTurn.ts) via resolveTier/resolveEffectiveTier —
+   * assembleTurn records it, it does not re-derive it, so lineage can never disagree with
+   * which model actually ran. */
+  tier: ModelTier;
   toolPolicy: ToolPolicy;
   workspaceDir: string;
   datasetsDir: string;
@@ -41,6 +46,46 @@ export function windowHistory(history: ChatMessage[], windowSize: number): ChatM
 
 export function resolveTier(request: TurnRequest, pack: DomainPack): ModelTier {
   return request.tier ?? pack.tiers.default;
+}
+
+export interface AutoTierOptions {
+  autoTierEnabled: boolean;
+  autoTierEscalationTokens: number;
+}
+
+export interface TierResolution {
+  tier: ModelTier;
+  escalated: boolean;
+  reason: string;
+}
+
+/**
+ * Deterministic gate (Law 4): escalate fast→strong only when the caller left tier
+ * unset (an explicit choice is intent, never second-guessed) AND the pack's default
+ * is 'fast' AND the input is estimated above the auto-tier threshold. Off entirely
+ * unless options.autoTierEnabled — see DEFAULT_AUTO_TIER_ESCALATION_TOKENS for why.
+ */
+export function resolveEffectiveTier(
+  request: TurnRequest,
+  pack: DomainPack,
+  options: AutoTierOptions,
+): TierResolution {
+  const baseTier = resolveTier(request, pack);
+  if (request.tier !== undefined) {
+    return { tier: baseTier, escalated: false, reason: 'explicit tier requested — auto-tier never overrides intent' };
+  }
+  if (!options.autoTierEnabled || baseTier === 'strong') {
+    return { tier: baseTier, escalated: false, reason: 'pack default tier — auto-tier off or already strong' };
+  }
+  const inputTokens = estimateTokens(request.input);
+  if (inputTokens > options.autoTierEscalationTokens) {
+    return {
+      tier: 'strong',
+      escalated: true,
+      reason: `input ~${inputTokens} tokens exceeds the ${options.autoTierEscalationTokens}-token auto-tier threshold — escalated fast→strong`,
+    };
+  }
+  return { tier: baseTier, escalated: false, reason: 'deterministic path — input within auto-tier threshold' };
 }
 
 /**
@@ -119,6 +164,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     pack,
     history,
     model,
+    tier,
     toolPolicy,
     workspaceDir,
     datasetsDir,
@@ -148,7 +194,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     systemPromptStatic,
     systemPromptDynamic,
     messages,
-    tier: resolveTier(request, pack),
+    tier,
     model,
     toolsetVersion: toolsetVersionFromPolicy(toolPolicy),
     toolPolicy,
