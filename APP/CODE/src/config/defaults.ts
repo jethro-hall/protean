@@ -18,6 +18,16 @@ export const DEFAULT_TURN_TOKEN_BUDGET = 8000;
 export const DEFAULT_REWRITE_BLOAT_TOKENS = 600;
 
 /**
+ * Auto-tier gate: inputs estimated above this are eligible for fast→strong escalation
+ * (only when the caller didn't pin a tier explicitly). PROVISIONAL — chosen the same way
+ * DEFAULT_REWRITE_BLOAT_TOKENS was before its A/B proof, and likewise gated OFF by default
+ * (watcher.autoTierEnabled) until an eval set built for task complexity (not bloat) proves
+ * escalation improves scores enough to justify the cost. Do not raise autoTierEnabled to
+ * default-on without that evidence (Law 1).
+ */
+export const DEFAULT_AUTO_TIER_ESCALATION_TOKENS = 2000;
+
+/**
  * Dynamic agent loop defaults (owner pull-forward 2026-07-28).
  * Read/Grep/Glob only — Bash waits on a proven sandbox (Law 1: no unsandboxed shell).
  * Values override via PROTEAN_AGENT_* env (see loadConfig).
@@ -94,6 +104,8 @@ export const ENV = {
   turnTokenBudget: 'PROTEAN_TURN_TOKEN_BUDGET',
   rewriteEnabled: 'PROTEAN_REWRITE_ENABLED',
   rewriteBloatTokens: 'PROTEAN_REWRITE_BLOAT_TOKENS',
+  autoTierEnabled: 'PROTEAN_AUTO_TIER_ENABLED',
+  autoTierEscalationTokens: 'PROTEAN_AUTO_TIER_ESCALATION_TOKENS',
   agentMaxTurns: 'PROTEAN_AGENT_MAX_TURNS',
   agentAvailableTools: 'PROTEAN_AGENT_AVAILABLE_TOOLS',
   agentAllowedTools: 'PROTEAN_AGENT_ALLOWED_TOOLS',

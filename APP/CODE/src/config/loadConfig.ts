@@ -10,6 +10,7 @@ import {
   DEFAULT_AGENT_AVAILABLE_TOOLS,
   DEFAULT_AGENT_MAX_TURNS,
   DEFAULT_AGENT_PERMISSION_MODE,
+  DEFAULT_AUTO_TIER_ESCALATION_TOKENS,
   DEFAULT_CACHE_MAX_ENTRIES,
   DEFAULT_CACHE_TTL_SECONDS,
   DEFAULT_LOG_LEVEL,
@@ -34,6 +35,9 @@ export interface ProteanConfig {
     /** Conditional rewrite: OFF until the A/B eval proves it pays for itself (ARCHITECTURE §3). */
     rewriteEnabled: boolean;
     rewriteBloatTokens: number;
+    /** Conditional fast→strong escalation: OFF until an eval proves it pays for itself (see defaults.ts). */
+    autoTierEnabled: boolean;
+    autoTierEscalationTokens: number;
   };
   /** Open-ended dynamic agent loop (tools + multi-turn). Not a scripted workflow. */
   agentLoop: ToolPolicy & { toolsetVersion: string };
@@ -133,6 +137,11 @@ export function loadConfig(): ProteanConfig {
       turnTokenBudget: intFromEnv(ENV.turnTokenBudget, DEFAULT_TURN_TOKEN_BUDGET),
       rewriteEnabled: process.env[ENV.rewriteEnabled] === '1',
       rewriteBloatTokens: intFromEnv(ENV.rewriteBloatTokens, DEFAULT_REWRITE_BLOAT_TOKENS),
+      autoTierEnabled: process.env[ENV.autoTierEnabled] === '1',
+      autoTierEscalationTokens: intFromEnv(
+        ENV.autoTierEscalationTokens,
+        DEFAULT_AUTO_TIER_ESCALATION_TOKENS,
+      ),
     },
     agentLoop: agentLoopFromEnv(),
     models: {

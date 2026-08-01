@@ -1053,6 +1053,22 @@ Caddy routes `studio.rideai.com.au` to `agentic_workflow_web:3000` (deployment #
 
 **Next step:** Phase 5 — sandbox Bash + MCP tool registry + real multi-step business workflow acceptance.
 
+## 2026-08-01 · Cursor · Phase Human User Test (FAIL / incomplete)
+
+**User request:** Phase Human User Test — exercise every control in a visible browser; score functionality / fit / best practice; purpose-built test agent; market-readiness assessment. Temp provider keys offered if needed.
+
+**What changed / ran:**
+- Inventory of GUI controls via explore agent; live exercise via `agent-browser` headless (no `$DISPLAY`; Cursor IDE browser MCP unavailable).
+- Evidence: `docs/ops/human-user-test-20260801/` (+ canvas `protean-human-user-test`).
+- Bedrock AWS session valid — no temp Anthropic/OpenAI/Google keys installed.
+
+**Results:**
+- PASS: settings tiers/domains, brand/foot sync, medical switch, preview toggle, attach, finance BLUF stream + worklog + telemetry (3611ms / 7.8s / miss), style guide + shell prototype.
+- FAIL: **Stop missing** from Composer (only `aria-label=Streaming`); **tool→artefact API retest empty** (`toolsCalled=[]`, SSE kinds=`[done]` only).
+- Scores: Functionality 6.0 · Fit 6.5 · Best practice 5.0 · **Market readiness: POC-only**.
+
+**Next step:** Restore Stop; diagnose empty tool turns; re-run HUT headed where owner can watch; then Phase 6 hardening.
+
 ## 2026-08-01 · Cursor · Phase 5 DONE — tool registry + live finance MCP workflow
 
 **User request (verbatim or faithful summary):**
@@ -1093,6 +1109,46 @@ Caddy routes `studio.rideai.com.au` to `agentic_workflow_web:3000` (deployment #
 
 **Next step:** Phase 6 hardening; optionally enable external MCP connectors when credentials
 exist; prove Bash only after sandbox.
+
+## 2026-08-01 · Claude · Phase 6 · Auto-tier (fast→strong) escalation gate — OFF by default
+
+**What changed:**
+- `config/defaults.ts` + `config/loadConfig.ts`: `DEFAULT_AUTO_TIER_ESCALATION_TOKENS` (2000),
+  `PROTEAN_AUTO_TIER_ENABLED` / `PROTEAN_AUTO_TIER_ESCALATION_TOKENS` env, `ProteanConfig.watcher.
+  {autoTierEnabled, autoTierEscalationTokens}`.
+- `watcher/assemble.ts`: `resolveEffectiveTier()` — deterministic gate (Law 4). Escalates
+  fast→strong only when (a) the caller left `tier` unset (explicit tier is intent, never
+  overridden), (b) the pack's default tier is `fast`, (c) `autoTierEnabled` is on, and (d) the
+  estimated input exceeds the threshold. `AssembleInput.tier` is now caller-resolved and recorded,
+  not re-derived, so lineage can never disagree with which model actually ran (Law 6).
+- `server.ts` + `watcher/runTurn.ts`: both call `resolveEffectiveTier()` with the same
+  request/pack/config, so the model `server.ts` picks and the tier `runTurn.ts` records always
+  agree; `watcher.assembled` log line now states the reason (e.g. "input ~81 tokens exceeds the
+  2000-token auto-tier threshold — escalated fast→strong").
+- `eval/runEval.ts`: added an auto-tier arm to the mechanical eval harness (score + escalation
+  count per item).
+- Tests: `assemble.test.ts` (+15 unit cases for `resolveEffectiveTier`), `runTurn.test.ts` updated
+  fixtures.
+
+**Proof:**
+- `tsc --noEmit` clean, `eslint src test` clean, Vitest 93/93 pass.
+- **Live functional test** (temp threshold=50 tokens, engine restarted, reverted after):
+  short turn (`qa-autotier-short`, ~2 tokens) → SSE `model:"haiku"`, lineage `tier: fast`; long
+  turn (`qa-autotier-long`, ~81 tokens, turnId `e60f7ddb-3903-4e23-ad2f-9edba6b72ea4`) → SSE
+  `model:"sonnet"`, lineage `tier: strong`, log reason "input ~81 tokens exceeds the 50-token
+  auto-tier threshold — escalated fast→strong". SSE model, lineage, and structured log all agree.
+  Confirmed OFF by default after revert (both short and long stayed `haiku`).
+- **Eval harness smoke test** (`baseline` set, real Bedrock calls,
+  `APP/LLMBUILD_DATA/eval-results/baseline-2026-08-01T06-30-48-993Z.json`): ran clean,
+  `tierEscalations: 0`. **Honest caveat — do not oversell this:** the `baseline` set targets the
+  rewrite/bloat signal, not task complexity, so it never crossed the auto-tier threshold; verdict
+  is explicitly `INVALID for auto-tier`. A complexity-focused eval set is still needed before
+  `PROTEAN_AUTO_TIER_ENABLED=1` can be justified — ships OFF until then (Law 1: no workaround,
+  no premature default-on).
+
+**Next step:** Build a complexity-focused eval set to actually judge auto-tier before considering
+default-on; then Phase A remediation (Stop button + tool→artefact reliability, see next entry).
+
 ## 2026-08-01 · Claude · Phase 6 · Phase A remediation — Stop button + silent-success guard
 
 **Context:** Picks up Tier 1 ("Must fix first") of `docs/ops/CURSOR_PROMPT_best-practice-to-10.md`,

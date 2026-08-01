@@ -85,6 +85,8 @@ async function main(): Promise<void> {
       turnTokenBudget: config.watcher.turnTokenBudget,
       rewriteEnabled: config.watcher.rewriteEnabled,
       rewriteBloatTokens: config.watcher.rewriteBloatTokens,
+      autoTierEnabled: config.watcher.autoTierEnabled,
+      autoTierEscalationTokens: config.watcher.autoTierEscalationTokens,
       ...(config.models.fast !== undefined ? { fastModel: config.models.fast } : {}),
     },
     toolPolicy: {

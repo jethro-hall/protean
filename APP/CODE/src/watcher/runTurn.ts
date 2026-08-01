@@ -19,7 +19,7 @@ import {
   type ArtefactParserEvent,
   type ArtefactType,
 } from './artefacts.js';
-import { assembleTurn } from './assemble.js';
+import { assembleTurn, resolveEffectiveTier } from './assemble.js';
 import { budgetMessages } from './budget.js';
 import { computeCacheKey, type CacheStore } from './cache.js';
 import { recordLineage, recordTelemetry } from './record.js';
@@ -38,6 +38,8 @@ export interface WatcherOptions {
   rewriteBloatTokens: number;
   /** Fast model for the Tier-1 rewrite; rewrite is skipped (and logged) if unset. */
   fastModel?: string;
+  autoTierEnabled: boolean;
+  autoTierEscalationTokens: number;
 }
 
 export interface TurnPipelineDeps {
@@ -79,11 +81,18 @@ export async function* runTurn(
   const startedAt = new Date().toISOString();
   const t0 = performance.now();
 
+  // Resolved ONCE here and by the caller (server.ts) picking `model` from the same
+  // request+pack+config — deterministic, so both agree on which tier actually ran (Law 6).
+  const tierDecision = resolveEffectiveTier(request, pack, {
+    autoTierEnabled: watcher.autoTierEnabled,
+    autoTierEscalationTokens: watcher.autoTierEscalationTokens,
+  });
   const assembled = assembleTurn({
     request,
     pack,
     history,
     model,
+    tier: tierDecision.tier,
     toolPolicy: deps.toolPolicy,
     workspaceDir: deps.workspaceDir,
     datasetsDir: deps.datasetsDir,
@@ -159,8 +168,8 @@ export async function* runTurn(
 
   log.info(
     'watcher.assembled',
-    `Assembled turn for domain "${assembled.domainId}" (${assembled.messages.length} messages, ~${budget.estimatedTokens} tokens, tier ${assembled.tier}); ${decision.reason}; cache ${cached !== undefined ? 'HIT' : 'MISS'}`,
-    { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { cacheKey, assembleMs, budgetMs, cacheCheckMs } },
+    `Assembled turn for domain "${assembled.domainId}" (${assembled.messages.length} messages, ~${budget.estimatedTokens} tokens, tier ${assembled.tier} — ${tierDecision.reason}); ${decision.reason}; cache ${cached !== undefined ? 'HIT' : 'MISS'}`,
+    { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { cacheKey, assembleMs, budgetMs, cacheCheckMs, tierEscalated: tierDecision.escalated } },
   );
 
   let output = '';
