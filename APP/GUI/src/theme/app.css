@@ -83,17 +83,72 @@
   flex: 1;
   min-height: 0;
 }
-.protean-settings-panel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + var(--s-3));
-  width: 288px;
-  background: var(--surface);
-  border: 1px solid var(--line);
+/*
+ * Settings modal shell — C11-adjacent, glassmorphic per owner direction.
+ * Deliberate exception to UX_STANDARDS "no modal unless genuinely blocking":
+ * explicit owner request for a floating popup. Kept as non-blocking as the
+ * pattern allows -- click-outside/Escape close it, same as every other
+ * popover in this app, it just isn't one.
+ */
+.settings-modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-settings-scrim);
+  background: var(--scrim-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-8);
+}
+.settings-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - var(--s-8) * 2);
+  display: flex;
+  flex-direction: column;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-pop);
+  box-shadow: var(--shadow-lift);
+  z-index: var(--z-settings);
+  overflow: hidden;
+}
+.settings-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-5) var(--s-6);
+  border-bottom: 1px solid var(--line-glass);
+  flex: none;
+}
+.settings-modal-header h2 {
+  margin: 0;
+  font-size: var(--fz-14);
+  font-weight: var(--fw-bold);
+  color: var(--ink);
+}
+.settings-modal-close {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  transition: background var(--step), color var(--step);
+}
+.settings-modal-close:hover {
+  background: var(--blue-wash-2);
+  color: var(--ink);
+}
+.settings-modal-body {
+  overflow-y: auto;
+  min-height: 0;
   padding: var(--s-6);
-  z-index: var(--z-pop);
+}
+.protean-settings-panel {
+  padding: 0;
 }
 .protean-settings-panel legend {
   display: flex;

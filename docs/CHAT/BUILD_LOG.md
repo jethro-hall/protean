@@ -1537,3 +1537,40 @@ multi-step-tool-call bound) was previously a server-wide env var only
   out-of-range requests outright, not just silently clamping them.
 - **Live browser proof** (Playwright): opened Settings → Advanced, found the new "Max steps" input
   right below Token budget override, set it to 3, confirmed the value persists in the field.
+
+## 2026-08-01 · Claude · Phase 6 · Settings modal: glassmorphic shell, regrouped, no hidden Advanced
+
+Phase D of the GUI overhaul. Settings was a small, opaque, corner-anchored popover
+(`.protean-settings-panel`, 288px, `position: absolute` off the gear button). Owner asked for a
+proper floating popup ("transparent iPhone glass morph"), grouped settings, and specifically
+called out that Token budget / Max steps were buried behind an extra "Advanced ▾" click.
+
+**Deliberate exception to `UX_STANDARDS.md`'s "no modal unless it's genuinely blocking":** explicit
+owner request for a floating popup. Kept as non-blocking as the pattern allows — click-outside or
+Escape closes it, same as every other popover in the app; it just isn't anchored to one anymore.
+
+**GUI (`SettingsMenu.tsx` rewritten, `theme/app.css` + `theme/tokens.css`):**
+- New centered modal shell (`.settings-modal-scrim` + `.settings-modal`) reusing the *existing*
+  glass visual language already established for artefact popups (`--glass`/`--glass-border`,
+  `backdrop-filter: blur(18px) saturate(1.4)`) rather than inventing new tokens — that pattern
+  (`.artpop`) existed in CSS but had no component using it yet; this is its first real use.
+  `--z-settings-scrim: 98` / `--z-settings: 99` added — intentionally the topmost layer, since the
+  settings modal must always win when open.
+- `.protean-settings-panel` stripped down to just padding (it no longer *is* the positioned
+  popover — the new `.settings-modal` is) while every content rule under it (legend/row/col/
+  checkbox/advanced) is untouched, so all the existing fieldsets needed zero internal changes.
+- Regrouped: "Token budget override" and "Max steps" (Phase C) pulled out of the old
+  buried-behind-"Advanced" disclosure into their own always-visible "Runtime & agent behavior"
+  fieldset — matches the owner's explicit "group if similar, easy to use" ask. The
+  `advancedOpen`/`setAdvancedOpen` state and the toggle button are gone entirely.
+- Left two clearly-commented insertion points for Phase E (Providers & models) and Phase F
+  (MCP / Tools) as additional fieldsets in the same modal — not built as empty placeholder
+  sections, since a visibly unfinished group would look broken rather than in-progress.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean.
+- **Live browser proof** (Playwright): modal renders centered (`{x:320,y:114.5,w:640,h:571}` in a
+  1280×800 viewport — horizontally and vertically centered, not corner-anchored); Escape closes it;
+  clicking the scrim outside the card closes it; "Runtime & agent behavior" legend and its "Max
+  steps" field are both visible immediately on open with no extra click, confirming the Advanced
+  disclosure is gone.

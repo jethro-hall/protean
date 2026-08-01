@@ -190,9 +190,12 @@
 
   /* ---- z-index ladder (documented so nothing fights) ----
      10 scrim(base) · 15 mobile scrim · 20 rail/preview · 30 topbar ·
-     60 (i) tooltip · 70 tool popover · 80 statebar · 90 artpop scrim · 95 artpop */
+     60 (i) tooltip · 70 tool popover · 80 statebar · 90 artpop scrim · 95 artpop ·
+     98 settings-modal scrim · 99 settings-modal (topmost -- the settings modal must
+     win over everything else when open) */
   --z-scrim: 15;  --z-panel: 20;  --z-top: 30;  --z-tip: 60;
   --z-pop: 70;    --z-statebar: 80;  --z-artscrim: 90;  --z-art: 95;
+  --z-settings-scrim: 98; --z-settings: 99;
 
   /* ---- type scale (px, paired with line-heights) ---- */
   --fz-9: 9px;   --fz-10: 10px; --fz-11: 11px; --fz-12: 12px; --fz-13: 13px;
