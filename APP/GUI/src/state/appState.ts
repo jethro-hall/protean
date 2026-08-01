@@ -2,7 +2,7 @@
  * App state model — types, constants, reducer. No React components so Vite
  * Fast Refresh can patch the provider module independently (Law 3: right module).
  */
-import type { ActivityKind, ArtefactType, ModelTier, TurnDone } from '../lib/api';
+import type { ActivityKind, ArtefactType, ModelTier, ResponseDepth, TurnDone } from '../lib/api';
 
 /** Worklog visual kind (C6 data-kind) — optional override when richer than ActivityKind. */
 export type WorklogKind =
@@ -81,6 +81,10 @@ export interface Settings {
   domainId: string;
   /** Grounded-knowledge POC tickbox (Phase 6). Unticked/false = standard behaviour. */
   grounded: boolean;
+  /** Friendly depth preset (Phase 6). Undefined = "Standard" (platform default). */
+  responseDepth?: ResponseDepth;
+  /** Advanced manual override — wins over responseDepth's own budget. Undefined = no override. */
+  turnTokenBudget?: number;
 }
 
 export interface AppState {
@@ -142,6 +146,8 @@ export type Action =
   | { type: 'setTier'; tier: ModelTier }
   | { type: 'setDomain'; domainId: string }
   | { type: 'setGrounded'; grounded: boolean }
+  | { type: 'setResponseDepth'; responseDepth: ResponseDepth | undefined }
+  | { type: 'setTurnTokenBudget'; turnTokenBudget: number | undefined }
   | { type: 'toggleRail' }
   | { type: 'togglePreview' }
   | { type: 'setPreviewWidth'; width: number };
@@ -402,6 +408,25 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, settings: { ...state.settings, domainId: action.domainId } };
     case 'setGrounded':
       return { ...state, settings: { ...state.settings, grounded: action.grounded } };
+    case 'setResponseDepth': {
+      // exactOptionalPropertyTypes: "no depth" must OMIT the key, not set it to undefined.
+      const settings: Settings = { ...state.settings };
+      if (action.responseDepth === undefined) {
+        delete settings.responseDepth;
+      } else {
+        settings.responseDepth = action.responseDepth;
+      }
+      return { ...state, settings };
+    }
+    case 'setTurnTokenBudget': {
+      const settings: Settings = { ...state.settings };
+      if (action.turnTokenBudget === undefined) {
+        delete settings.turnTokenBudget;
+      } else {
+        settings.turnTokenBudget = action.turnTokenBudget;
+      }
+      return { ...state, settings };
+    }
     case 'toggleRail':
       return { ...state, railOpen: !state.railOpen };
     case 'togglePreview':

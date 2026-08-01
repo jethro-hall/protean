@@ -19,7 +19,7 @@ import {
   type ArtefactParserEvent,
   type ArtefactType,
 } from './artefacts.js';
-import { assembleTurn, resolveEffectiveTier, resolveGrounding } from './assemble.js';
+import { assembleTurn, resolveEffectiveTier, resolveGrounding, resolveTurnTokenBudget } from './assemble.js';
 import { budgetMessages } from './budget.js';
 import { computeCacheKey, type CacheStore } from './cache.js';
 import { findUnverifiedProvenanceClaims } from './citationGuard.js';
@@ -137,13 +137,16 @@ export async function* runTurn(
   }
 
   const tBudget = performance.now();
-  const budget = budgetMessages(assembled.messages, watcher.turnTokenBudget);
+  // Friendly response-depth preset or an advanced manual override can replace the
+  // platform-default budget for this turn only (Law 1: request-scoped, never a silent global change).
+  const turnTokenBudget = resolveTurnTokenBudget(request, watcher.turnTokenBudget);
+  const budget = budgetMessages(assembled.messages, turnTokenBudget);
   assembled.messages = budget.messages;
   const budgetMs = roundMs(performance.now() - tBudget);
   if (budget.droppedMessages > 0) {
     log.info(
       'watcher.budget.trimmed',
-      `Budget trimmed ${budget.droppedMessages} oldest messages to fit ~${watcher.turnTokenBudget} tokens (now ~${budget.estimatedTokens})`,
+      `Budget trimmed ${budget.droppedMessages} oldest messages to fit ~${turnTokenBudget} tokens (now ~${budget.estimatedTokens})`,
       { turnId: assembled.turnId, sessionId: assembled.sessionId },
     );
   }
@@ -185,7 +188,7 @@ export async function* runTurn(
 
   log.info(
     'watcher.assembled',
-    `Assembled turn for domain "${assembled.domainId}" (${assembled.messages.length} messages, ~${budget.estimatedTokens} tokens, tier ${assembled.tier} — ${tierDecision.reason}); ${decision.reason}; grounded ${assembled.grounded ? `ON [${assembled.knowledgeCollectionsUsed.join(', ')}]` : 'off'}; cache ${cached !== undefined ? 'HIT' : 'MISS'}`,
+    `Assembled turn for domain "${assembled.domainId}" (${assembled.messages.length} messages, ~${budget.estimatedTokens} tokens, budget ${turnTokenBudget}, tier ${assembled.tier} — ${tierDecision.reason}); ${decision.reason}; grounded ${assembled.grounded ? `ON [${assembled.knowledgeCollectionsUsed.join(', ')}]` : 'off'}; depth ${request.responseDepth ?? 'standard'}; cache ${cached !== undefined ? 'HIT' : 'MISS'}`,
     {
       turnId: assembled.turnId,
       sessionId: assembled.sessionId,
@@ -197,6 +200,8 @@ export async function* runTurn(
         tierEscalated: tierDecision.escalated,
         grounded: assembled.grounded,
         knowledgeCollectionsUsed: assembled.knowledgeCollectionsUsed,
+        turnTokenBudget,
+        responseDepth: request.responseDepth ?? null,
       },
     },
   );

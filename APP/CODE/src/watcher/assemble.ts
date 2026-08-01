@@ -14,6 +14,7 @@ import {
   CITATION_HONESTY_PROTOCOL_PROMPT,
   DEFAULT_HISTORY_WINDOW_MESSAGES,
   NARRATION_PROTOCOL_PROMPT,
+  RESPONSE_DEPTH_PRESETS,
   toolsetVersionFromPolicy,
 } from '../config/defaults.js';
 import { estimateTokens } from './budget.js';
@@ -68,6 +69,24 @@ export interface GroundingResolution {
 export function resolveGrounding(request: TurnRequest, pack: DomainPack): GroundingResolution {
   const grounded = request.grounded === true && pack.knowledgeCollections.length > 0;
   return { grounded, collectionIds: grounded ? pack.knowledgeCollections : [] };
+}
+
+/**
+ * Response-depth token budget: an advanced manual override (request.turnTokenBudget) always
+ * wins; otherwise the friendly preset's budget; otherwise the platform default. Deliberately
+ * does not touch tier (see responseDepthSchema doc) — a depth choice never changes which
+ * model answers, only how much room the response has and how it's written.
+ */
+export function resolveTurnTokenBudget(request: TurnRequest, defaultBudget: number): number {
+  if (request.turnTokenBudget !== undefined) return request.turnTokenBudget;
+  if (request.responseDepth !== undefined) return RESPONSE_DEPTH_PRESETS[request.responseDepth].turnTokenBudget;
+  return defaultBudget;
+}
+
+/** The preset's writing-depth instruction, or '' when no depth was requested (standard). */
+export function resolveResponseDepthInstruction(request: TurnRequest): string {
+  if (request.responseDepth === undefined) return '';
+  return RESPONSE_DEPTH_PRESETS[request.responseDepth].instruction;
 }
 
 export interface AutoTierOptions {
@@ -206,12 +225,14 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
   // Pack prompt = stable, cacheable prefix. Engine protocols = suffix after the
   // provider prompt-cache boundary (Claude adapter inserts the SDK marker).
   const systemPromptStatic = renderPackSystemPrompt(pack);
+  const depthInstruction = resolveResponseDepthInstruction(request);
   const systemPromptDynamic = [
     ARTEFACT_PROTOCOL_PROMPT,
     NARRATION_PROTOCOL_PROMPT,
     CITATION_HONESTY_PROTOCOL_PROMPT,
     renderWiredToolsPrompt(wiredTools),
     ...(knowledgeDigest !== '' ? [knowledgeDigest] : []),
+    ...(depthInstruction !== '' ? [depthInstruction] : []),
   ].join('\n\n');
   return {
     turnId: randomUUID(),

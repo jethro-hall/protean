@@ -8,7 +8,9 @@ import {
   renderPackSystemPrompt,
   resolveEffectiveTier,
   resolveGrounding,
+  resolveResponseDepthInstruction,
   resolveTier,
+  resolveTurnTokenBudget,
   windowHistory,
 } from '../src/watcher/assemble.js';
 
@@ -93,6 +95,10 @@ describe('resolveTier', () => {
   it('falls back to the pack default', () => {
     expect(resolveTier(request, pack)).toBe('strong');
   });
+  it('is untouched by responseDepth — depth never silently changes which model answers', () => {
+    expect(resolveTier({ ...request, responseDepth: 'professor' }, pack)).toBe('strong');
+    expect(resolveTier({ ...request, responseDepth: 'hscLevel', tier: 'strong' }, pack)).toBe('strong');
+  });
 });
 
 describe('resolveEffectiveTier (deterministic auto-tier gate)', () => {
@@ -160,6 +166,35 @@ describe('resolveEffectiveTier (deterministic auto-tier gate)', () => {
       escalated: false,
       reason: 'pack default tier — auto-tier off or already strong',
     });
+  });
+});
+
+describe('resolveTurnTokenBudget (friendly depth presets + advanced override)', () => {
+  it('falls back to the platform default when neither is set', () => {
+    expect(resolveTurnTokenBudget(request, 8000)).toBe(8000);
+  });
+
+  it('uses the preset budget when responseDepth is set', () => {
+    expect(resolveTurnTokenBudget({ ...request, responseDepth: 'hscLevel' }, 8000)).toBe(3000);
+    expect(resolveTurnTokenBudget({ ...request, responseDepth: 'professor' }, 8000)).toBe(16000);
+  });
+
+  it('an explicit turnTokenBudget always wins over the preset', () => {
+    expect(
+      resolveTurnTokenBudget({ ...request, responseDepth: 'hscLevel', turnTokenBudget: 12000 }, 8000),
+    ).toBe(12000);
+  });
+});
+
+describe('resolveResponseDepthInstruction', () => {
+  it('is empty (standard) when no depth is requested', () => {
+    expect(resolveResponseDepthInstruction(request)).toBe('');
+  });
+
+  it('returns the matching preset instruction text', () => {
+    expect(resolveResponseDepthInstruction({ ...request, responseDepth: 'professor' })).toContain(
+      'expert/postgraduate',
+    );
   });
 });
 
@@ -246,6 +281,21 @@ describe('assembleTurn', () => {
     expect(assembled.systemPromptStatic).not.toContain('some digest text');
     expect(assembled.grounded).toBe(true);
     expect(assembled.knowledgeCollectionsUsed).toEqual(['finance-ato-rd-tax-incentive']);
+  });
+
+  it('injects the response-depth instruction into the dynamic suffix when requested', () => {
+    const assembled = assembleTurn({
+      ...assembleBase,
+      history: [],
+      request: { ...request, responseDepth: 'hscLevel' },
+    });
+    expect(assembled.systemPromptDynamic).toContain('HSC');
+  });
+
+  it('omits the depth instruction entirely on the standard path', () => {
+    const assembled = assembleTurn({ ...assembleBase, history: [] });
+    expect(assembled.systemPromptDynamic).not.toContain('postgraduate');
+    expect(assembled.systemPromptDynamic).not.toContain('HSC');
   });
 
   it('omits any digest section when knowledgeDigest is empty (standard/unticked path)', () => {

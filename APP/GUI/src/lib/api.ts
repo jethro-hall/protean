@@ -4,6 +4,9 @@
  */
 export type ModelTier = 'fast' | 'strong';
 
+/** Friendly response-depth presets (Phase 6). Mirrors src/contracts/turn.ts responseDepthSchema. */
+export type ResponseDepth = 'hscLevel' | 'uniDegree' | 'professor';
+
 export interface TurnTimings {
   assembleMs?: number;
   cacheCheckMs?: number;
@@ -84,13 +87,28 @@ export interface StreamTurnParams {
   attachments?: Attachment[];
   /** Grounded-knowledge POC tickbox (Phase 6). Omitted/false = standard behaviour. */
   grounded?: boolean;
+  /** Friendly depth preset (Phase 6). Omitted = platform standard. */
+  responseDepth?: ResponseDepth;
+  /** Advanced manual override — wins over responseDepth's own budget. */
+  turnTokenBudget?: number;
   onEvent: (event: TurnStreamEvent) => void;
   signal?: AbortSignal;
 }
 
 /** POST a turn and deliver each SSE event as it arrives. */
 export async function streamTurn(params: StreamTurnParams): Promise<void> {
-  const { input, sessionId, domainId, tier, attachments, grounded, onEvent, signal } = params;
+  const {
+    input,
+    sessionId,
+    domainId,
+    tier,
+    attachments,
+    grounded,
+    responseDepth,
+    turnTokenBudget,
+    onEvent,
+    signal,
+  } = params;
   const res = await fetch('/api/turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -101,6 +119,8 @@ export async function streamTurn(params: StreamTurnParams): Promise<void> {
       tier,
       ...(attachments !== undefined && attachments.length > 0 ? { attachments } : {}),
       ...(grounded === true ? { grounded } : {}),
+      ...(responseDepth !== undefined ? { responseDepth } : {}),
+      ...(turnTokenBudget !== undefined ? { turnTokenBudget } : {}),
     }),
     ...(signal !== undefined ? { signal } : {}),
   });

@@ -14,6 +14,43 @@ export const DEFAULT_HISTORY_WINDOW_MESSAGES = 20;
 /** Watcher budget: estimated-token ceiling for one assembled turn (history trimmed to fit). */
 export const DEFAULT_TURN_TOKEN_BUDGET = 8000;
 
+/**
+ * Friendly response-depth presets (Phase 6) — a plain-language alternative to asking someone
+ * to pick a raw token-budget number. Each preset sets a response token budget and a writing-depth
+ * instruction ONLY — deliberately independent of model tier (tier stays its own separate control,
+ * so choosing a depth never silently changes which model answers). "Uni Degree" reuses
+ * DEFAULT_TURN_TOKEN_BUDGET so it reproduces the platform's pre-existing standard behaviour exactly.
+ */
+export interface ResponseDepthPreset {
+  label: string;
+  turnTokenBudget: number;
+  instruction: string;
+}
+
+export const RESPONSE_DEPTH_PRESETS: Record<'hscLevel' | 'uniDegree' | 'professor', ResponseDepthPreset> = {
+  hscLevel: {
+    label: 'HSC Level',
+    turnTokenBudget: 3000,
+    instruction:
+      'Answer at a clear, plain-language level (roughly Australian Year 11–12 / HSC) — short ' +
+      'sentences, define any jargon on first use, keep it concise and easy to follow.',
+  },
+  uniDegree: {
+    label: 'Uni Degree',
+    turnTokenBudget: DEFAULT_TURN_TOKEN_BUDGET,
+    instruction:
+      'Answer at an undergraduate-degree level — technical vocabulary is fine, back claims with ' +
+      'brief reasoning, moderate depth. (This is the platform\'s standard depth.)',
+  },
+  professor: {
+    label: 'Professor',
+    turnTokenBudget: 16000,
+    instruction:
+      'Answer at an expert/postgraduate level — full technical rigor, surface edge cases, ' +
+      'caveats, and nuance; do not oversimplify.',
+  },
+};
+
 /** Rewrite gate: inputs estimated above this are "bloated" and eligible for Tier-1 rewrite. */
 export const DEFAULT_REWRITE_BLOAT_TOKENS = 600;
 

@@ -17,6 +17,15 @@ export const modelTierSchema = z.enum(['fast', 'strong']);
 export type ModelTier = z.infer<typeof modelTierSchema>;
 
 /**
+ * Friendly reading/response-depth presets (Phase 6) — a plain-language alternative to
+ * asking someone to pick a raw token-budget number. Controls response length budget and
+ * writing depth ONLY; deliberately independent of `tier` (model tier stays its own control,
+ * set separately, so picking a depth never silently changes which model answers).
+ */
+export const responseDepthSchema = z.enum(['hscLevel', 'uniDegree', 'professor']);
+export type ResponseDepth = z.infer<typeof responseDepthSchema>;
+
+/**
  * A text file the user attached to a turn. Text-only for now — binary
  * (images/PDF) arrives with a later phase and its own contract.
  */
@@ -39,6 +48,10 @@ export const turnRequestSchema = z.object({
    * Caller intent only — has no effect unless the pack declares knowledgeCollections.
    */
   grounded: z.boolean().optional(),
+  /** Friendly depth preset — see responseDepthSchema. Omitted = platform standard. */
+  responseDepth: responseDepthSchema.optional(),
+  /** Advanced manual override — takes precedence over responseDepth's own budget. */
+  turnTokenBudget: z.number().int().positive().max(64000).optional(),
 });
 export type TurnRequest = z.infer<typeof turnRequestSchema>;
 
