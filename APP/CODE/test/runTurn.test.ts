@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { AgentCore, AgentEvent } from '../src/agent/AgentCore.js';
+import { NO_TOOLS_POLICY } from '../src/contracts/agentLoop.js';
 import { domainPackSchema } from '../src/contracts/domainPack.js';
 import type { TurnEvent, TurnRequest } from '../src/contracts/turn.js';
 import { createLogger } from '../src/logging/logger.js';
@@ -39,6 +40,12 @@ function makeDeps(agent: AgentCore): TurnPipelineDeps & { dataDir: string } {
     history: [],
     model: 'test-model',
     watcher: { turnTokenBudget: 8000, rewriteEnabled: false, rewriteBloatTokens: 600 },
+    toolPolicy: NO_TOOLS_POLICY,
+    workspaceDir: dataDir,
+    datasetsDir: join(dataDir, 'datasets'),
+    mcpServers: [],
+    wiredTools: [],
+    registryVersion: 'test-registry',
     log: logger.child('watcher'),
     promptHistoryDir: join(dataDir, 'prompt-history'),
     tokenTelemetryDir: join(dataDir, 'token-telemetry'),

@@ -63,6 +63,17 @@ async function main(): Promise<void> {
     history,
     model: 'bench-model',
     watcher: { ...config.watcher, rewriteEnabled: false },
+    toolPolicy: {
+      availableTools: [],
+      allowedTools: [],
+      maxTurns: 1,
+      permissionMode: 'dontAsk',
+    },
+    workspaceDir: config.paths.repoRoot,
+    datasetsDir: config.paths.datasetsDir,
+    mcpServers: [],
+    wiredTools: [],
+    registryVersion: 'bench-no-tools',
     log: logger.child('watcher'),
     // per-turn bench rows go to a scratch dir — only the summary is committed evidence
     promptHistoryDir: join(mkdtempSync(join(tmpdir(), 'protean-bench-')), 'prompt-history'),

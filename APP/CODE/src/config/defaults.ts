@@ -17,8 +17,25 @@ export const DEFAULT_TURN_TOKEN_BUDGET = 8000;
 /** Rewrite gate: inputs estimated above this are "bloated" and eligible for Tier-1 rewrite. */
 export const DEFAULT_REWRITE_BLOAT_TOKENS = 600;
 
-/** Version stamp for the current toolset — part of the deterministic cache key. */
-export const TOOLSET_VERSION = 'phase0-no-tools';
+/**
+ * Dynamic agent loop defaults (owner pull-forward 2026-07-28).
+ * Read/Grep/Glob only — Bash waits on a proven sandbox (Law 1: no unsandboxed shell).
+ * Values override via PROTEAN_AGENT_* env (see loadConfig).
+ */
+export const DEFAULT_AGENT_AVAILABLE_TOOLS = ['Read', 'Grep', 'Glob'] as const;
+export const DEFAULT_AGENT_ALLOWED_TOOLS = ['Read', 'Grep', 'Glob'] as const;
+export const DEFAULT_AGENT_MAX_TURNS = 8;
+export const DEFAULT_AGENT_PERMISSION_MODE = 'dontAsk' as const;
+
+/** Deterministic cache-key stamp derived from the effective tool policy. */
+export function toolsetVersionFromPolicy(policy: {
+  availableTools: readonly string[];
+  maxTurns: number;
+  permissionMode: string;
+}): string {
+  const tools = [...policy.availableTools].sort().join('+') || 'none';
+  return `loop-t${policy.maxTurns}-${policy.permissionMode}-${tools}`;
+}
 
 /**
  * Artefact wire protocol instruction (Phase 3) — an ENGINE protocol constant,
@@ -50,6 +67,9 @@ export const NARRATION_PROTOCOL_PROMPT =
 export const MAX_ATTACHMENT_BYTES = 512 * 1024;
 export const MAX_ATTACHMENTS_PER_TURN = 5;
 
+/** Surfaced when the client aborts mid-turn (Stop) — not a provider failure. */
+export const TURN_STOPPED_MESSAGE = 'Turn stopped by user';
+
 /** SSE wire constants (the internal stream protocol to the GUI). */
 export const SSE_HEADERS = {
   'Content-Type': 'text/event-stream',
@@ -74,4 +94,9 @@ export const ENV = {
   turnTokenBudget: 'PROTEAN_TURN_TOKEN_BUDGET',
   rewriteEnabled: 'PROTEAN_REWRITE_ENABLED',
   rewriteBloatTokens: 'PROTEAN_REWRITE_BLOAT_TOKENS',
+  agentMaxTurns: 'PROTEAN_AGENT_MAX_TURNS',
+  agentAvailableTools: 'PROTEAN_AGENT_AVAILABLE_TOOLS',
+  agentAllowedTools: 'PROTEAN_AGENT_ALLOWED_TOOLS',
+  agentPermissionMode: 'PROTEAN_AGENT_PERMISSION_MODE',
+  datasetsDir: 'PROTEAN_DATASETS_DIR',
 } as const;

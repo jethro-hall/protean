@@ -14,11 +14,16 @@ export interface TelemetryRow {
   sessionId: string;
   domainId: string;
   model: string;
+  /** Watcher exact-answer cache hit (no model call). */
   cacheHit: boolean;
   ttftMs: number | null;
   totalMs: number | null;
+  /** Provider API usage — never estimated. */
   inputTokens: number | null;
   outputTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheCreationTokens: number | null;
+  /** Provider-reported USD (SDK total_cost_usd). */
   costUsd: number | null;
 }
 

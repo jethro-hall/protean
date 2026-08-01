@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { ToolPolicy } from './agentLoop.js';
+import type { ProteanMcpServerBinding, WiredTool } from './connectors.js';
 
 /** Roles a chat message can carry across any boundary. */
 export const chatRoleSchema = z.enum(['user', 'assistant']);
@@ -41,11 +43,29 @@ export interface AssembledTurn {
   sessionId: string;
   domainId: string;
   input: string;
+  /** Full system prompt (static + dynamic) — lineage + Watcher cache key. */
   systemPrompt: string;
+  /**
+   * Stable prefix eligible for Bedrock/Anthropic prompt-cache across turns.
+   * Adapter places SYSTEM_PROMPT_DYNAMIC_BOUNDARY after this.
+   */
+  systemPromptStatic: string;
+  /** Session/engine suffix after the prompt-cache boundary (protocols, etc.). */
+  systemPromptDynamic: string;
   messages: ChatMessage[];
   tier: ModelTier;
   model: string;
   toolsetVersion: string;
+  toolPolicy: ToolPolicy;
+  workspaceDir: string;
+  /** MCP bindings resolved from the Tool/Connector Registry for this turn. */
+  mcpServers: ProteanMcpServerBinding[];
+  /** Datasets root for in-process connectors. */
+  datasetsDir: string;
+  /** Pack tool ids after registry wiring (lineage evidence). */
+  wiredTools: WiredTool[];
+  /** Runtime cancel — not part of the cache key; seize the model when aborted. */
+  abortSignal?: AbortSignal;
 }
 
 export interface TokenUsage {
@@ -109,4 +129,9 @@ export interface TurnLineage {
   usage: TokenUsage | null;
   costUsd: number | null;
   timings: TurnTimings;
+  /** Registry wiring for this turn (pack tool ids → live tools). */
+  wiredTools?: WiredTool[];
+  /** Tool names observed via activity-start (kind=tool) during the turn. */
+  toolsCalled?: string[];
+  registryVersion?: string;
 }

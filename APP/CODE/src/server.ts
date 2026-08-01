@@ -10,7 +10,9 @@ import {
   SSE_HEADERS,
 } from './config/defaults.js';
 import { listDomainPacks, loadDomainPack } from './config/domainPacks.js';
+import { loadConnectorCatalog } from './config/loadConnectors.js';
 import { loadConfig, requireModel, type ProteanConfig } from './config/loadConfig.js';
+import { resolveToolset } from './tools/registry.js';
 import {
   attachmentSchema,
   modelTierSchema,
@@ -119,9 +121,20 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
 
   let pack;
   let model: string;
+  let toolset;
   try {
     pack = loadDomainPack(deps.config.paths.domainsDir, request.domainId);
     model = requireModel(deps.config, resolveTier(request, pack));
+    toolset = resolveToolset({
+      packToolIds: pack.tools,
+      agentLoop: {
+        availableTools: deps.config.agentLoop.availableTools,
+        allowedTools: deps.config.agentLoop.allowedTools,
+        maxTurns: deps.config.agentLoop.maxTurns,
+        permissionMode: deps.config.agentLoop.permissionMode,
+      },
+      catalog: loadConnectorCatalog(),
+    });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     log.error('server.turn.rejected', `Turn rejected before start: ${message}`);
@@ -129,32 +142,74 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
     return;
   }
 
+  log.info(
+    'server.turn.registry',
+    `Registry wired ${toolset.wired.length} pack tools → [${toolset.toolPolicy.availableTools.join(', ')}]`,
+    {
+      sessionId: request.sessionId,
+      data: {
+        registryVersion: toolset.registryVersion,
+        mcpServers: toolset.mcpServers.map((server) => server.serverId),
+      },
+    },
+  );
+
   res.writeHead(200, { ...SSE_HEADERS, 'X-Session-Id': request.sessionId });
   // snapshot history BEFORE the turn — the Watcher appends this turn itself
   const history = [...deps.sessions.history(request.sessionId)];
 
-  for await (const event of runTurn(request, {
-    agent: deps.agent,
-    gateway: deps.gateway,
-    cache: deps.cache,
-    pack,
-    history,
-    sessions: deps.sessions,
-    model,
-    watcher: {
-      turnTokenBudget: deps.config.watcher.turnTokenBudget,
-      rewriteEnabled: deps.config.watcher.rewriteEnabled,
-      rewriteBloatTokens: deps.config.watcher.rewriteBloatTokens,
-      ...(deps.config.models.fast !== undefined ? { fastModel: deps.config.models.fast } : {}),
-    },
-    log: deps.logger.child('watcher'),
-    promptHistoryDir: deps.config.paths.promptHistoryDir,
-    tokenTelemetryDir: deps.config.paths.tokenTelemetryDir,
-    artefactsDir: deps.config.paths.artefactsDir,
-  })) {
-    writeSseEvent(res, event);
+  // Client Stop aborts fetch → response closes unfinished → seize the SDK run.
+  // Do NOT listen to req 'close' after the body is read — that fires on every turn.
+  const turnAbort = new AbortController();
+  const onClientGone = (): void => {
+    if (!turnAbort.signal.aborted) {
+      log.info('server.turn.client_abort', 'Client disconnected — seizing model run', {
+        sessionId: request.sessionId,
+      });
+      turnAbort.abort();
+    }
+  };
+  const onResponseClose = (): void => {
+    if (!res.writableFinished) onClientGone();
+  };
+  req.once('aborted', onClientGone);
+  res.once('close', onResponseClose);
+
+  try {
+    for await (const event of runTurn(request, {
+      agent: deps.agent,
+      gateway: deps.gateway,
+      cache: deps.cache,
+      pack,
+      history,
+      sessions: deps.sessions,
+      model,
+      watcher: {
+        turnTokenBudget: deps.config.watcher.turnTokenBudget,
+        rewriteEnabled: deps.config.watcher.rewriteEnabled,
+        rewriteBloatTokens: deps.config.watcher.rewriteBloatTokens,
+        ...(deps.config.models.fast !== undefined ? { fastModel: deps.config.models.fast } : {}),
+      },
+      toolPolicy: toolset.toolPolicy,
+      workspaceDir: deps.config.paths.repoRoot,
+      datasetsDir: deps.config.paths.datasetsDir,
+      mcpServers: toolset.mcpServers,
+      wiredTools: toolset.wired,
+      registryVersion: toolset.registryVersion,
+      abortSignal: turnAbort.signal,
+      log: deps.logger.child('watcher'),
+      promptHistoryDir: deps.config.paths.promptHistoryDir,
+      tokenTelemetryDir: deps.config.paths.tokenTelemetryDir,
+      artefactsDir: deps.config.paths.artefactsDir,
+    })) {
+      if (turnAbort.signal.aborted || res.writableEnded) break;
+      writeSseEvent(res, event);
+    }
+  } finally {
+    req.off('aborted', onClientGone);
+    res.off('close', onResponseClose);
+    if (!res.writableEnded) res.end();
   }
-  res.end();
 }
 
 function handleDomains(deps: AppDeps, res: ServerResponse): void {

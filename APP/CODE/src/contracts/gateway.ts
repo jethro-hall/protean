@@ -1,3 +1,5 @@
+import type { ToolPolicy } from './agentLoop.js';
+import type { ProteanMcpServerBinding } from './connectors.js';
 import type { ChatMessage, TokenUsage } from './turn.js';
 
 /**
@@ -7,8 +9,29 @@ import type { ChatMessage, TokenUsage } from './turn.js';
 export interface GatewayRequest {
   turnId: string;
   model: string;
-  systemPrompt: string;
+  /**
+   * System prompt. Prefer static/dynamic split so the Claude adapter can place
+   * a prompt-cache boundary (Bedrock/Anthropic). Plain string remains valid
+   * for rewrite and other single-shot paths.
+   */
+  systemPrompt: string | { staticPrefix: string; dynamicSuffix: string };
   messages: ChatMessage[];
+  /**
+   * Dynamic agent-loop policy for answering turns. Omit (or empty tools) for
+   * single-shot paths like the Tier-1 rewrite.
+   */
+  toolPolicy?: ToolPolicy;
+  /** Workspace root for file tools (Read/Grep/Glob). Required when tools are enabled. */
+  workspaceDir?: string;
+  /**
+   * Provider-neutral MCP bindings from the Tool/Connector Registry.
+   * Claude adapter materializes vendor mcpServers (Law 5).
+   */
+  mcpServers?: ProteanMcpServerBinding[];
+  /** Datasets root for in-process MCP handlers (data lake / calendar fixtures). */
+  datasetsDir?: string;
+  /** When aborted, the provider adapter must seize the model run immediately. */
+  abortSignal?: AbortSignal;
 }
 
 export type GatewayEvent =

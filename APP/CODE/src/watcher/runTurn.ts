@@ -1,5 +1,8 @@
 import { performance } from 'node:perf_hooks';
 import type { AgentCore } from '../agent/AgentCore.js';
+import { TURN_STOPPED_MESSAGE } from '../config/defaults.js';
+import type { ToolPolicy } from '../contracts/agentLoop.js';
+import type { ProteanMcpServerBinding, WiredTool } from '../contracts/connectors.js';
 import type { DomainPack } from '../contracts/domainPack.js';
 import type {
   ChatMessage,
@@ -48,6 +51,16 @@ export interface TurnPipelineDeps {
   sessions?: SessionStore;
   model: string;
   watcher: WatcherOptions;
+  /** Dynamic agent-loop policy (tools + maxTurns). Required for answering turns. */
+  toolPolicy: ToolPolicy;
+  /** Workspace root for file tools. */
+  workspaceDir: string;
+  datasetsDir: string;
+  mcpServers: ProteanMcpServerBinding[];
+  wiredTools: WiredTool[];
+  registryVersion: string;
+  /** Client Stop / disconnect — seize the model run. */
+  abortSignal?: AbortSignal;
   log: LayerLogger;
   promptHistoryDir: string;
   tokenTelemetryDir: string;
@@ -66,7 +79,20 @@ export async function* runTurn(
   const startedAt = new Date().toISOString();
   const t0 = performance.now();
 
-  const assembled = assembleTurn({ request, pack, history, model });
+  const assembled = assembleTurn({
+    request,
+    pack,
+    history,
+    model,
+    toolPolicy: deps.toolPolicy,
+    workspaceDir: deps.workspaceDir,
+    datasetsDir: deps.datasetsDir,
+    mcpServers: deps.mcpServers,
+    wiredTools: deps.wiredTools,
+  });
+  if (deps.abortSignal !== undefined) {
+    assembled.abortSignal = deps.abortSignal;
+  }
   const assembleMs = roundMs(performance.now() - t0);
   // what actually entered the context (input + attachment blocks) — this is what history records
   const userContent = assembled.messages.at(-1)?.content ?? assembled.input;
@@ -139,6 +165,7 @@ export async function* runTurn(
 
   let output = '';
   let thinking = '';
+  const toolsCalled: string[] = [];
   let usage: TokenUsage | null = null;
   let costUsd: number | null = null;
   let failed: string | null = null;
@@ -226,6 +253,13 @@ export async function* runTurn(
         event.type === 'activity-end'
       ) {
         if (event.type === 'activity-delta') thinking += event.text;
+        if (event.type === 'activity-start' && event.kind === 'tool') {
+          const match = /^Using tool:\s*(.+)$/.exec(event.label);
+          const toolName = match?.[1]?.trim();
+          if (toolName !== undefined && toolName !== '' && !toolsCalled.includes(toolName)) {
+            toolsCalled.push(toolName);
+          }
+        }
         if (timings.ttftMs === undefined && event.type === 'activity-start') {
           // first sign of life from the model — an honest first token
           timings.ttftMs = roundMs(performance.now() - t0);
@@ -247,18 +281,34 @@ export async function* runTurn(
 
   timings.totalMs = roundMs(performance.now() - t0);
 
-  if (failed === null && deps.sessions !== undefined) {
+  const stopped = failed === TURN_STOPPED_MESSAGE || deps.abortSignal?.aborted === true;
+  if (stopped) {
+    failed = TURN_STOPPED_MESSAGE;
+  }
+
+  if ((failed === null || stopped) && deps.sessions !== undefined) {
     // the Watcher owns history (ARCHITECTURE §3): raw output kept so follow-ups can edit
-    // artefacts; userContent includes attachment blocks so files stay in context across turns
+    // artefacts; userContent includes attachment blocks so files stay in context across turns.
+    // Stopped turns keep partial output so the next message still has context.
     deps.sessions.append(assembled.sessionId, { role: 'user', content: userContent });
-    deps.sessions.append(assembled.sessionId, { role: 'assistant', content: output });
+    deps.sessions.append(assembled.sessionId, {
+      role: 'assistant',
+      content: stopped && output === '' ? '[stopped]' : output,
+    });
   }
 
   if (failed !== null) {
-    log.error('watcher.turn.failed', `Turn failed after ${timings.totalMs} ms: ${failed}`, {
-      turnId: assembled.turnId,
-      sessionId: assembled.sessionId,
-    });
+    if (stopped) {
+      log.info('watcher.turn.stopped', `Turn stopped after ${timings.totalMs} ms`, {
+        turnId: assembled.turnId,
+        sessionId: assembled.sessionId,
+      });
+    } else {
+      log.error('watcher.turn.failed', `Turn failed after ${timings.totalMs} ms: ${failed}`, {
+        turnId: assembled.turnId,
+        sessionId: assembled.sessionId,
+      });
+    }
     yield { type: 'error', turnId: assembled.turnId, message: failed };
     return;
   }
@@ -281,6 +331,9 @@ export async function* runTurn(
     usage,
     costUsd,
     timings,
+    wiredTools: deps.wiredTools,
+    toolsCalled,
+    registryVersion: deps.registryVersion,
   });
   recordTelemetry(deps.tokenTelemetryDir, {
     ts: startedAt,
@@ -293,12 +346,22 @@ export async function* runTurn(
     totalMs: timings.totalMs,
     inputTokens: usage?.inputTokens ?? null,
     outputTokens: usage?.outputTokens ?? null,
+    cacheReadTokens: usage?.cacheReadTokens ?? null,
+    cacheCreationTokens: usage?.cacheCreationTokens ?? null,
     costUsd,
   });
   log.info(
     'watcher.turn.done',
-    `Turn complete in ${timings.totalMs} ms (TTFT ${timings.ttftMs ?? 'n/a'} ms, cache ${cached !== undefined ? 'hit' : 'miss'})`,
-    { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { ...timings } },
+    `Turn complete in ${timings.totalMs} ms (TTFT ${timings.ttftMs ?? 'n/a'} ms, answer-cache ${cached !== undefined ? 'hit' : 'miss'}, cost ${costUsd ?? 'n/a'} USD)`,
+    {
+      turnId: assembled.turnId,
+      sessionId: assembled.sessionId,
+      data: {
+        ...timings,
+        usage,
+        costUsd,
+      },
+    },
   );
 
   yield {

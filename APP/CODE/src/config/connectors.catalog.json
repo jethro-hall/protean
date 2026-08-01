@@ -1,0 +1,27 @@
+{
+  "version": "phase5-v1",
+  "connectors": {
+    "fileRead": {
+      "kind": "builtin",
+      "sdkTools": ["Read"],
+      "description": "Read a file from the workspace (Claude Agent SDK Read)."
+    },
+    "search": {
+      "kind": "builtin",
+      "sdkTools": ["Grep", "Glob"],
+      "description": "Search workspace files by content or path pattern."
+    },
+    "dataLakeQuery": {
+      "kind": "sdkMcp",
+      "serverId": "protean-datalake",
+      "toolNames": ["list_datasets", "summarize_csv"],
+      "description": "Deterministic CSV dataset listing and summarisation under LLMBUILD_DATA/datasets."
+    },
+    "calendarRead": {
+      "kind": "sdkMcp",
+      "serverId": "protean-calendar",
+      "toolNames": ["list_appointments"],
+      "description": "Read-only clinic calendar appointments from the medical dataset fixture."
+    }
+  }
+}

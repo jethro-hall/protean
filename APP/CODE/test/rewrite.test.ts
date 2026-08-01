@@ -14,10 +14,22 @@ function turn(input: string): AssembledTurn {
     domainId: 'generic',
     input,
     systemPrompt: 'sys',
+    systemPromptStatic: 'sys',
+    systemPromptDynamic: '',
     messages: [{ role: 'user', content: input }],
     tier: 'fast',
     model: 'm',
     toolsetVersion: 'v0',
+    toolPolicy: {
+      availableTools: [],
+      allowedTools: [],
+      maxTurns: 1,
+      permissionMode: 'dontAsk',
+    },
+    workspaceDir: '/tmp',
+    datasetsDir: '/tmp/datasets',
+    mcpServers: [],
+    wiredTools: [],
   };
 }
 

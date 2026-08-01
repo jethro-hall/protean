@@ -17,6 +17,7 @@ describe('domain packs on disk', () => {
     const packs = listDomainPacks(config.paths.domainsDir);
     expect(packs).toContain('generic');
     expect(packs).toContain('finance');
+    expect(packs).toContain('medical');
   });
 
   it('parses every shipped pack against the schema', () => {
@@ -37,5 +38,27 @@ describe('requireModel', () => {
     const config = loadConfig();
     const stripped = { ...config, models: {} };
     expect(() => requireModel(stripped, 'strong')).toThrow(/PROTEAN_STRONG_MODEL|ANTHROPIC_MODEL/);
+  });
+});
+
+describe('agentLoop config', () => {
+  it('defaults to Read/Grep/Glob multi-turn dontAsk policy', () => {
+    const config = loadConfig();
+    expect(config.agentLoop.availableTools).toEqual(['Read', 'Grep', 'Glob']);
+    expect(config.agentLoop.allowedTools).toEqual(['Read', 'Grep', 'Glob']);
+    expect(config.agentLoop.maxTurns).toBe(8);
+    expect(config.agentLoop.permissionMode).toBe('dontAsk');
+    expect(config.agentLoop.toolsetVersion).toContain('Glob');
+  });
+
+  it('refuses Bash until sandbox is proven', () => {
+    const previous = process.env.PROTEAN_AGENT_AVAILABLE_TOOLS;
+    process.env.PROTEAN_AGENT_AVAILABLE_TOOLS = 'Read,Bash';
+    try {
+      expect(() => loadConfig()).toThrow(/Bash/);
+    } finally {
+      if (previous === undefined) delete process.env.PROTEAN_AGENT_AVAILABLE_TOOLS;
+      else process.env.PROTEAN_AGENT_AVAILABLE_TOOLS = previous;
+    }
   });
 });

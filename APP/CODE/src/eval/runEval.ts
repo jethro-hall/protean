@@ -100,6 +100,17 @@ async function main(): Promise<void> {
     history: [],
     model,
     log,
+    toolPolicy: {
+      availableTools: config.agentLoop.availableTools,
+      allowedTools: config.agentLoop.allowedTools,
+      maxTurns: config.agentLoop.maxTurns,
+      permissionMode: config.agentLoop.permissionMode,
+    },
+    workspaceDir: config.paths.repoRoot,
+    datasetsDir: config.paths.datasetsDir,
+    mcpServers: [],
+    wiredTools: [],
+    registryVersion: 'eval-substrate',
     promptHistoryDir: config.paths.promptHistoryDir,
     tokenTelemetryDir: config.paths.tokenTelemetryDir,
   };

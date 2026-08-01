@@ -42,9 +42,7 @@ export function ConversationsRail() {
             >
               <span className="title">{conversation.title}</span>
               <span className="meta">
-                <span
-                  className={`tag${state.settings.domainId === 'generic' ? ' generic' : ''}`}
-                >
+                <span className={`tag domain-${state.settings.domainId}`}>
                   {state.settings.domainId}
                 </span>
                 <span>

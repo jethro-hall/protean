@@ -73,27 +73,37 @@ saved to `APP/ARTEFACTS/` and logged.
 
 ---
 
-## Phase 4 — Domain Packs & the multi-domain proof  ← WE ARE HERE
-**Goal:** prove shape-shifting. Ship 2 Domain Packs (finance = Ride Electric; + one of
-medical/education) as **config only**, no engine change.
+## Phase 4 — Domain Packs & the multi-domain proof  ✅ DONE
+**Evidence:** `docs/CHAT/BUILD_LOG.md` (Phase 4 multi-domain proof) — finance ↔ generic ↔
+medical pack switch with distinct systemPrompt/vocabulary/tools/templates in lineage.
+
+**Goal:** prove shape-shifting. Ship Domain Packs (finance = Ride Electric; + medical) as
+**config only**, no engine change beyond deterministic pack rendering into the prompt.
 
 **Acceptance test:** switching the domain pack in settings changes system prompt, tools,
-vocabulary, and output templates with zero code change; both domains produce correct, traceable
+vocabulary, and output templates with zero code change; domains produce correct, traceable
 output. This validates Charter §3 and Law 2.
 
 ---
 
-## Phase 5 — Tool/Connector Registry & real workflows
-**Goal:** register real tools (MCP servers: Odoo, GhostDL, search, email) and run a genuine
-multi-step workflow end-to-end (e.g. the TFM reconciliation, or a finance question) inside
-Protean.
+## Phase 5 — Tool/Connector Registry & real workflows  ✅ DONE
+**Evidence:** `docs/CHAT/BUILD_LOG.md` (Phase 5 registry + live finance workflow) —
+`POST /api/turn` finance pack → MCP `list_datasets` + `summarize_csv` → boardMemo artefact
+with banner/orphan reconciliation + lineage `wiredTools`/`toolsCalled`.
+
+**Goal:** register real tools (MCP / connectors as appropriate) and run a genuine multi-step
+workflow end-to-end inside Protean. Dynamic agent-loop substrate (Read/Grep/Glob, maxTurns)
+landed in Phase 4; Phase 5 = registry wiring + MCP connectors + business workflow proof.
 
 **Acceptance test:** a real business workflow runs through Protean, calls tools, produces a
 correct artefact with full evidence lineage.
 
+**Residual (not blocking acceptance):** Bash still refused until sandbox proven; external
+stdio MCP (Odoo / GhostDL / email) catalogued as `stdioMcp` seam but not enabled on this host.
+
 ---
 
-## Phase 6 — Hardening for real use (still pre-SaaS)
+## Phase 6 — Hardening for real use (still pre-SaaS)  ← WE ARE HERE
 **Goal:** eval coverage, cost telemetry dashboard, graceful provider failover (designed, logged —
 not a workaround), accessibility pass.
 
