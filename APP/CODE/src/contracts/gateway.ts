@@ -30,6 +30,10 @@ export interface GatewayRequest {
   mcpServers?: ProteanMcpServerBinding[];
   /** Datasets root for in-process MCP handlers (data lake / calendar fixtures). */
   datasetsDir?: string;
+  /** Domains root — required by the knowledgeBase MCP handler (Phase 6 POC). */
+  domainsDir?: string;
+  /** Knowledge collection ids the knowledgeBase MCP handler may query this turn. */
+  knowledgeCollectionIds?: string[];
   /** When aborted, the provider adapter must seize the model run immediately. */
   abortSignal?: AbortSignal;
 }

@@ -129,7 +129,12 @@ export function buildClaudeQueryOptions(request: GatewayRequest): Options {
     if (datasetsDir === undefined || datasetsDir === '') {
       throw new Error('GatewayRequest.datasetsDir is required when mcpServers are bound');
     }
-    options.mcpServers = materializeMcpServers(request.mcpServers, datasetsDir);
+    options.mcpServers = materializeMcpServers(
+      request.mcpServers,
+      datasetsDir,
+      request.domainsDir,
+      request.knowledgeCollectionIds,
+    );
   }
   return options;
 }

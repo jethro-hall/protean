@@ -7,6 +7,7 @@ import {
   renderInputWithAttachments,
   renderPackSystemPrompt,
   resolveEffectiveTier,
+  resolveGrounding,
   resolveTier,
   windowHistory,
 } from '../src/watcher/assemble.js';
@@ -43,6 +44,10 @@ const assembleBase = {
   toolPolicy,
   workspaceDir: '/repo',
   datasetsDir: '/repo/APP/LLMBUILD_DATA/datasets',
+  domainsDir: '/repo/APP/CODE/src/domains',
+  grounded: false,
+  knowledgeCollectionsUsed: [],
+  knowledgeDigest: '',
   mcpServers: [],
   wiredTools: [
     {
@@ -158,6 +163,33 @@ describe('resolveEffectiveTier (deterministic auto-tier gate)', () => {
   });
 });
 
+describe('resolveGrounding (deterministic grounded-knowledge gate)', () => {
+  const groundedPack: DomainPack = domainPackSchema.parse({
+    ...pack,
+    knowledgeCollections: ['finance-ato-rd-tax-incentive'],
+  });
+
+  it('is off when the pack declares no knowledge collections, even if requested', () => {
+    const result = resolveGrounding({ ...request, grounded: true }, pack);
+    expect(result).toEqual({ grounded: false, collectionIds: [] });
+  });
+
+  it('is off by default even when the pack has collections (unticked = standard)', () => {
+    const result = resolveGrounding(request, groundedPack);
+    expect(result).toEqual({ grounded: false, collectionIds: [] });
+  });
+
+  it('is off when explicitly false', () => {
+    const result = resolveGrounding({ ...request, grounded: false }, groundedPack);
+    expect(result.grounded).toBe(false);
+  });
+
+  it('turns on only when both requested AND the pack declares collections', () => {
+    const result = resolveGrounding({ ...request, grounded: true }, groundedPack);
+    expect(result).toEqual({ grounded: true, collectionIds: ['finance-ato-rd-tax-incentive'] });
+  });
+});
+
 describe('renderPackSystemPrompt', () => {
   it('embeds vocabulary, declared tools, and output templates from the pack', () => {
     const rendered = renderPackSystemPrompt(pack);
@@ -197,8 +229,29 @@ describe('assembleTurn', () => {
     expect(assembled.systemPromptDynamic).toContain('<protean:artefact');
     expect(assembled.systemPromptDynamic).toContain('Live tool registry wiring');
     expect(assembled.systemPromptDynamic).toContain('search → Grep, Glob');
+    expect(assembled.systemPromptDynamic).toContain('official knowledge base');
     expect(assembled.systemPrompt.startsWith(assembled.systemPromptStatic)).toBe(true);
     expect(assembled.wiredTools).toHaveLength(2);
+  });
+
+  it('injects a non-empty knowledge digest into the dynamic suffix, not the cacheable prefix', () => {
+    const assembled = assembleTurn({
+      ...assembleBase,
+      history: [],
+      grounded: true,
+      knowledgeCollectionsUsed: ['finance-ato-rd-tax-incentive'],
+      knowledgeDigest: 'Grounded-knowledge digest: some digest text.',
+    });
+    expect(assembled.systemPromptDynamic).toContain('some digest text');
+    expect(assembled.systemPromptStatic).not.toContain('some digest text');
+    expect(assembled.grounded).toBe(true);
+    expect(assembled.knowledgeCollectionsUsed).toEqual(['finance-ato-rd-tax-incentive']);
+  });
+
+  it('omits any digest section when knowledgeDigest is empty (standard/unticked path)', () => {
+    const assembled = assembleTurn({ ...assembleBase, history: [] });
+    expect(assembled.grounded).toBe(false);
+    expect(assembled.knowledgeCollectionsUsed).toEqual([]);
   });
 
   it('assigns a fresh turnId per assembly', () => {

@@ -1209,3 +1209,127 @@ remain explicitly deferred per that document's own sequencing.
 
 **Next step:** Full HUT re-run to confirm the best-practice score actually moved; then Tier 2 of
 the Cursor prompt (hardcode removal, domain-agnostic hints) before Phase 6 telemetry/failover work.
+
+## 2026-08-01 · Claude · Phase 6 · Grounded-knowledge POC — two-tier retrieval, tickbox-gated
+
+**Context:** Owner asked for specialist packs (finance/medical) to stop relying on the model's own
+training-data recall for domain facts, and instead be backed by real, current, citable literature —
+but explicitly **not** via bigger system prompts; prompts should stay thin and reference a real
+retrieval layer (owner named vector DBs / GPU-accelerated stores specifically). Owner also flagged
+this as genuinely new and asked for it to ship as a **tickbox** the owner can A/B live against
+standard behaviour while testing the rest of the system — unticked = standard, exactly as shipped.
+
+**Design — two tiers, neither one a bigger prompt:**
+- **Tier 0 (compact doctrine, always cheap when on):** a short, purely *extractive* digest (no
+  generative summarisation — Law 4) built from the same curated chunks Tier 1 serves, injected into
+  the *dynamic* system-prompt suffix (not the cacheable static prefix, since it's conditional on a
+  per-request flag). One line per chunk: heading + first sentence + source + capture date.
+- **Tier 1 (on-demand retrieval, called only when needed):** a new MCP tool `query_knowledge_base`
+  (mirrors the existing `dataLakeQuery`/`calendarRead` pattern exactly — registry → catalog →
+  `claudeMcp.ts` handler), backed by a deterministic TF-IDF-style keyword scorer
+  (`tools/knowledge/retrieval.ts`) — not semantic embeddings. `docs/INFRASTRUCTURE.md` §4.2 already
+  specs pgvector/Qdrant as the target architecture for this; that's unbuilt, so this POC is the
+  honest first cut behind the same pack-facing contract, upgradeable later without touching packs.
+
+**What's real, not fabricated (Law 6):** the seeded corpus is genuine, fetched public source text,
+not invented — `domains/finance/knowledge/ato-rd-tax-incentive.json` (10 chunks from two real ATO
+"R&D Tax Incentive" guidance pages, chosen because they directly match the existing finance pack's
+R&D-ledger scenario) and `domains/medical/knowledge/racgp-standards.json` (6 chunks from RACGP's
+real Standards-for-General-Practices and Clinical-Guidelines pages). Every chunk carries
+`sourceTitle`, `sourceUrl`, `fetchedAt` — staleness is visible, never silent.
+
+**Wiring (Phase 2 gate, deterministic, off unless BOTH conditions hold — Law 1):**
+`contracts/turn.ts` `TurnRequest.grounded` (caller opt-in) + `contracts/domainPack.ts`
+`knowledgeCollections` (pack declaration) → `watcher/assemble.ts` `resolveGrounding()` turns on
+**only** when both are true. `server.ts` conditionally appends the `knowledgeBaseQuery` connector id
+to the resolved toolset (never a pack default); `runTurn.ts` loads the collections and builds the
+Tier-0 digest (I/O stays out of `assemble.ts` — Law 4); `AssembledTurn`/`TurnLineage` record
+`grounded` + `knowledgeCollectionsUsed` so every turn's evidence trail says whether grounding fired.
+
+**GUI:** `Settings → Grounded knowledge (POC)` checkbox, **default unticked**, wired
+`appState.settings.grounded` → `api.ts` → `TurnRequest.grounded`. Hint copy (data-only, `fieldHints.ts`)
+explicitly tells the owner it's an experimental parallel path.
+
+**Proof:**
+- Backend: `tsc --noEmit` + `eslint` clean; Vitest 115/115 (was 96) — new suites cover the
+  TF-IDF scorer (relevance ranking, determinism, empty-query/corpus edges), the extractive digest
+  builder (never includes more than the first sentence, clips overlong text), the real corpus
+  loader (loads both shipped collections, fails loud on an unknown id), and `resolveGrounding`'s
+  four-way gate (off-by-pack, off-by-default, explicit-false, both-true).
+- GUI: `tsc --noEmit` + `eslint` clean.
+- **Live browser proof** (headless Chromium, services restarted onto this branch): checkbox
+  confirmed unticked by default. Turn 1 (unticked) → toolchips show only `Grep`/`list_datasets`/
+  `Read`, engine log `grounded:false, knowledgeCollectionsUsed:[]`. Ticked the checkbox live in the
+  running GUI. Turn 2 (ticked) → toolchip `mcp__protean-knowledgebase__query_knowledge_base` fires,
+  engine log `grounded:true, knowledgeCollectionsUsed:["finance-ato-rd-tax-incentive"]`, and the
+  answer cites the real source verbatim: *"Eligibility for the R&D tax incentive — Australian
+  Taxation Office, https://www.ato.gov.au/…/eligibility-for-the-r-d-tax-incentive, Fetched: 1 August
+  2026."*
+
+**Important honest finding (Law 6 — not swept under the rug):** in the **unticked/standard** run,
+the model answered the same question correctly from its own training data (the $20,000 threshold is
+real, well-known public information) but then appended *"Source: ATO — … (fetched 1 Aug 2026, from
+official knowledge base)"* — a plausible-sounding citation for a lookup that never happened; no
+knowledge-base tool was even wired into that turn's toolset. This is pre-existing model behaviour
+this feature did not introduce and did not worsen, but it's exactly the failure mode grounding is
+meant to close, and it's evidence the owner's instinct (don't trust prose citations, force real
+retrieval) is correct. Not fixed here — flagging honestly rather than hiding it.
+
+**Residual / explicitly deferred (POC scope, not production):** keyword TF-IDF, not semantic
+embeddings (pgvector/Qdrant/GPU acceleration per `docs/INFRASTRUCTURE.md` §4.2/§5.2 remain the real
+target); only two collections seeded (finance, medical) with ~10 and ~6 chunks respectively — nowhere
+near full corpus coverage; no freshness/re-ingestion job (chunks are hand-captured once, dated, not
+auto-refreshed); no UI surface for *which* sources were consulted beyond the existing tool-call chip
+and the model's own citation text.
+
+**Next step:** Owner to A/B the tickbox live against real questions across sessions; if the pattern
+holds up, next real step is a proper ingestion/versioning pipeline and the pgvector upgrade — not
+more hand-authored JSON chunks.
+
+## 2026-08-01 · Claude · Phase 6 · Fix the fabricated-citation finding — two-layer, not a patch
+
+**Context:** Owner asked for the citation-fabrication finding from the entry above to be fixed
+properly, "future proof" and rule-adherent — not quietly patched over. A prompt-only fix was tried
+first and PROVED insufficient live (see below), which is exactly why this ships as two independent
+layers rather than one.
+
+**Layer 1 — prevention (prompt):** new engine-level (pack-agnostic) protocol constant
+`CITATION_HONESTY_PROTOCOL_PROMPT` in `config/defaults.ts`, injected into every domain's dynamic
+system suffix in `assemble.ts` unconditionally (same category as `ARTEFACT_PROTOCOL_PROMPT` /
+`NARRATION_PROTOCOL_PROMPT` — an engine rule, not a domain fact). States plainly: a tool/dataset/
+knowledge-base lookup may only be claimed if it actually happened this turn; a correct figure with
+a fabricated citation is still a fabrication.
+
+**Layer 2 — detection (deterministic, Law 4/6):** `watcher/citationGuard.ts`,
+`findUnverifiedProvenanceClaims(output, toolsCalled)` — pure, exported, unit-tested. Checks
+provenance-claim phrases ("knowledge base", "database", "retrieved from", "looked up") against
+whether a tool call that could actually corroborate THAT specific claim ran — not just "any tool
+ran" (see the regression below for why that distinction matters). Wired into `runTurn.ts` right
+before `recordLineage`; a hit logs `watcher.unverified_citation_claim` loudly and is recorded on
+`TurnLineage.unverifiedCitationClaims` — permanent audit trail, not a silent pass-through.
+
+**Why two layers, not one (the live proof that mattered):** shipped Layer 1 alone first and
+re-ran the exact repro. The model stopped saying "official knowledge base" — and said **"documented
+in the same ATO knowledge base sourced in the codebase"** instead, while only `Grep`/`Glob`/`Read`
+had run (unrelated file-search tools, not the knowledge base). My first cut of Layer 2 used "any
+tool ran this turn" as the corroboration bar and MISSED this — Grep/Glob/Read count as "a tool ran"
+but don't corroborate a knowledge-base-specific claim. Fixed before shipping: corroboration is now
+claim-specific (a "knowledge base" claim needs a tool name containing `knowledge_base`; a generic
+"retrieved from" claim accepts any real tool call). Regression test added for the exact case that
+was missed.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean; Vitest 120/120 (was 115) — 5 new `citationGuard` cases including
+  the corroboration-specificity regression.
+- **Live re-verification** (services restarted onto this code, same finance/unticked repro that
+  found the original bug): one generation produced the fully honest ideal — *"I have not called
+  any tools to verify this claim this turn... From general knowledge (training data, not verified
+  against a live source)... I cannot cite the exact figure without proof."* Model variance means
+  this isn't guaranteed every time (a later identical-prompt run still tried "the same ATO knowledge
+  base sourced in the codebase" with zero corroborating tools) — which is exactly why Layer 2 exists
+  and is confirmed catching it, not Layer 1 alone.
+
+**Residual:** Layer 2 detects and logs; it does not (and structurally cannot) rewrite text already
+streamed to the GUI by the time the full output is available for scanning. A future pass could
+surface `unverifiedCitationClaims` as a visible GUI banner on the turn, not just a log/lineage
+line — logged as a next step, not built here.

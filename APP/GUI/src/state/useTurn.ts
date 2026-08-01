@@ -52,6 +52,7 @@ export function useSendTurn(): (input: string, attachments?: Attachment[]) => vo
         domainId: state.settings.domainId,
         tier: state.settings.tier,
         ...(attachments !== undefined && attachments.length > 0 ? { attachments } : {}),
+        grounded: state.settings.grounded,
         signal: controller.signal,
         onEvent: (event) => {
           if (event.type === 'text') {

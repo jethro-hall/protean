@@ -71,6 +71,7 @@ async function main(): Promise<void> {
     },
     workspaceDir: config.paths.repoRoot,
     datasetsDir: config.paths.datasetsDir,
+    domainsDir: config.paths.domainsDir,
     mcpServers: [],
     wiredTools: [],
     registryVersion: 'bench-no-tools',

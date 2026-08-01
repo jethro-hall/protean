@@ -11,6 +11,7 @@ import type {
 } from '../contracts/turn.js';
 import {
   ARTEFACT_PROTOCOL_PROMPT,
+  CITATION_HONESTY_PROTOCOL_PROMPT,
   DEFAULT_HISTORY_WINDOW_MESSAGES,
   NARRATION_PROTOCOL_PROMPT,
   toolsetVersionFromPolicy,
@@ -34,9 +35,15 @@ export interface AssembleInput {
   toolPolicy: ToolPolicy;
   workspaceDir: string;
   datasetsDir: string;
+  domainsDir: string;
   mcpServers: ProteanMcpServerBinding[];
   wiredTools: WiredTool[];
   historyWindow?: number;
+  /** Resolved by the caller via resolveGrounding() — same reasoning as `tier` above. */
+  grounded: boolean;
+  knowledgeCollectionsUsed: string[];
+  /** Pre-built Tier-0 digest text (empty when not grounded) — assemble.ts stays I/O-free. */
+  knowledgeDigest: string;
 }
 
 export function windowHistory(history: ChatMessage[], windowSize: number): ChatMessage[] {
@@ -46,6 +53,21 @@ export function windowHistory(history: ChatMessage[], windowSize: number): ChatM
 
 export function resolveTier(request: TurnRequest, pack: DomainPack): ModelTier {
   return request.tier ?? pack.tiers.default;
+}
+
+export interface GroundingResolution {
+  grounded: boolean;
+  collectionIds: string[];
+}
+
+/**
+ * Deterministic gate (Law 4): grounding only ever turns on when the caller
+ * explicitly opts in AND the pack actually declares collections — never a
+ * pack-default behaviour (Phase 6 POC, ships unticked/off).
+ */
+export function resolveGrounding(request: TurnRequest, pack: DomainPack): GroundingResolution {
+  const grounded = request.grounded === true && pack.knowledgeCollections.length > 0;
+  return { grounded, collectionIds: grounded ? pack.knowledgeCollections : [] };
 }
 
 export interface AutoTierOptions {
@@ -168,8 +190,12 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     toolPolicy,
     workspaceDir,
     datasetsDir,
+    domainsDir,
     mcpServers,
     wiredTools,
+    grounded,
+    knowledgeCollectionsUsed,
+    knowledgeDigest,
   } = input;
   const windowSize = input.historyWindow ?? DEFAULT_HISTORY_WINDOW_MESSAGES;
   const userContent = renderInputWithAttachments(request.input, request.attachments);
@@ -183,7 +209,9 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
   const systemPromptDynamic = [
     ARTEFACT_PROTOCOL_PROMPT,
     NARRATION_PROTOCOL_PROMPT,
+    CITATION_HONESTY_PROTOCOL_PROMPT,
     renderWiredToolsPrompt(wiredTools),
+    ...(knowledgeDigest !== '' ? [knowledgeDigest] : []),
   ].join('\n\n');
   return {
     turnId: randomUUID(),
@@ -200,7 +228,10 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     toolPolicy,
     workspaceDir,
     datasetsDir,
+    domainsDir,
     mcpServers,
     wiredTools,
+    grounded,
+    knowledgeCollectionsUsed,
   };
 }

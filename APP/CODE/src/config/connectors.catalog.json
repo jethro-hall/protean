@@ -22,6 +22,12 @@
       "serverId": "protean-calendar",
       "toolNames": ["list_appointments"],
       "description": "Read-only clinic calendar appointments from the medical dataset fixture."
+    },
+    "knowledgeBaseQuery": {
+      "kind": "sdkMcp",
+      "serverId": "protean-knowledgebase",
+      "toolNames": ["query_knowledge_base"],
+      "description": "Deterministic keyword retrieval over curated domain knowledge collections (Phase 6 grounded-knowledge POC — auto-wired only when a request opts in, never a pack default)."
     }
   }
 }

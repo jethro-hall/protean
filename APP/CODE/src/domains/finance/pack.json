@@ -10,6 +10,7 @@
     "EOFY": "end of financial year"
   },
   "tools": ["search", "fileRead", "dataLakeQuery"],
+  "knowledgeCollections": ["finance-ato-rd-tax-incentive"],
   "outputTemplates": {
     "boardMemo": "BLUF → executive summary → body (pyramid) → 1-3 charts → close (recommendation, decision requested, risks, next steps with owners/dates)",
     "issueDoctrine": "Issue → Proof → What it affects → Repercussions → Immediate fix → Long-term resolution"

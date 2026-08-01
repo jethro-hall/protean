@@ -34,6 +34,11 @@ export const turnRequestSchema = z.object({
   input: z.string().min(1),
   tier: modelTierSchema.optional(),
   attachments: z.array(attachmentSchema).optional(),
+  /**
+   * Grounded-knowledge POC opt-in (Phase 6, ships OFF/unticked by default).
+   * Caller intent only — has no effect unless the pack declares knowledgeCollections.
+   */
+  grounded: z.boolean().optional(),
 });
 export type TurnRequest = z.infer<typeof turnRequestSchema>;
 
@@ -62,8 +67,14 @@ export interface AssembledTurn {
   mcpServers: ProteanMcpServerBinding[];
   /** Datasets root for in-process connectors. */
   datasetsDir: string;
+  /** Domains root — required by the knowledgeBase MCP handler (Phase 6 POC). */
+  domainsDir: string;
   /** Pack tool ids after registry wiring (lineage evidence). */
   wiredTools: WiredTool[];
+  /** Grounded-knowledge POC: true only when requested AND the pack has collections. */
+  grounded: boolean;
+  /** Collection ids actually consulted to build the digest, when grounded. */
+  knowledgeCollectionsUsed: string[];
   /** Runtime cancel — not part of the cache key; seize the model when aborted. */
   abortSignal?: AbortSignal;
 }
@@ -134,4 +145,9 @@ export interface TurnLineage {
   /** Tool names observed via activity-start (kind=tool) during the turn. */
   toolsCalled?: string[];
   registryVersion?: string;
+  /** Grounded-knowledge POC evidence (Law 6) — false/empty unless explicitly requested. */
+  grounded?: boolean;
+  knowledgeCollectionsUsed?: string[];
+  /** Citation-honesty audit (Law 6): phrases claiming a lookup with no tool call to back it. */
+  unverifiedCitationClaims?: string[];
 }

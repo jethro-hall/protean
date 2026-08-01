@@ -11,6 +11,7 @@
     "MBS": "Medicare Benefits Schedule (Australia)"
   },
   "tools": ["search", "fileRead", "calendarRead"],
+  "knowledgeCollections": ["medical-racgp-standards"],
   "outputTemplates": {
     "clinicBrief": "situation → what is known → what is needed from clinician → next admin steps",
     "patientPlainLanguage": "what we can say → what we cannot say → how to book / follow up"

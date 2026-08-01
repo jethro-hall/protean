@@ -28,8 +28,11 @@ function turn(overrides: Partial<AssembledTurn> = {}): AssembledTurn {
     },
     workspaceDir: '/tmp',
     datasetsDir: '/tmp/datasets',
+    domainsDir: '/tmp/domains',
     mcpServers: [],
     wiredTools: [],
+    grounded: false,
+    knowledgeCollectionsUsed: [],
     ...overrides,
   };
 }

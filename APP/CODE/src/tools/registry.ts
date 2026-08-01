@@ -14,9 +14,10 @@ import { toolsetVersionFromPolicy } from '../config/defaults.js';
  * Pure resolution (Law 4). Vendor MCP construction happens in the Claude adapter.
  */
 
-const SDK_MCP_HANDLER_BY_SERVER: Record<string, 'dataLake' | 'calendar'> = {
+const SDK_MCP_HANDLER_BY_SERVER: Record<string, 'dataLake' | 'calendar' | 'knowledgeBase'> = {
   'protean-datalake': 'dataLake',
   'protean-calendar': 'calendar',
+  'protean-knowledgebase': 'knowledgeBase',
 };
 
 function uniqueSorted(values: Iterable<string>): string[] {

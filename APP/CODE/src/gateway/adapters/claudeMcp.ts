@@ -8,6 +8,7 @@ import { z } from 'zod';
 import type { ProteanMcpServerBinding } from '../../contracts/connectors.js';
 import { listAppointments } from '../../tools/handlers/calendar.js';
 import { listDatasets, summarizeCsv } from '../../tools/handlers/dataLake.js';
+import { queryKnowledgeBase } from '../../tools/handlers/knowledgeBase.js';
 
 function jsonResult(payload: unknown): { content: [{ type: 'text'; text: string }] } {
   return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
@@ -100,10 +101,45 @@ function buildCalendarServer(datasetsDir: string): McpServerConfig {
   });
 }
 
+function buildKnowledgeBaseServer(domainsDir: string, collectionIds: readonly string[]): McpServerConfig {
+  return createSdkMcpServer({
+    name: 'protean-knowledgebase',
+    version: '0.1.0',
+    alwaysLoad: true,
+    instructions:
+      'Deterministic keyword retrieval over curated domain knowledge collections (Phase 6 ' +
+      'grounded-knowledge POC). The digest already in context is a compressed pointer — call ' +
+      'this for exact wording, thresholds, or anything the digest does not cover. Never invent ' +
+      'a citation; only report what this tool returns.',
+    tools: [
+      tool(
+        'query_knowledge_base',
+        'Search the grounded knowledge collections for chunks relevant to a query. Returns ' +
+          'text with source title/URL/capture date for citation.',
+        {
+          query: z.string().min(1).describe('What to look up, in plain language'),
+          limit: z.number().int().positive().max(10).optional(),
+        },
+        async (args) => {
+          try {
+            return jsonResult({
+              hits: queryKnowledgeBase(domainsDir, collectionIds, args.query, args.limit ?? 5),
+            });
+          } catch (cause) {
+            return errorResult(cause instanceof Error ? cause.message : String(cause));
+          }
+        },
+      ),
+    ],
+  });
+}
+
 /** Map Protean MCP bindings → Claude Agent SDK mcpServers option. */
 export function materializeMcpServers(
   bindings: readonly ProteanMcpServerBinding[],
   datasetsDir: string,
+  domainsDir?: string,
+  knowledgeCollectionIds?: string[],
 ): Record<string, McpServerConfig> {
   const out: Record<string, McpServerConfig> = {};
   for (const binding of bindings) {
@@ -123,6 +159,13 @@ export function materializeMcpServers(
     }
     if (binding.handlerId === 'calendar') {
       out[binding.serverId] = buildCalendarServer(datasetsDir);
+      continue;
+    }
+    if (binding.handlerId === 'knowledgeBase') {
+      if (domainsDir === undefined || domainsDir === '') {
+        throw new Error('GatewayRequest.domainsDir is required when a knowledgeBase MCP server is bound');
+      }
+      out[binding.serverId] = buildKnowledgeBaseServer(domainsDir, knowledgeCollectionIds ?? []);
       continue;
     }
     const _exhaustive: never = binding.handlerId;

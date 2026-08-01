@@ -118,6 +118,21 @@ export function SettingsMenu() {
               </div>
             )}
           </fieldset>
+          <fieldset>
+            <legend>
+              Grounded knowledge (POC) <InfoHint hintKey="groundedKnowledge" />
+            </legend>
+            <label className="protean-settings-checkbox">
+              <input
+                type="checkbox"
+                checked={state.settings.grounded}
+                onChange={(event) =>
+                  dispatch({ type: 'setGrounded', grounded: event.target.checked })
+                }
+              />
+              <span>Ground answers in curated domain sources (experimental)</span>
+            </label>
+          </fieldset>
         </div>
       )}
     </div>

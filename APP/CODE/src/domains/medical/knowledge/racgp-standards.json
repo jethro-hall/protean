@@ -1,0 +1,54 @@
+{
+  "id": "medical-racgp-standards",
+  "displayName": "RACGP — Standards for General Practices & Clinical Guidelines",
+  "chunks": [
+    {
+      "id": "racgp-standards-purpose",
+      "heading": "Purpose of the Standards",
+      "text": "The RACGP developed the Standards with a clear mission: protecting patients from harm by improving the quality and safety of health services. Beyond patient protection, these standards serve as a diagnostic tool, helping practices identify and address any gaps in their systems and processes.",
+      "sourceTitle": "Introduction to the Standards for General Practice (5th edition)",
+      "sourceUrl": "https://www.racgp.org.au/running-a-practice/practice-standards/standards-5th-edition/standards-for-general-practices-5th-ed/introduction-to-the-standards-for-general-practice",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "racgp-standards-core-module",
+      "heading": "Core Module (8 Standards)",
+      "text": "Establishes foundational requirements covering communication, patient rights, governance, health promotion, clinical management, information systems, record content, and staff training.",
+      "sourceTitle": "Introduction to the Standards for General Practice (5th edition)",
+      "sourceUrl": "https://www.racgp.org.au/running-a-practice/practice-standards/standards-5th-edition/standards-for-general-practices-5th-ed/introduction-to-the-standards-for-general-practice",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "racgp-standards-qi-module",
+      "heading": "Quality Improvement Module (3 Standards)",
+      "text": "Focuses on continuous enhancement through quality activities, clinical indicators, and risk management practices including open disclosure protocols.",
+      "sourceTitle": "Introduction to the Standards for General Practice (5th edition)",
+      "sourceUrl": "https://www.racgp.org.au/running-a-practice/practice-standards/standards-5th-edition/standards-for-general-practices-5th-ed/introduction-to-the-standards-for-general-practice",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "racgp-standards-gp-module",
+      "heading": "General Practice Module (6 Standards)",
+      "text": "Addresses access to care, comprehensive service delivery, clinical team qualifications, infection prevention, physical facilities/equipment, and vaccine management.",
+      "sourceTitle": "Introduction to the Standards for General Practice (5th edition)",
+      "sourceUrl": "https://www.racgp.org.au/running-a-practice/practice-standards/standards-5th-edition/standards-for-general-practices-5th-ed/introduction-to-the-standards-for-general-practice",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "racgp-standards-specialised-modules",
+      "heading": "Specialised modules",
+      "text": "Additional standards exist for after-hours services, medical deputising, point-of-care testing, and various healthcare settings including aged care and detention facilities.",
+      "sourceTitle": "Introduction to the Standards for General Practice (5th edition)",
+      "sourceUrl": "https://www.racgp.org.au/running-a-practice/practice-standards/standards-5th-edition/standards-for-general-practices-5th-ed/introduction-to-the-standards-for-general-practice",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "racgp-clinical-guidelines-overview",
+      "heading": "Clinical guidelines overview",
+      "text": "RACGP produces or endorses guidelines organised by topic covering preventative care and clinical areas, including the National Guide for Aboriginal and Torres Strait Islander preventive healthcare and type 2 diabetes management. The Handbook of Non-Drug Interventions (HANDI) is an online formulary of non-drug interventions, enabling GPs to offer patients a greater choice of interventions. \"First Do No Harm\" is an evidence-based resource assisting GP and patient conversations on overused tests, overdiagnosed and overtreated conditions. The Abuse and Violence Guidelines are a practical resource for health practitioners.",
+      "sourceTitle": "RACGP Clinical Guidelines",
+      "sourceUrl": "https://www.racgp.org.au/clinical-resources/clinical-guidelines",
+      "fetchedAt": "2026-08-01"
+    }
+  ]
+}
