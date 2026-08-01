@@ -14,7 +14,7 @@ import {
   SSE_HEADERS,
 } from './config/defaults.js';
 import { listDomainPacks, loadDomainPack } from './config/domainPacks.js';
-import { loadConnectorCatalog } from './config/loadConnectors.js';
+import { loadConnectorCatalog, loadConnectorCatalogWithOverlay } from './config/loadConnectors.js';
 import { loadConfig, requireModel, type ProteanConfig } from './config/loadConfig.js';
 import { resolveToolset } from './tools/registry.js';
 import {
@@ -35,12 +35,17 @@ import { saveUpload } from './watcher/uploads.js';
 import { expandZipAttachments } from './watcher/expandZipAttachments.js';
 import {
   deleteProvider,
+  deleteMcpOverlayEntry,
   getProviderConfig,
   listProviders,
+  readMcpOverlay,
+  saveMcpOverlayEntry,
   saveProvider,
 } from './config/runtimeSettingsStore.js';
 import { listProviderModels, testProviderConnection } from './gateway/providerAdmin/dispatch.js';
 import type { ProviderAdminConfig } from './gateway/providerAdmin/types.js';
+import { stdioMcpConnectorSchema } from './contracts/connectors.js';
+import { testStdioMcpServer } from './tools/mcpAdmin.js';
 
 /** What the GUI/CLI actually posts — session/domain default server-side. */
 const turnBodySchema = z.object({
@@ -192,7 +197,7 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
         maxTurns: effectiveMaxTurns,
         permissionMode: deps.config.agentLoop.permissionMode,
       },
-      catalog: loadConnectorCatalog(),
+      catalog: loadConnectorCatalogWithOverlay(deps.config.paths.runtimeConfigDir),
     });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
@@ -380,6 +385,58 @@ async function handleListProviderModels(deps: AppDeps, req: IncomingMessage, res
   writeJson(res, 200, await listProviderModels(config));
 }
 
+// ---------------------------------------------------------------------------
+// Settings: MCP / Tools (Phase 6). Only stdioMcp connectors are addable this
+// way -- builtin/sdkMcp require a real code-level handler to exist (hard
+// architecture fact: tools/registry.ts's SDK_MCP_HANDLER_BY_SERVER).
+// ---------------------------------------------------------------------------
+
+const connectorIdSchema = z.string().min(1).regex(/^[a-zA-Z0-9_-]+$/, 'must be letters/digits/-/_ only');
+
+const saveMcpBodySchema = z.object({
+  connectorId: connectorIdSchema,
+  entry: stdioMcpConnectorSchema,
+});
+
+function handleListMcp(deps: AppDeps, res: ServerResponse): void {
+  const catalog = loadConnectorCatalog();
+  const overlay = readMcpOverlay(deps.config.paths.runtimeConfigDir);
+  writeJson(res, 200, { catalog: catalog.connectors, overlay });
+}
+
+async function handleTestMcp(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = stdioMcpConnectorSchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid MCP server config: ${parsed.error.message}` });
+    return;
+  }
+  const result = await testStdioMcpServer({
+    command: parsed.data.command,
+    args: parsed.data.args,
+    envFrom: parsed.data.envFrom,
+  });
+  writeJson(res, 200, result);
+}
+
+async function handleSaveMcp(deps: AppDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = saveMcpBodySchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid MCP server: ${parsed.error.message}` });
+    return;
+  }
+  const record = saveMcpOverlayEntry(deps.config.paths.runtimeConfigDir, parsed.data.connectorId, parsed.data.entry);
+  writeJson(res, 200, { ok: true, entry: record });
+}
+
+function handleDeleteMcp(deps: AppDeps, connectorId: string, res: ServerResponse): void {
+  const removed = deleteMcpOverlayEntry(deps.config.paths.runtimeConfigDir, connectorId);
+  if (!removed) {
+    writeJson(res, 404, { error: `No saved MCP connector with id "${connectorId}".` });
+    return;
+  }
+  writeJson(res, 200, { ok: true });
+}
+
 export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
   const log = deps.logger.child('server');
   const server = createServer((req, res) => {
@@ -427,6 +484,29 @@ export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
       const id = url.pathname.slice('/api/settings/providers/'.length);
       if (id !== '') {
         handleDeleteProvider(deps, id, res);
+        return;
+      }
+    }
+    if (req.method === 'GET' && url.pathname === '/api/settings/mcp') {
+      handleListMcp(deps, res);
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/mcp/test') {
+      void handleTestMcp(req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/mcp') {
+      void handleSaveMcp(deps, req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'DELETE' && url.pathname.startsWith('/api/settings/mcp/')) {
+      const connectorId = url.pathname.slice('/api/settings/mcp/'.length);
+      if (connectorId !== '') {
+        handleDeleteMcp(deps, connectorId, res);
         return;
       }
     }

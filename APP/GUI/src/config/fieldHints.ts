@@ -98,4 +98,19 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'Any service that implements the OpenAI /models and /chat/completions shape can be connected this way \u2014 self-hosted or third-party.',
     example: 'https://your-endpoint.example.com/v1',
   },
+  mcpTools: {
+    what: 'External tools (MCP servers) you can add beyond the platform\u2019s built-in ones.',
+    why: 'Test a server before saving it \u2014 a bad command or missing credential fails here with a specific reason, not silently mid-conversation.',
+    example: 'A local script that queries an internal system, exposed as an MCP stdio server.',
+  },
+  mcpConnectorId: {
+    what: 'The catalog key this connector is saved under.',
+    why: 'A domain pack\u2019s own `tools` list references this id to actually wire the connector into a conversation \u2014 saving here makes it available, not automatically active.',
+    example: 'myCustomTool',
+  },
+  mcpJson: {
+    what: 'The connector definition as JSON \u2014 command, arguments, required env var names, and which tools it exposes.',
+    why: 'Only "stdioMcp" (an external process) can be added this way \u2014 built-in tools require code in the engine itself. Edit the template fields to match your server.',
+    example: '{"kind":"stdioMcp","serverId":"my-server","command":"npx",...}',
+  },
 };

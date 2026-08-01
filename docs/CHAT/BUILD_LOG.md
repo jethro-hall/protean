@@ -1642,3 +1642,62 @@ chat-turn path, which still goes through `claude.ts` exclusively; a narrow, docu
   appeared in the saved-providers list immediately with the secret correctly redacted
   (`***0000`, matching only the last 4 characters); deleted it afterward, list returned to empty.
   No test debris left in the live service's saved providers.
+
+## 2026-08-01 · Claude · Phase 6 · MCP / Tools: JSON add-and-test section
+
+Phase F — the last of the two new Settings groups. `connectors.catalog.json` (static, checked into
+the repo) + `contracts/connectors.ts`'s `connectorEntrySchema` (discriminated union: `builtin` |
+`sdkMcp` | `stdioMcp`). **Hard architecture fact, not a scoping choice:** only `stdioMcp` (an
+external process) is genuinely data-driven — `builtin`/`sdkMcp` require a real code-level handler
+to already exist (`SDK_MCP_HANDLER_BY_SERVER` in `tools/registry.ts`), so they cannot be
+meaningfully "added via JSON" without a code change. The new UI is honest about this rather than
+implying otherwise.
+
+**Backend:**
+- New `tools/mcpAdmin.ts`: `testStdioMcpServer()` spawns the given command, sends a *real* MCP
+  `initialize` JSON-RPC request over stdin, and waits for a matching response on stdout — an
+  honest test of whether the server actually speaks MCP, not just whether the command starts.
+  Every failure path (command not found, process exits before responding, server returns a
+  JSON-RPC error, timeout, missing `envFrom` variable) produces a specific message plus the full
+  spawn/stdout/stderr log.
+- `tools/registry.ts`: exported the existing `envBindings()` helper for reuse here — same
+  "fail loud on unset connector env" behaviour the live turn path already has.
+- `config/runtimeSettingsStore.ts` extended with an MCP overlay
+  (`LLMBUILD_DATA/runtime-config/mcp-overlay.json`) — user-added `stdioMcp` entries, keyed by
+  catalog connector id.
+- `config/loadConnectors.ts`: new `loadConnectorCatalogWithOverlay()` merges the static catalog +
+  overlay without mutating the checked-in file; `server.ts`'s `handleTurn` now uses it instead of
+  the bare static loader, so an overlay-added connector is genuinely wireable — **but only if a
+  domain pack's own `tools` array references its connector id** (Law 1: no silent always-on
+  behaviour; saving a connector here makes it *available*, not automatically active). The GUI says
+  this explicitly rather than implying "saved = live in chat".
+- New routes: `GET /api/settings/mcp` (catalog + overlay), `POST /api/settings/mcp/test` (test
+  without saving), `POST /api/settings/mcp` (validate + save to overlay), `DELETE
+  /api/settings/mcp/:connectorId`.
+
+**GUI:**
+- New shared `shell/AdminResultPanel.tsx` — extracted from Phase E's inline result display so
+  Providers and MCP share one pass/fail + models/log renderer instead of duplicating it.
+- New `shell/McpToolsSection.tsx`: JSON textarea pre-filled with a valid `stdioMcp` template, live
+  client-side shape validation on every keystroke (fast feedback; the server's zod schema is still
+  the authority, exercised on every Test/Save call), **Test** button, **Save** button that's
+  labelled "Save anyway (untested)" until a test has actually passed for the current JSON (no false
+  confidence), read-only catalog list for context, and a "Saved by you" list with delete.
+- New `.protean-settings-json-editor` CSS class (monospace, resizable) instead of inline styles.
+- `lib/api.ts`: `StdioMcpConnectorEntry`/`CatalogConnectorEntry`/`McpOverlayEntry` types +
+  `fetchMcpConnectors`/`testMcpConnector`/`saveMcpConnector`/`deleteMcpConnector` calls.
+- `config/fieldHints.ts`: 3 new hints (mcpTools, mcpConnectorId, mcpJson).
+
+**Proof:**
+- Backend: `tsc --noEmit` + `eslint` clean; Vitest 165/165 (was 160) — 5 new cases in
+  `mcpAdmin.test.ts`, each spawning a *real* local process (no network needed): a script that
+  responds correctly to `initialize` (pass), one that returns a JSON-RPC error (surfaces the
+  server's own message), a nonexistent command (ENOENT with a specific message), a process that
+  exits immediately (specific message, not a hang), and a missing `envFrom` variable (specific
+  message naming the variable).
+- GUI: `tsc --noEmit` + `eslint` clean.
+- **Live browser proof** (Playwright, real spawn — not mocked): pasted a connector JSON pointing at
+  a real local Node script, clicked Test — got `"MCP server responded to initialize successfully."`
+  with the full spawn command and raw stdout JSON-RPC response in the log; saved it, confirmed it
+  appeared under "Saved by you"; deleted it — `mcp-overlay.json` back to `[]`, no debris left in
+  the live service.

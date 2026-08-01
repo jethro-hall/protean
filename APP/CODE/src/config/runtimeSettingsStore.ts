@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { z } from 'zod';
 import type { ProviderAdminConfig, ProviderType } from '../gateway/providerAdmin/types.js';
+import { stdioMcpConnectorSchema } from '../contracts/connectors.js';
 
 /**
  * File-backed store for user-added LLM providers (Phase 6 settings UI) --
@@ -124,5 +126,71 @@ export function deleteProvider(runtimeConfigDir: string, id: string): boolean {
   const next = records.filter((record) => record.id !== id);
   if (next.length === records.length) return false;
   writeAll(runtimeConfigDir, next);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// MCP overlay: user-added stdioMcp connectors (Phase 6 settings UI). Merged
+// with the static, checked-in connectors.catalog.json at load time -- never
+// mutates that file. Only stdioMcp is addable this way: builtin/sdkMcp
+// connectors require a real code-level handler to exist (hard architecture
+// fact, not a scoping choice -- see tools/registry.ts's SDK_MCP_HANDLER_BY_SERVER).
+// ---------------------------------------------------------------------------
+
+export type StdioMcpConnector = z.infer<typeof stdioMcpConnectorSchema>;
+
+export interface McpOverlayEntry {
+  /** Catalog key -- same namespace a domain pack's `tools` array references. */
+  connectorId: string;
+  entry: StdioMcpConnector;
+  createdAt: string;
+}
+
+function mcpOverlayFile(runtimeConfigDir: string): string {
+  return join(runtimeConfigDir, 'mcp-overlay.json');
+}
+
+export function readMcpOverlay(runtimeConfigDir: string): McpOverlayEntry[] {
+  const path = mcpOverlayFile(runtimeConfigDir);
+  if (!existsSync(path)) return [];
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    return Array.isArray(parsed) ? (parsed as McpOverlayEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeMcpOverlay(runtimeConfigDir: string, entries: McpOverlayEntry[]): void {
+  mkdirSync(runtimeConfigDir, { recursive: true });
+  writeFileSync(mcpOverlayFile(runtimeConfigDir), JSON.stringify(entries, null, 2), 'utf8');
+}
+
+export function saveMcpOverlayEntry(
+  runtimeConfigDir: string,
+  connectorId: string,
+  entry: StdioMcpConnector,
+): McpOverlayEntry {
+  const entries = readMcpOverlay(runtimeConfigDir);
+  const existingIndex = entries.findIndex((e) => e.connectorId === connectorId);
+  const record: McpOverlayEntry = {
+    connectorId,
+    entry,
+    createdAt: existingIndex >= 0 ? entries[existingIndex]!.createdAt : new Date().toISOString(),
+  };
+  if (existingIndex >= 0) {
+    entries[existingIndex] = record;
+  } else {
+    entries.push(record);
+  }
+  writeMcpOverlay(runtimeConfigDir, entries);
+  return record;
+}
+
+export function deleteMcpOverlayEntry(runtimeConfigDir: string, connectorId: string): boolean {
+  const entries = readMcpOverlay(runtimeConfigDir);
+  const next = entries.filter((e) => e.connectorId !== connectorId);
+  if (next.length === entries.length) return false;
+  writeMcpOverlay(runtimeConfigDir, next);
   return true;
 }

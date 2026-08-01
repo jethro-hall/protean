@@ -249,6 +249,19 @@
   border-bottom: 1px solid var(--line);
   font-size: 12.5px;
 }
+.protean-settings-json-editor {
+  width: 100%;
+  min-height: 180px;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--fz-11);
+  line-height: 1.5;
+  resize: vertical;
+}
 .protean-settings-provider-row:last-child {
   border-bottom: none;
 }

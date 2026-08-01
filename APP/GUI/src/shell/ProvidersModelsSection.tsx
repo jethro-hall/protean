@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { InfoHint } from '../components/InfoHint';
+import { AdminResultPanel } from './AdminResultPanel';
 import {
   deleteProvider,
   fetchProviders,
@@ -40,28 +41,6 @@ interface FormState {
 }
 
 const EMPTY_FORM: FormState = { label: '', apiKey: '', awsRegion: '', bearerToken: '', baseUrl: '' };
-
-function ResultPanel({ result }: { result: ProviderAdminResult }) {
-  return (
-    <>
-      <p className={`banner ${result.ok ? 'success' : 'error'}`} role={result.ok ? 'status' : 'alert'}>
-        {result.message}
-      </p>
-      {result.models !== undefined && result.models.length > 0 && (
-        <div className="protean-settings-model-list">
-          {result.models.map((model) => (
-            <span key={model} className="tag">
-              {model}
-            </span>
-          ))}
-        </div>
-      )}
-      {result.log.length > 0 && (
-        <div className="protean-settings-log">{result.log.join('\n')}</div>
-      )}
-    </>
-  );
-}
 
 export function ProvidersModelsSection() {
   const [providers, setProviders] = useState<ProviderSummary[] | 'loading' | 'unavailable'>('loading');
@@ -266,7 +245,7 @@ export function ProvidersModelsSection() {
           </button>
         </div>
 
-        {result !== null && <ResultPanel result={result} />}
+        {result !== null && <AdminResultPanel result={result} />}
       </div>
 
       {providers === 'loading' && (
@@ -310,7 +289,7 @@ export function ProvidersModelsSection() {
           ))}
         </div>
       )}
-      {rowResult !== null && <ResultPanel result={rowResult.result} />}
+      {rowResult !== null && <AdminResultPanel result={rowResult.result} />}
     </fieldset>
   );
 }

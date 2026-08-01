@@ -24,7 +24,8 @@ function uniqueSorted(values: Iterable<string>): string[] {
   return [...new Set(values)].sort((a, b) => a.localeCompare(b));
 }
 
-function envBindings(envFrom: string[]): Record<string, string> {
+/** Exported for reuse by the Settings > MCP "Test" admin call (config/mcpAdmin.ts). */
+export function envBindings(envFrom: string[]): Record<string, string> {
   const env: Record<string, string> = {};
   for (const name of envFrom) {
     const value = process.env[name];

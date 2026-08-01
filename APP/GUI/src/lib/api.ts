@@ -232,3 +232,67 @@ export async function listProviderModels(input: ProviderRefOrDraft): Promise<Pro
   const res = await settingsFetch('/api/settings/providers/models', { method: 'POST', body: JSON.stringify(input) });
   return settingsJson<ProviderAdminResult>(res, 'Failed to list provider models.');
 }
+
+// ---------------------------------------------------------------------------
+// Settings: MCP / Tools (Phase 6). Only stdioMcp connectors are addable this
+// way -- builtin/sdkMcp require a real code-level handler in the engine.
+// ---------------------------------------------------------------------------
+
+export interface StdioMcpConnectorEntry {
+  kind: 'stdioMcp';
+  serverId: string;
+  command: string;
+  args: string[];
+  envFrom: string[];
+  toolNames: string[];
+  description: string;
+  enabled: boolean;
+}
+
+export type CatalogConnectorEntry =
+  | { kind: 'builtin'; sdkTools: string[]; description: string }
+  | { kind: 'sdkMcp'; serverId: string; toolNames: string[]; description: string }
+  | StdioMcpConnectorEntry;
+
+export interface McpOverlayEntry {
+  connectorId: string;
+  entry: StdioMcpConnectorEntry;
+  createdAt: string;
+}
+
+export const STDIO_MCP_TEMPLATE: StdioMcpConnectorEntry = {
+  kind: 'stdioMcp',
+  serverId: 'my-mcp-server',
+  command: 'npx',
+  args: ['-y', '@example/mcp-server'],
+  envFrom: [],
+  toolNames: ['exampleTool'],
+  description: 'Describe what this connector does.',
+  enabled: true,
+};
+
+export async function fetchMcpConnectors(): Promise<{
+  catalog: Record<string, CatalogConnectorEntry>;
+  overlay: McpOverlayEntry[];
+}> {
+  const res = await settingsFetch('/api/settings/mcp');
+  return settingsJson(res, 'Failed to load MCP connectors.');
+}
+
+export async function testMcpConnector(entry: StdioMcpConnectorEntry): Promise<ProviderAdminResult> {
+  const res = await settingsFetch('/api/settings/mcp/test', { method: 'POST', body: JSON.stringify(entry) });
+  return settingsJson<ProviderAdminResult>(res, 'Failed to test MCP connector.');
+}
+
+export async function saveMcpConnector(connectorId: string, entry: StdioMcpConnectorEntry): Promise<void> {
+  const res = await settingsFetch('/api/settings/mcp', {
+    method: 'POST',
+    body: JSON.stringify({ connectorId, entry }),
+  });
+  await settingsJson(res, 'Failed to save MCP connector.');
+}
+
+export async function deleteMcpConnector(connectorId: string): Promise<void> {
+  const res = await settingsFetch(`/api/settings/mcp/${encodeURIComponent(connectorId)}`, { method: 'DELETE' });
+  await settingsJson(res, 'Failed to delete MCP connector.');
+}

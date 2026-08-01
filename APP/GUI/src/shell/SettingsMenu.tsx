@@ -3,6 +3,7 @@ import { InfoHint } from '../components/InfoHint';
 import { fetchDomains, type DomainSummary, type ModelTier, type ResponseDepth } from '../lib/api';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
 import { ProvidersModelsSection } from './ProvidersModelsSection';
+import { McpToolsSection } from './McpToolsSection';
 
 const TIERS: Array<{ id: ModelTier; label: string }> = [
   { id: 'fast', label: 'Fast' },
@@ -225,8 +226,7 @@ export function SettingsMenu() {
 
                 <ProvidersModelsSection />
 
-                {/* MCP / Tools (Phase F) lands as an additional fieldset here,
-                    same pattern as the ones above. */}
+                <McpToolsSection />
               </div>
             </div>
           </div>
