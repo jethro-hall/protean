@@ -1,0 +1,86 @@
+{
+  "id": "finance-ato-rd-tax-incentive",
+  "displayName": "ATO — R&D Tax Incentive guidance",
+  "chunks": [
+    {
+      "id": "ato-rd-eligible-entities",
+      "heading": "Eligible entities",
+      "text": "To claim R&D tax offsets, entities must be \"R&D entities\" and incur notional deductions of at least $20,000 on eligible R&D activities. An R&D entity is a corporation incorporated under Australian law, foreign law (if Australian tax resident), or foreign law with a relevant double tax agreement and permanent establishment in Australia. The following are explicitly ineligible: an individual, a corporate limited partnership, or an exempt entity (where your entire income is exempt from income tax).",
+      "sourceTitle": "Eligibility for the R&D tax incentive",
+      "sourceUrl": "https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/incentives-and-concessions/research-and-development-tax-incentive/eligibility-for-the-r-d-tax-incentive",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "ato-rd-core-activities",
+      "heading": "Core R&D activities",
+      "text": "Core R&D activities are experimental activities where the outcome can't be known or determined in advance on the basis of current knowledge, information or experience; they involve a systematic progression of work that is based on principles of established science, proceeding from hypothesis to experiment, observation and evaluation; and they aim at generating new knowledge (including about creating new knowledge or improved materials, products, devices, processes or services).",
+      "sourceTitle": "Eligibility for the R&D tax incentive",
+      "sourceUrl": "https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/incentives-and-concessions/research-and-development-tax-incentive/eligibility-for-the-r-d-tax-incentive",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "ato-rd-supporting-activities",
+      "heading": "Supporting R&D activities",
+      "text": "Supporting activities are directly related to core R&D activities, or undertaken for the dominant purpose of supporting core R&D activities. The dominant purpose requirement applies to activities that produce goods/services or are excluded from core R&D classification.",
+      "sourceTitle": "Eligibility for the R&D tax incentive",
+      "sourceUrl": "https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/incentives-and-concessions/research-and-development-tax-incentive/eligibility-for-the-r-d-tax-incentive",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "ato-rd-threshold",
+      "heading": "Notional deduction threshold",
+      "text": "Entities must incur at least $20,000 in notional deductions annually to claim offsets, with limited exceptions for Research Service Provider contracted expenditure and Cooperative Research Centre contributions below this threshold.",
+      "sourceTitle": "Eligibility for the R&D tax incentive",
+      "sourceUrl": "https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/incentives-and-concessions/research-and-development-tax-incentive/eligibility-for-the-r-d-tax-incentive",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "ato-rd-salary-expenditure",
+      "heading": "Salary expenditure",
+      "text": "Organisations may claim costs for salaries, wages, allowances, bonuses, overtime and penalty rate payments, along with leave entitlements and superannuation contributions, for employees directly conducting R&D activities. Support staff salaries — such as administrative or general management personnel — cannot be claimed unless directly linked to R&D work.",
+      "sourceTitle": "Expenditure you can claim",
+      "sourceUrl": "https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/incentives-and-concessions/research-and-development-tax-incentive/amounts-you-can-claim/expenditure-you-can-claim",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "ato-rd-contracted-services",
+      "heading": "Contracted services (Research Service Providers)",
+      "text": "Expenditure paid to Research Service Providers (RSPs) registered with the Department of Industry, Science and Resources bypasses the standard $20,000 threshold. Contracting with other parties requires meeting this minimum threshold. Contract documentation should show the nature of the work and its relation to your R&D activities.",
+      "sourceTitle": "Expenditure you can claim",
+      "sourceUrl": "https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/incentives-and-concessions/research-and-development-tax-incentive/amounts-you-can-claim/expenditure-you-can-claim",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "ato-rd-depreciating-assets",
+      "heading": "Depreciating assets",
+      "text": "The decline in value of tangible assets used for R&D qualifies, calculated through modified Division 40 rules. Assets cannot be pooled after claiming R&D deductions.",
+      "sourceTitle": "Expenditure you can claim",
+      "sourceUrl": "https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/incentives-and-concessions/research-and-development-tax-incentive/amounts-you-can-claim/expenditure-you-can-claim",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "ato-rd-admin-costs",
+      "heading": "Administrative costs",
+      "text": "Organisations may claim rent or lease payments, light and power, property rates and taxes, cleaning, and certain insurance costs directly linked to R&D operations.",
+      "sourceTitle": "Expenditure you can claim",
+      "sourceUrl": "https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/incentives-and-concessions/research-and-development-tax-incentive/amounts-you-can-claim/expenditure-you-can-claim",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "ato-rd-record-keeping",
+      "heading": "Record-keeping requirements",
+      "text": "Documentation must support claimed amounts. For mixed-use employees, organisations should maintain time sheets or job cards demonstrating R&D allocation. Contract expenditure requires records showing how work under the contract relates to your activities, potentially including meeting minutes and progress reports.",
+      "sourceTitle": "Expenditure you can claim",
+      "sourceUrl": "https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/incentives-and-concessions/research-and-development-tax-incentive/amounts-you-can-claim/expenditure-you-can-claim",
+      "fetchedAt": "2026-08-01"
+    },
+    {
+      "id": "ato-rd-excluded-expenditure",
+      "heading": "Excluded expenditure",
+      "text": "Non-deductible items include tax agent fees for preparing a registration application or tax return claims, and salary costs lacking proper PAYG withholding.",
+      "sourceTitle": "Expenditure you can claim",
+      "sourceUrl": "https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/incentives-and-concessions/research-and-development-tax-incentive/amounts-you-can-claim/expenditure-you-can-claim",
+      "fetchedAt": "2026-08-01"
+    }
+  ]
+}

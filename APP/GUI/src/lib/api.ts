@@ -82,13 +82,15 @@ export interface StreamTurnParams {
   domainId: string;
   tier: ModelTier;
   attachments?: Attachment[];
+  /** Grounded-knowledge POC tickbox (Phase 6). Omitted/false = standard behaviour. */
+  grounded?: boolean;
   onEvent: (event: TurnStreamEvent) => void;
   signal?: AbortSignal;
 }
 
 /** POST a turn and deliver each SSE event as it arrives. */
 export async function streamTurn(params: StreamTurnParams): Promise<void> {
-  const { input, sessionId, domainId, tier, attachments, onEvent, signal } = params;
+  const { input, sessionId, domainId, tier, attachments, grounded, onEvent, signal } = params;
   const res = await fetch('/api/turn', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -98,6 +100,7 @@ export async function streamTurn(params: StreamTurnParams): Promise<void> {
       domainId,
       tier,
       ...(attachments !== undefined && attachments.length > 0 ? { attachments } : {}),
+      ...(grounded === true ? { grounded } : {}),
     }),
     ...(signal !== undefined ? { signal } : {}),
   });

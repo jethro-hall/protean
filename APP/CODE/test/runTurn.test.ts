@@ -49,6 +49,7 @@ function makeDeps(agent: AgentCore): TurnPipelineDeps & { dataDir: string } {
     toolPolicy: NO_TOOLS_POLICY,
     workspaceDir: dataDir,
     datasetsDir: join(dataDir, 'datasets'),
+    domainsDir: join(dataDir, 'domains'),
     mcpServers: [],
     wiredTools: [],
     registryVersion: 'test-registry',

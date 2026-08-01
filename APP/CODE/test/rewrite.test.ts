@@ -28,8 +28,11 @@ function turn(input: string): AssembledTurn {
     },
     workspaceDir: '/tmp',
     datasetsDir: '/tmp/datasets',
+    domainsDir: '/tmp/domains',
     mcpServers: [],
     wiredTools: [],
+    grounded: false,
+    knowledgeCollectionsUsed: [],
   };
 }
 

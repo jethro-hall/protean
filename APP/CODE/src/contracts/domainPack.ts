@@ -19,6 +19,11 @@ export const domainPackSchema = z.object({
   systemPrompt: z.string().min(1),
   vocabulary: z.record(z.string(), z.string()).default({}),
   tools: z.array(z.string()).default([]),
+  /**
+   * Grounded-knowledge collection ids this pack may consult (Phase 6 POC).
+   * Declaration only — consulted only when the caller opts in (TurnRequest.grounded).
+   */
+  knowledgeCollections: z.array(z.string()).default([]),
   outputTemplates: z.record(z.string(), z.string()).default({}),
   validation: z.record(z.string(), z.unknown()).default({}),
   tiers: z

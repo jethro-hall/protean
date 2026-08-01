@@ -80,6 +80,13 @@ export const MAX_ATTACHMENTS_PER_TURN = 5;
 /** Surfaced when the client aborts mid-turn (Stop) — not a provider failure. */
 export const TURN_STOPPED_MESSAGE = 'Turn stopped by user';
 
+/**
+ * Grounded-knowledge POC (Phase 6): the connector id auto-appended to a pack's
+ * declared tools when a request opts in AND the pack has knowledgeCollections.
+ * Never in a pack's own `tools` array — it is conditional, not always-on.
+ */
+export const GROUNDING_TOOL_ID = 'knowledgeBaseQuery';
+
 /** SSE wire constants (the internal stream protocol to the GUI). */
 export const SSE_HEADERS = {
   'Content-Type': 'text/event-stream',

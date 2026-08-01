@@ -48,4 +48,9 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'Protean measures every turn \u2014 leanness you can\u2019t see can\u2019t be defended.',
     example: 'TTFT 640 ms \u00b7 total 3.2 s \u00b7 cache miss',
   },
+  groundedKnowledge: {
+    what: 'POC: ground answers in a curated knowledge collection for this domain (e.g. real ATO/RACGP source text), cited by source.',
+    why: 'Unticked is standard behaviour \u2014 this is an experimental parallel path, off by default, so you can A/B it against normal answers.',
+    example: 'Finance grounded in ATO R&D Tax Incentive guidance; Medical grounded in RACGP Standards.',
+  },
 };

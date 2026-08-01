@@ -19,12 +19,14 @@ import {
   type ArtefactParserEvent,
   type ArtefactType,
 } from './artefacts.js';
-import { assembleTurn, resolveEffectiveTier } from './assemble.js';
+import { assembleTurn, resolveEffectiveTier, resolveGrounding } from './assemble.js';
 import { budgetMessages } from './budget.js';
 import { computeCacheKey, type CacheStore } from './cache.js';
+import { loadKnowledgeCollections } from '../config/knowledgeCollections.js';
 import { recordLineage, recordTelemetry } from './record.js';
 import { rewriteTurnInput, shouldRewriteTurn } from './rewrite.js';
 import type { SessionStore } from './sessionStore.js';
+import { buildDigest } from '../tools/knowledge/digest.js';
 
 /**
  * The Watcher choke point (ARCHITECTURE §3): every turn bound for an answering
@@ -58,6 +60,7 @@ export interface TurnPipelineDeps {
   /** Workspace root for file tools. */
   workspaceDir: string;
   datasetsDir: string;
+  domainsDir: string;
   mcpServers: ProteanMcpServerBinding[];
   wiredTools: WiredTool[];
   registryVersion: string;
@@ -87,6 +90,15 @@ export async function* runTurn(
     autoTierEnabled: watcher.autoTierEnabled,
     autoTierEscalationTokens: watcher.autoTierEscalationTokens,
   });
+
+  // Grounded-knowledge POC (Phase 6, off unless the caller opts in): the actual
+  // corpus read (I/O) happens here, not in assemble.ts (Law 4 keeps assembly pure).
+  const grounding = resolveGrounding(request, pack);
+  const knowledgeDigest =
+    grounding.grounded && grounding.collectionIds.length > 0
+      ? buildDigest(loadKnowledgeCollections(deps.domainsDir, grounding.collectionIds))
+      : '';
+
   const assembled = assembleTurn({
     request,
     pack,
@@ -96,8 +108,12 @@ export async function* runTurn(
     toolPolicy: deps.toolPolicy,
     workspaceDir: deps.workspaceDir,
     datasetsDir: deps.datasetsDir,
+    domainsDir: deps.domainsDir,
     mcpServers: deps.mcpServers,
     wiredTools: deps.wiredTools,
+    grounded: grounding.grounded,
+    knowledgeCollectionsUsed: grounding.collectionIds,
+    knowledgeDigest,
   });
   if (deps.abortSignal !== undefined) {
     assembled.abortSignal = deps.abortSignal;
@@ -168,8 +184,20 @@ export async function* runTurn(
 
   log.info(
     'watcher.assembled',
-    `Assembled turn for domain "${assembled.domainId}" (${assembled.messages.length} messages, ~${budget.estimatedTokens} tokens, tier ${assembled.tier} — ${tierDecision.reason}); ${decision.reason}; cache ${cached !== undefined ? 'HIT' : 'MISS'}`,
-    { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { cacheKey, assembleMs, budgetMs, cacheCheckMs, tierEscalated: tierDecision.escalated } },
+    `Assembled turn for domain "${assembled.domainId}" (${assembled.messages.length} messages, ~${budget.estimatedTokens} tokens, tier ${assembled.tier} — ${tierDecision.reason}); ${decision.reason}; grounded ${assembled.grounded ? `ON [${assembled.knowledgeCollectionsUsed.join(', ')}]` : 'off'}; cache ${cached !== undefined ? 'HIT' : 'MISS'}`,
+    {
+      turnId: assembled.turnId,
+      sessionId: assembled.sessionId,
+      data: {
+        cacheKey,
+        assembleMs,
+        budgetMs,
+        cacheCheckMs,
+        tierEscalated: tierDecision.escalated,
+        grounded: assembled.grounded,
+        knowledgeCollectionsUsed: assembled.knowledgeCollectionsUsed,
+      },
+    },
   );
 
   let output = '';
@@ -343,6 +371,8 @@ export async function* runTurn(
     wiredTools: deps.wiredTools,
     toolsCalled,
     registryVersion: deps.registryVersion,
+    grounded: assembled.grounded,
+    knowledgeCollectionsUsed: assembled.knowledgeCollectionsUsed,
   });
   recordTelemetry(deps.tokenTelemetryDir, {
     ts: startedAt,

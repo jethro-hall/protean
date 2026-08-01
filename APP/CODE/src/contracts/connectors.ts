@@ -68,7 +68,7 @@ export type ProteanMcpServerBinding =
       transport: 'sdk';
       serverId: string;
       /** Named handler factory id resolved in the Claude adapter. */
-      handlerId: 'dataLake' | 'calendar';
+      handlerId: 'dataLake' | 'calendar' | 'knowledgeBase';
     }
   | {
       transport: 'stdio';

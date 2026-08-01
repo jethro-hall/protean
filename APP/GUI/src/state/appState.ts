@@ -79,6 +79,8 @@ export interface Conversation {
 export interface Settings {
   tier: ModelTier;
   domainId: string;
+  /** Grounded-knowledge POC tickbox (Phase 6). Unticked/false = standard behaviour. */
+  grounded: boolean;
 }
 
 export interface AppState {
@@ -139,6 +141,7 @@ export type Action =
   | { type: 'assistantStopped'; conversationId: string; messageId: string }
   | { type: 'setTier'; tier: ModelTier }
   | { type: 'setDomain'; domainId: string }
+  | { type: 'setGrounded'; grounded: boolean }
   | { type: 'toggleRail' }
   | { type: 'togglePreview' }
   | { type: 'setPreviewWidth'; width: number };
@@ -165,7 +168,7 @@ export function initialState(): AppState {
   return {
     conversations: [first],
     activeId: first.id,
-    settings: { tier: 'fast', domainId: 'generic' },
+    settings: { tier: 'fast', domainId: 'generic', grounded: false },
     railOpen: false,
     previewOpen: true,
     previewWidth: PREVIEW_WIDTH_DEFAULT_PX,
@@ -397,6 +400,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, settings: { ...state.settings, tier: action.tier } };
     case 'setDomain':
       return { ...state, settings: { ...state.settings, domainId: action.domainId } };
+    case 'setGrounded':
+      return { ...state, settings: { ...state.settings, grounded: action.grounded } };
     case 'toggleRail':
       return { ...state, railOpen: !state.railOpen };
     case 'togglePreview':

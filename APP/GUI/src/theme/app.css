@@ -119,6 +119,15 @@
   gap: var(--s-2);
   margin-top: var(--s-3);
 }
+.protean-settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+  font-size: var(--fz-13);
+  color: var(--ink);
+  cursor: pointer;
+}
 
 /* Message / preview helpers (namespaced or thin glue on design classes) */
 .thread.empty-hero {

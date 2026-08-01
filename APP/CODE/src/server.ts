@@ -5,6 +5,7 @@ import type { AgentCore } from './agent/AgentCore.js';
 import { createClaudeSdkAgentCore } from './agent/adapters/claudeSdk.js';
 import {
   DEFAULT_DOMAIN_ID,
+  GROUNDING_TOOL_ID,
   MAX_ATTACHMENTS_PER_TURN,
   MAX_ATTACHMENT_BYTES,
   SSE_HEADERS,
@@ -23,7 +24,7 @@ import type { LlmGateway } from './gateway/LlmGateway.js';
 import { createClaudeGateway } from './gateway/adapters/claude.js';
 import { createLogger, type Logger } from './logging/logger.js';
 import { createMemoryCacheStore, type CacheStore } from './watcher/cache.js';
-import { resolveEffectiveTier } from './watcher/assemble.js';
+import { resolveEffectiveTier, resolveGrounding } from './watcher/assemble.js';
 import { runTurn } from './watcher/runTurn.js';
 import { createFileSessionStore, type SessionStore } from './watcher/sessionStore.js';
 import { saveUpload } from './watcher/uploads.js';
@@ -34,6 +35,8 @@ const turnBodySchema = z.object({
   sessionId: z.string().min(1).optional(),
   domainId: z.string().min(1).optional(),
   tier: modelTierSchema.optional(),
+  /** Grounded-knowledge POC tickbox (Phase 6). Unticked/omitted = standard behaviour. */
+  grounded: z.boolean().optional(),
   attachments: z
     .array(
       attachmentSchema.refine((file) => file.textContent.length <= MAX_ATTACHMENT_BYTES, {
@@ -102,6 +105,7 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
     domainId: body.domainId ?? DEFAULT_DOMAIN_ID,
     input: body.input,
     ...(body.tier !== undefined ? { tier: body.tier } : {}),
+    ...(body.grounded !== undefined ? { grounded: body.grounded } : {}),
     ...(body.attachments !== undefined ? { attachments: body.attachments } : {}),
   };
 
@@ -133,8 +137,11 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
         autoTierEscalationTokens: deps.config.watcher.autoTierEscalationTokens,
       }).tier,
     );
+    // Grounded-knowledge POC: the knowledge tool is wired in only for this turn's
+    // request, never as a pack default (Law 1 — no silent always-on behaviour).
+    const grounding = resolveGrounding(request, pack);
     toolset = resolveToolset({
-      packToolIds: pack.tools,
+      packToolIds: grounding.grounded ? [...pack.tools, GROUNDING_TOOL_ID] : pack.tools,
       agentLoop: {
         availableTools: deps.config.agentLoop.availableTools,
         allowedTools: deps.config.agentLoop.allowedTools,
@@ -203,6 +210,7 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
       toolPolicy: toolset.toolPolicy,
       workspaceDir: deps.config.paths.repoRoot,
       datasetsDir: deps.config.paths.datasetsDir,
+      domainsDir: deps.config.paths.domainsDir,
       mcpServers: toolset.mcpServers,
       wiredTools: toolset.wired,
       registryVersion: toolset.registryVersion,
