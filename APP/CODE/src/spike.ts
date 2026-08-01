@@ -87,6 +87,13 @@ async function main(): Promise<void> {
       rewriteBloatTokens: config.watcher.rewriteBloatTokens,
       ...(config.models.fast !== undefined ? { fastModel: config.models.fast } : {}),
     },
+    toolPolicy: {
+      availableTools: config.agentLoop.availableTools,
+      allowedTools: config.agentLoop.allowedTools,
+      maxTurns: config.agentLoop.maxTurns,
+      permissionMode: config.agentLoop.permissionMode,
+    },
+    workspaceDir: config.paths.repoRoot,
     log: logger.child('watcher'),
     promptHistoryDir: config.paths.promptHistoryDir,
     tokenTelemetryDir: config.paths.tokenTelemetryDir,

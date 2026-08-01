@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ToolPolicy } from './agentLoop.js';
 
 /** Roles a chat message can carry across any boundary. */
 export const chatRoleSchema = z.enum(['user', 'assistant']);
@@ -41,11 +42,23 @@ export interface AssembledTurn {
   sessionId: string;
   domainId: string;
   input: string;
+  /** Full system prompt (static + dynamic) — lineage + Watcher cache key. */
   systemPrompt: string;
+  /**
+   * Stable prefix eligible for Bedrock/Anthropic prompt-cache across turns.
+   * Adapter places SYSTEM_PROMPT_DYNAMIC_BOUNDARY after this.
+   */
+  systemPromptStatic: string;
+  /** Session/engine suffix after the prompt-cache boundary (protocols, etc.). */
+  systemPromptDynamic: string;
   messages: ChatMessage[];
   tier: ModelTier;
   model: string;
   toolsetVersion: string;
+  toolPolicy: ToolPolicy;
+  workspaceDir: string;
+  /** Runtime cancel — not part of the cache key; seize the model when aborted. */
+  abortSignal?: AbortSignal;
 }
 
 export interface TokenUsage {

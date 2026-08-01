@@ -73,20 +73,24 @@ saved to `APP/ARTEFACTS/` and logged.
 
 ---
 
-## Phase 4 — Domain Packs & the multi-domain proof  ← WE ARE HERE
-**Goal:** prove shape-shifting. Ship 2 Domain Packs (finance = Ride Electric; + one of
-medical/education) as **config only**, no engine change.
+## Phase 4 — Domain Packs & the multi-domain proof  ✅ DONE
+**Evidence:** `docs/CHAT/BUILD_LOG.md` (Phase 4 multi-domain proof) — finance ↔ generic ↔
+medical pack switch with distinct systemPrompt/vocabulary/tools/templates in lineage.
+
+**Goal:** prove shape-shifting. Ship Domain Packs (finance = Ride Electric; + medical) as
+**config only**, no engine change beyond deterministic pack rendering into the prompt.
 
 **Acceptance test:** switching the domain pack in settings changes system prompt, tools,
-vocabulary, and output templates with zero code change; both domains produce correct, traceable
+vocabulary, and output templates with zero code change; domains produce correct, traceable
 output. This validates Charter §3 and Law 2.
 
 ---
 
-## Phase 5 — Tool/Connector Registry & real workflows
+## Phase 5 — Tool/Connector Registry & real workflows  ← WE ARE HERE
 **Goal:** register real tools (MCP servers: Odoo, GhostDL, search, email) and run a genuine
 multi-step workflow end-to-end (e.g. the TFM reconciliation, or a finance question) inside
-Protean.
+Protean. Dynamic agent-loop substrate (Read/Grep/Glob, maxTurns) was pulled forward; Bash +
+MCP registry remain.
 
 **Acceptance test:** a real business workflow runs through Protean, calls tools, produces a
 correct artefact with full evidence lineage.

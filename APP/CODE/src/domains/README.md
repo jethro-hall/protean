@@ -24,5 +24,6 @@ doctor's surgery, a university, a law firm) = adding a folder here. That is the 
 - A pack is validated against `contracts/domainPack.ts` on load; an invalid pack fails loud (Law 1).
 - Packs are versioned; changes are logged like code (Charter §5.7).
 
-Seed packs: `finance/` (Ride Electric — the first proving ground) and `generic/` (fallback
-corporate assistant). `medical/` and `education/` arrive in Phase 4 to prove the claim.
+Seed packs: `finance/` (Ride Electric — the first proving ground), `generic/` (fallback
+corporate assistant), and `medical/` (GP clinic associate — Phase 4 multi-domain proof).
+`education/` remains available as a later config-only add.

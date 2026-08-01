@@ -133,28 +133,59 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
   // snapshot history BEFORE the turn — the Watcher appends this turn itself
   const history = [...deps.sessions.history(request.sessionId)];
 
-  for await (const event of runTurn(request, {
-    agent: deps.agent,
-    gateway: deps.gateway,
-    cache: deps.cache,
-    pack,
-    history,
-    sessions: deps.sessions,
-    model,
-    watcher: {
-      turnTokenBudget: deps.config.watcher.turnTokenBudget,
-      rewriteEnabled: deps.config.watcher.rewriteEnabled,
-      rewriteBloatTokens: deps.config.watcher.rewriteBloatTokens,
-      ...(deps.config.models.fast !== undefined ? { fastModel: deps.config.models.fast } : {}),
-    },
-    log: deps.logger.child('watcher'),
-    promptHistoryDir: deps.config.paths.promptHistoryDir,
-    tokenTelemetryDir: deps.config.paths.tokenTelemetryDir,
-    artefactsDir: deps.config.paths.artefactsDir,
-  })) {
-    writeSseEvent(res, event);
+  // Client Stop aborts fetch → response closes unfinished → seize the SDK run.
+  // Do NOT listen to req 'close' after the body is read — that fires on every turn.
+  const turnAbort = new AbortController();
+  const onClientGone = (): void => {
+    if (!turnAbort.signal.aborted) {
+      log.info('server.turn.client_abort', 'Client disconnected — seizing model run', {
+        sessionId: request.sessionId,
+      });
+      turnAbort.abort();
+    }
+  };
+  const onResponseClose = (): void => {
+    if (!res.writableFinished) onClientGone();
+  };
+  req.once('aborted', onClientGone);
+  res.once('close', onResponseClose);
+
+  try {
+    for await (const event of runTurn(request, {
+      agent: deps.agent,
+      gateway: deps.gateway,
+      cache: deps.cache,
+      pack,
+      history,
+      sessions: deps.sessions,
+      model,
+      watcher: {
+        turnTokenBudget: deps.config.watcher.turnTokenBudget,
+        rewriteEnabled: deps.config.watcher.rewriteEnabled,
+        rewriteBloatTokens: deps.config.watcher.rewriteBloatTokens,
+        ...(deps.config.models.fast !== undefined ? { fastModel: deps.config.models.fast } : {}),
+      },
+      toolPolicy: {
+        availableTools: deps.config.agentLoop.availableTools,
+        allowedTools: deps.config.agentLoop.allowedTools,
+        maxTurns: deps.config.agentLoop.maxTurns,
+        permissionMode: deps.config.agentLoop.permissionMode,
+      },
+      workspaceDir: deps.config.paths.repoRoot,
+      abortSignal: turnAbort.signal,
+      log: deps.logger.child('watcher'),
+      promptHistoryDir: deps.config.paths.promptHistoryDir,
+      tokenTelemetryDir: deps.config.paths.tokenTelemetryDir,
+      artefactsDir: deps.config.paths.artefactsDir,
+    })) {
+      if (turnAbort.signal.aborted || res.writableEnded) break;
+      writeSseEvent(res, event);
+    }
+  } finally {
+    req.off('aborted', onClientGone);
+    res.off('close', onResponseClose);
+    if (!res.writableEnded) res.end();
   }
-  res.end();
 }
 
 function handleDomains(deps: AppDeps, res: ServerResponse): void {

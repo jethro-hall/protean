@@ -730,3 +730,325 @@ ADR-0005 / Phase 1+ territory.
 
 **Fix:** ROADMAP already marks Phase 4 current. Synced `CLAUDE.md` “Current phase” and
 `.cursor/rules/gui-ux.mdc` so agents stop claiming Phase 0 / “no GUI”.
+
+## 2026-07-28 · Cursor · Phase 4 · AWS up — Bedrock + adaptive thinking diagnostic
+
+**User request (verbatim or faithful summary):**
+> aws up now
+
+**What changed:**
+- No code change; no commit requested.
+
+**Agent response / status:**
+- **AWS creds:** STS `get-caller-identity` OK; Bedrock `list-inference-profiles` OK in `ap-southeast-2`.
+- **Engine live:** POST `/api/turn` (strong tier, `PROTEAN_STRONG_MODEL=au.anthropic.claude-sonnet-5`) → HTTP 200 streamed answer (~TTFT 2.8s / total 7.7s).
+- **Adaptive thinking (Claude Agent SDK on Bedrock):**
+  - `au.anthropic.claude-sonnet-5` with `thinking:{type:'adaptive'}` or `{type:'enabled',budgetTokens:4000}`: success but **0 thinking blocks** (text only).
+  - `au.anthropic.claude-opus-4-6-v1` with `thinking:{type:'adaptive'}`: thinking blocks stream (`content_block_start:thinking` + `thinking_delta`); finance prompt ~1415 thinking chars then text.
+  - `au.anthropic.claude-opus-4-7` with adaptive on trivial math: adaptive chose no thinking (expected).
+- **Implication:** SDK docs note adaptive thinking is Opus 4.6+. Current `.env` strong model remains Sonnet 5, so GUI Worklog “Thought process” stays empty until strong model is switched (or Sonnet thinking support is verified another way).
+
+**Next step:** Owner decision — switch `PROTEAN_STRONG_MODEL` to Opus 4.6+ for visible thinking in Worklog, or keep Sonnet 5 and accept empty thought-process UI.
+
+## 2026-07-28 · Cursor · Phase 4 · Claude Desktop workflow power — triage (no code)
+
+**User request (verbatim or faithful summary):**
+> Don't care about Thought process UI. Want Claude Desktop dynamic workflow power — break down the question, build a workflow, multi-step tools for best answer.
+
+**What changed:**
+- No code change; no commit requested.
+
+**Agent response / status:**
+- **Challenge applied:** Thought process / Opus model switch is a red herring for this ask.
+- **Root gap:** Intentional Phase 0 baseline still in place — `APP/CODE/src/gateway/adapters/claude.ts` `tools:[]`, `maxTurns:1` (`SINGLE_ANSWER_MAX_TURNS`); `TOOLSET_VERSION` `phase0-no-tools`.
+- **Already wired:** Event pipeline + Worklog map `tool_use` when tools exist; sandbox seam exists for later.
+- **ROADMAP:** Current Phase 4 = domain pack config switch (tool *declarations* only). Real multi-step tool workflows = Phase 5 acceptance (MCP registry, genuine business workflow, artefact + lineage).
+
+**Next step:** Owner decision — finish Phase 4 first, or explicitly pull Phase 5 forward (log that override).
+
+## 2026-07-28 · Cursor · Phase 4 · Dynamic agent loop — owner clarification (no code)
+
+**User request (verbatim or faithful summary):**
+> Strong clarification: does **not** want any set/predefined workflow. Wants dynamic — any question anytime, model breaks it down and works like Claude Desktop. If that can't be achieved, project is wasting time.
+
+**What changed:**
+- No code change; no commit requested.
+
+**Agent response / status:**
+- **Achievable.** This is Charter §1 / Architecture Agent Core (reason→tools→observe→continue) — not a scripted workflow engine.
+- **Not blocked by model/thinking.** Blocked by deliberate Phase 0 disable: `tools:[]`, `maxTurns:1` in Claude gateway adapter.
+- **Claude Agent SDK** already provides the dynamic loop when tools (Read/Grep/Glob/Bash) + `maxTurns>1` + permissions/sandbox are enabled — same substrate as Claude Desktop / Claude Code.
+- **Phase 5 ROADMAP** "example workflow" (TFM etc.) is an acceptance *proof*, not a product of fixed workflows. Product model = open-ended agentic loop for any question.
+- **Owner decision still needed:** pull enabling the dynamic agent loop forward now vs finish Phase 4 domain packs first.
+
+**Next step:** Owner call — enable dynamic agent loop now (Phase 5 pull-forward) or complete Phase 4 first.
+
+## 2026-07-28 · Cursor · Phase 4/5 pull-forward · Dynamic agent loop enabled
+
+**User request (verbatim or faithful summary):**
+> I'm saying go pull it forward — enable Claude-Desktop-style DYNAMIC agent loop (any question, not scripted workflows).
+
+**What changed:**
+- Config-driven `agentLoop`: defaults Read/Grep/Glob, `maxTurns=8`, `permissionMode=dontAsk` (ENV `PROTEAN_AGENT_*`).
+- Bash refused at `loadConfig` until sandbox proven.
+- `contracts/agentLoop.ts` — `ToolPolicy`; `AssembledTurn` + `GatewayRequest` carry `toolPolicy` + `workspaceDir`.
+- `assemble` derives `toolsetVersion` from policy (replaces `phase0-no-tools`).
+- Claude adapter: `buildClaudeQueryOptions` maps policy → SDK tools/allowedTools/maxTurns/permissionMode/cwd; maps `tool_progress` → activity-delta.
+- Rewrite path still no-tools (omit `toolPolicy` → `NO_TOOLS_POLICY`).
+- ROADMAP Phase 5 note: dynamic loop substrate pulled forward; Bash+MCP remain.
+- `.env.example` documented.
+
+**Agent response / status:**
+- **Proof:** vitest 75/75 pass.
+- **Live:** POST `/api/turn` streamed activity “Using tool: Grep” (×2) + thinking; answer cited `defaults.ts` `DEFAULT_AGENT_MAX_TURNS=8` and `gateway/adapters/claude.ts`; done model `au.anthropic.claude-sonnet-5`, ~16s total.
+- Engine restarted via `systemctl --user restart protean-engine`.
+- No commit (user did not ask).
+
+**Next step:** Phase 4 domain packs; Phase 5 Bash (sandbox-gated) + MCP registry + acceptance workflow proof.
+
+## 2026-07-28 · Cursor · Phase 4 · GUI layout + streaming UX fixes
+
+**User request (verbatim or faithful summary):**
+> wow the website is completly fucked lookwise and functionality
+> (screenshot: rail "waiting", huge white center, tiny thought process, no answer visible, empty preview after CSV ask)
+
+**What changed:**
+- **Layout:** Removed `app.css` ≤1180px grid override (`0 1fr 0`) that killed the preview column and bloated the chat pane; tablet layout now owned by `components.css` (C15).
+- **Rail status:** Conversation status no longer stuck on `waiting` until first text token — `assistantStart` / `activityStart` now set `streaming`.
+- **MessageList:** No longer hides `message.content` when worklog exists but no text segments; stage/file chips shown; honest empty-answer note when applicable.
+- **useTurn:** SSE close without `done` now surfaces `turnError` (was stuck waiting forever behind Authentik/proxy).
+- **Worklog:** Labels "Working" / "Worked"; auto-collapse when done so answer is primary.
+- **Visual:** Assistant body surface card; think detail readable (`fz-13` + scroll); empty state flex-centres; `overflow-x` clipped (info `.pop` was expanding `scrollWidth`).
+
+**Agent response / status:**
+- **Proof:** GUI `tsc` + Vite build OK; browser at `127.0.0.1:5173` — `scrollW=vw`, rail shows "2 msg", answer text visible in assistant card, worklog "Worked".
+- Empty preview on CSV Q&A remains correct unless model emits artefact tags.
+- No commit (user did not ask).
+
+**Next step:** Browser-verify on Authentik/proxy path; confirm artefact/preview when model emits tags on file Q&A.
+
+## 2026-07-28 · Cursor · Phase 4 · Stop button — seize LLM mid-turn
+
+**User request (verbatim or faithful summary):**
+> add a stop button that seizes the LLM immediately.
+
+**What changed:**
+- **GUI:** Stop (■) replaces Send while streaming; `AbortController` aborts fetch and cancels SSE reader; `turnStopped` state (idle, partial kept, "Stopped — model run seized.").
+- **Engine:** `handleTurn` `AbortController` on unfinished response close / req aborted → `abortSignal` through `runTurn` → `AssembledTurn` → `GatewayRequest` → Claude SDK `options.abortController`.
+- **`TURN_STOPPED_MESSAGE`** constant; stopped turns append partial/`[stopped]` to session history; not treated as hard provider failure in logs.
+- **`fieldHints.stopTurn`**; `.send.stop` styles.
+
+**Agent response / status:**
+- **Proof:** vitest 76/76; GUI build OK. Abort fetch mid-turn → session `stop-prove-1.jsonl` assistant `"[stopped]"`; client `AbortError` ~2.5s.
+- No commit (user did not ask).
+
+**Next step:** Browser-verify Stop on Authentik/proxy path; confirm partial answer + worklog state after seize.
+
+## 2026-07-28 · Cursor · Phase 4 · Bedrock cache + per-turn cost/token telemetry
+
+**User request (verbatim or faithful summary):**
+> Bedrock should cache to save $; use API for that; calculate token in/out and show cost per request.
+
+**What changed:**
+- **Challenge applied:** Bedrock prompt-cache already returned `cacheReadTokens`/`cacheCreationTokens` + `total_cost_usd` via Claude Agent SDK (lineage evidence e.g. cacheRead 16236). Gap was GUI/telemetry not surfacing provider numbers — only Watcher "cache miss".
+- **GUI:** `TurnDone` includes `usage` + `costUsd` from SSE `done` (already emitted by engine); topbar + message cite show cost $, in/out tokens, prompt$ (Bedrock read/write), answer hit/miss (Watcher); `formatTurnStats` helpers; `fieldHints.turnStats` clarified.
+- **Telemetry:** `TelemetryRow` records cacheRead/Creation tokens; `turn.done` log includes usage/cost.
+- **Claude adapter:** `systemPrompt` static/dynamic split with `SYSTEM_PROMPT_DYNAMIC_BOUNDARY` for prompt-cache eligibility.
+
+**Agent response / status:**
+- **Proof:** vitest 77/77; GUI build OK.
+- No commit (user did not ask).
+
+**Next step:** Browser-verify cost/token/cite display on live turns; confirm cache hit rate improves on repeat prompts with stable static prefix.
+
+---
+
+## 2026-07-28 — RideAI operator dashboard + studio re-home (Authentik)
+
+**User request:** Where is the original Protean workflow system? Link it. Create `dashboard.rideai.com.au` as an admin hub for all major hosted sites; wrap access under Authentik.
+
+**What changed:**
+- Original Agentic Workflow Studio re-homed to **https://studio.rideai.com.au/** (HTTPS + Authentik → `agentic_workflow_web:3000` / `agentic_workflow_api:3001`). Previously unhooked bare `http://agents.rideai.com.au:3000`.
+- New static hub **https://dashboard.rideai.com.au/** (`ghoststack-rag/dashboard/`, Caddy `file_server`, Authentik).
+- DNS A records: `dashboard` + `studio` → `15.134.161.85` (Route53).
+- Authentik apps/providers: `dashboard-provider`, `studio-provider` on embedded outpost; Protean cookie domain set to `.rideai.com.au`.
+- GhostDASH browser surface + Ghost Chat / Prod Chat paths now Authentik-gated (API/MCP/webhook bypasses unchanged).
+- Caddy backup: `Caddyfile.bak.dashboard-*`. Ops note: `ghoststack-rag/docs/RIDEAI_DASHBOARD.md`.
+- Studio web published on `127.0.0.1:3000` to prevent auth bypass.
+
+**Sites on the dashboard:** Protean, Studio, Ghoststack, Ghost Chat, Prod Chat, GhostDASH, n8n, Authentik.
+
+**Agent response / status:** Unauthenticated probes return 302 → `auth.rideai.com.au` for dashboard, studio, ghoststack, ghost_chatui, ghostdash, workflow, protean.
+
+**Next step:** Owner login smoke-test each card from the dashboard; optionally close any remaining public :3000 exposure on other NICs.
+
+---
+
+## 2026-07-28 — Fix Authentik Redirect URI for dashboard/studio
+
+**User request:** dashboard.rideai.com.au throws Authentik "Redirect URI Error".
+
+**Root cause:** When cloning providers from protean-provider, `_redirect_uris` still pointed at `https://protean.rideai.com.au/...`, so authorize for dashboard/studio failed strict match.
+
+**Fix:** Set redirect URIs on `dashboard-provider` and `studio-provider` to their own hosts (`.../outpost.goauthentik.io/callback?X-authentik-auth-callback=true` + `...?X-authentik-auth-callback=true`); refreshed embedded outpost.
+
+**Status:** request redirect_uri now matches provider allow-list. User should retry login (hard-refresh / new tab).
+
+## 2026-07-29 — Studio n8n-like Parameters UX + File→LLM demo
+
+**User request:** Make Studio's Operation Hub match n8n's Parameters usability (node-definition-driven, cascading fields), fix console contrast, ship file-upload → LLM analysis workflow on studio.rideai.com.au.
+
+**Changes:**
+
+### Phase 1 — CSS tokens + readable light panels
+- Added `--console-*` token set to `workflowEditorV2.css` `:root` (light theme) and `[data-workflow-theme="dark"]` (dark theme overrides).
+- Wired tokens into `.operation-data-column`, `.operation-lane-tabs`, `.operation-lane-tab`, `.operation-config-field > span`, `.operation-config-field input/select/textarea`, `.operation-config-field em`, `.operation-commit-button` — solid blue `Apply` button in both themes.
+
+### Phase 2 — resolveParameterFields + visibleWhen
+- Added `visibleWhen?: Record<string, string[]>` to `ConfigFieldDefinition` in `nodeTypeRegistry.ts`.
+- Implemented `resolveParameterFields(fields, config)` — exported from `workflow-core`.
+- Wired into `OperationHubV2.tsx`: fields memo now runs `resolveParameterFields` on every config change → cascading field visibility.
+- Migrated `llm` node to use `visibleWhen`: `region` only for bedrock, `baseUrl` hidden for bedrock, new `input_mode` select, `file_content_path` visible only when `input_mode=file`.
+- Migrated `aws_ses` node: all operation-specific fields gated by `visibleWhen: { operation: [...] }`.
+
+### Phase 3a — File node type
+- Added `file` to `NodeTypeSchema` in `workflow.schema.ts`.
+- Added `FileNodeConfigSchema` to `WorkflowNodeConfigSchemaByType`.
+- Added `file` node definition to `defaultNodeTypeDefinitions` in `nodeTypeRegistry.ts` with n8n-style `resource`, `operation`, `url`, `upstream_key`, `input_field` fields and `visibleWhen` per operation.
+- Created `fileExecutor.ts` with three operations: `uploadBinary`, `uploadFromUrl`, `readText`.
+- Registered `file` executor in `executorRegistry.ts`.
+- Added `file: "File"` label to `editor.store.ts`.
+
+### Phase 3b — LLM accepts upstream file content
+- Extended `sharedLlmExecutor.ts`: when `input_mode=file`, reads text from `file_content_path` (JSONPath into upstream state or raw input) and prepends `[File content]\n` before the user message.
+- Added `resolveJsonPathFromObject` helper.
+
+### Phase 3c — Demo workflow + examples API
+- Created `builtinExamples.ts` with hardcoded `File → LLM Analysis` workflow (start → file → llm/bedrock → respond_to_webhook).
+- Added `GET /api/examples` and `POST /api/examples/:filename/load` endpoints to `server.ts`.
+- Demo workflow loaded into `admin@studio.local` workspace: `workflow.file-to-llm-demo.v1`.
+- Images rebuilt; API + web containers restarted.
+
+**Status:** All 5 todos complete. CSS readable, parameters cascade per `visibleWhen`, `file` node in palette, demo workflow available in Studio at https://studio.rideai.com.au.
+
+## 2026-07-29 — LLM node: model selector dropdown
+
+**User request:** The LLM node showed "openai · gpt-4o-mini" with no way to change the model — needed a dropdown.
+
+**Root cause:** `model` field was `kind: "text"` (freeform) in `nodeTypeRegistry.ts`. The existing `resolveParameterFields` / `visibleWhen` cascade was already in place but unused for the model field.
+
+**Changes:**
+- `packages/workflow-core/src/registry/nodeTypeRegistry.ts`: replaced single `kind: "text"` model field with four `kind: "select"` fields (one per provider), each gated by `visibleWhen: { provider: [...] }`. Applied to both `llm` and `llm_summary` node definitions. Also added `visibleWhen` to `llm_summary`'s `region`/`baseUrl` fields which previously always showed. Updated `defaultConfig` for both nodes to use real model IDs (drop `"model.default"` sentinel).
+- `apps/web/src/features/workflow-editor-v2/components/OperationHubV2.tsx`: added `bedrock` entry to `LLM_PROVIDER_DEFAULTS`; updated `gemini` default to `gemini-2.0-flash`.
+
+**Bedrock model IDs used:** `au.*` prefix (APAC in-region), confirmed from `/var/dcf/protean/.env` which notes these as ACTIVE via `aws bedrock list-inference-profiles`.
+
+**Status:** Web container rebuilt and restarted. Model field now shows a provider-specific dropdown that updates when Provider is changed.
+
+## 2026-07-29 — Fix: Docker build cache bypassed, correct project rebuilt
+
+**User report:** Model dropdown still not visible after previous "rebuild".
+
+**Root cause:** Two separate deployments on this server:
+1. `/opt/agentic-workflow-studio` — project name `agentic_workflow_prod`, container `agentic_workflow_web:3000`
+2. `/opt/agentic-workflow-studio-private/current` — project name `agentic_workflow_studio_private`
+
+Caddy routes `studio.rideai.com.au` to `agentic_workflow_web:3000` (deployment #1). Previous rebuild attempts targeted deployment #2 and also used Docker layer cache, so the compiled JS never included the `visibleWhen`/model-dropdown changes.
+
+**Fix:** `docker compose build --no-cache web` on deployment #1 (`/opt/agentic-workflow-studio`), then `up -d web` with the correct `--env-file shared/.env.docker`.
+
+**Browser-verified:** Provider dropdown shows OpenAI / Gemini / Anthropic / Bedrock. Switching provider dynamically updates the Model dropdown (e.g. Anthropic → Claude Opus 4.5, Claude Sonnet 4.5, Claude 3.5 Sonnet, Claude 3.5 Haiku).
+
+## 2026-07-29 — Operation Hub: UX polish + collapsible columns
+
+**User request:** Can't change model / test; UI hard to read; want to minimise left/right panels on smaller screens.
+
+**Root causes identified:**
+1. `useEffect` in `OperationHubV2` auto-switched Settings tab to "chat" for LLM nodes, hiding the Parameters (dropdowns) tab.
+2. `operation-settings-fields--form` had no `gap`, so parameter fields were flush with each other.
+3. `select` elements had no custom arrow, no font-size upgrade, 1px border — hard to distinguish from plain text.
+4. No mechanism to reduce the 3-column equal-width layout on narrow screens.
+
+**Changes — `OperationHubV2.tsx`:**
+- Removed the `useEffect` that forced `settingsLaneTab = "chat"` on LLM nodes. Parameters is now the default.
+- Added `inputCollapsed / outputCollapsed` boolean state.
+- Added "Collapse/Expand Input column" and "Collapse/Expand Output column" buttons (chevron icons) to the ROW 1 and ROW 3 panel headers.
+- Conditionally renders column body content based on collapsed state.
+- Grid class gets `.input-collapsed` / `.output-collapsed` modifier classes.
+
+**Changes — `workflowEditorV2.css`:**
+- `.operation-hub-grid` collapsed variants: `input-collapsed` → `52px | 2fr | 1fr`; `output-collapsed` → `1fr | 2fr | 52px`.
+- `.operation-settings-fields--form` now uses `display: grid; gap: 14px; align-content: start`.
+- `.operation-config-field select` gains `-webkit-appearance: none`, custom SVG chevron background, `font-size: 13px`, `font-weight: 500`.
+- `.operation-credential-connection` border upgraded to 1.5px, lighter blue tint background.
+- Credential action buttons: higher contrast border, hover glow ring.
+
+**Browser-verified:** Parameters tab opens by default showing Provider + Model dropdowns. Collapse Input button shrinks ROW 1 to ~52px, giving ROW 2 full width. Dropdowns have visible custom arrow and clear label contrast.
+
+---
+## 2026-07-29 — Chat tab error message oversized block fix
+
+**User request:** Screenshot showed "openai requires a credential" error in the Chat tab rendering as a massive red block filling the entire panel instead of a compact error banner.
+
+**Root cause:** The `.operation-llm-chat-tab` grid has 5 declared rows (`auto auto minmax(0, 1fr) auto auto`). When an error message `<p>` is rendered between the thread and the composer, it falls into the `1fr` row slot (the thread's slot), causing it to stretch to fill all available space.
+
+**Changes:**
+1. `apps/web/src/features/workflow-editor-v2/components/LlmNodeChatTabV2.tsx` — Added `operation-llm-chat-error` class to the error `<p>` element so it can be targeted specifically.
+2. `apps/web/src/features/workflow-editor-v2/workflowEditorV2.css` — Added `.operation-llm-chat-error { align-self: start; height: auto !important; min-height: 0 !important; }` to pin the error to its natural height. Added dark-theme override for readable light-on-dark error colours inside the dark chat tab.
+
+**Verification:** CDP confirmed error element is 33px height (not stretched), text correctly shows "anthropic requires a credential.", colour is `rgb(254, 202, 202)` (readable light pink on dark red tint). Web container rebuilt `--no-cache` and serving HTTP 200.
+
+---
+
+## 2026-07-30 — Restore dashboard.rideai.com.au + RideAI HTTPS edge
+
+**User request:** What is the dashboard site? `dashboard.rideai.com.au` does not work. Then: implement the restore plan.
+
+**Root cause:** Live `/var/llamaindex/ghoststack-rag/Caddyfile` was deleted (`git status: D Caddyfile`). Caddy bind-mount failed → container exited → ports 80/443 connection refused for all `*.rideai.com.au` HTTPS sites. `dashboard/` static hub was also empty.
+
+**What changed:**
+- Restored `Caddyfile` from `Caddyfile.bak.dashboard-20260728163049` and restarted Caddy.
+- Re-added `dashboard.rideai.com.au` (Authentik + `file_server` `/srv/dashboard`) and `studio.rideai.com.au` (Authentik → `agentic_workflow_web:3000` / `agentic_workflow_api:3001`).
+- Recreated `dashboard/{index.html,styles.css,app.js}` site catalogue.
+- Confirmed/fixed Authentik `dashboard-provider` and `studio-provider` redirect URIs (proper `RedirectURI` objects with `matching_mode`).
+- Updated `ghoststack-rag/docs/RIDEAI_DASHBOARD.md` with recovery note.
+
+**Browser-verified:** Unauth → Authentik login → hub cards (Protean, Studio, Ghoststack, Ghost Chat, Prod Chat, GhostDASH, n8n, Authentik). Studio card opens Agentic Workflow Studio. protean/ghoststack/auth/workflow return Authentik 302 (edge up).
+
+**Agent response / status:** Dashboard and HTTPS edge restored.
+
+
+## 2026-07-31 12:26 UTC — RD Running Ledger RY2024 numbers audit
+
+**User request:** Proceed with attached `docs/RE WSL PEV - RD Running Ledger RY2024.xlsx`.
+
+**Change / work:**
+- Converted Prod FY24 sheet → clean CSV (column clamp for phantom Excel cells).
+- Deterministic audit (authoritative): Qty×Unit PASS; category subtotals PASS and equal banner **464,156.11**; **REVIEW** — orphan lines **RE Battery Bags (2,000)** + **Blankets (6,000)** = **8,000** not in banner; Heat Sensor Gun blank.
+- Studio workflow **Numbers Audit Report (GUI)** confirmed present (Open Workflow list) and openable; GUI Run paste path still awkward (Run console vs Run panel). Report saved at `docs/ops/RD_LEDGER_RY2024_NUMBERS_AUDIT_REPORT.txt` (+ Studio `docs/ops/` copy).
+
+**Response:** Delivered deterministic ledger findings + re-test steps for Jeff.
+
+## 2026-07-31 · Cursor · Phase 4 DONE — multi-domain pack proof
+
+**User request (verbatim or faithful summary):**
+> phase 4 please go
+(After worktree rescue: stash server-ahead CODE, restore 64 deleted tracked files, recreate `agentLoop.ts`, `.env`, AWS re-auth.)
+
+**What changed:**
+- Worktree rescue completed earlier in session (16 M preserved; 64 D restored; `contracts/agentLoop.ts` recreated; vitest green; engine/GUI up).
+- **Assemble:** `renderPackSystemPrompt` injects pack vocabulary + declared tools + output templates into the stable system-prompt prefix (Law 2 — packs remain data-only; switch changes lineage).
+- **New pack:** `APP/CODE/src/domains/medical/pack.json` (GP clinic associate) — config only.
+- **GUI:** removed finance/generic hardcodes in Layout/Composer/ConversationsRail so a third pack displays without code forks.
+- ROADMAP Phase 4 ✅ / Phase 5 ← WE ARE HERE; README status synced; domains README updated.
+
+**Agent response / status:**
+- **Proof (vitest):** 74/74 pass.
+- **Proof (live Bedrock, `au.anthropic.claude-sonnet-5`):** three POST `/api/turn` sessions —
+  - `phase4-proof-finance` → lineage has CFO/boardMemo/BAS/EOFY + vocab/tools/templates; model answered BLUF.
+  - `phase4-proof-generic` → business associate + brief template; PASS.
+  - `phase4-proof-medical` → triage/clinicBrief/MBS + medical vocab; PASS (no diagnosis).
+- `/api/domains` lists finance, generic, medical.
+- No commit (user did not ask).
+
+**Next step:** Phase 5 — sandbox Bash + MCP tool registry + real multi-step business workflow acceptance.

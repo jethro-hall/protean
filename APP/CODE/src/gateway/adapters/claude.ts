@@ -5,18 +5,22 @@
  * (ANTHROPIC_API_KEY) — the SDK subprocess picks the route from env.
  *
  * API surface verified against installed @anthropic-ai/claude-agent-sdk 0.3.220
- * type declarations on 2026-07-27 (sdk.d.ts): query({ prompt, options }),
- * Options.{model,systemPrompt,tools,maxTurns,includePartialMessages,persistSession},
- * SDKPartialAssistantMessage stream_event, SDKResultMessage success/error.
+ * type declarations: query({ prompt, options }),
+ * Options.{model,systemPrompt,tools,allowedTools,maxTurns,permissionMode,cwd,
+ * includePartialMessages,persistSession,thinking}, stream + tool_progress.
  */
-import { query, type Options, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import {
+  query,
+  SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
+  type Options,
+  type SDKMessage,
+} from '@anthropic-ai/claude-agent-sdk';
+import { TURN_STOPPED_MESSAGE } from '../../config/defaults.js';
+import { NO_TOOLS_POLICY, type ToolPolicy } from '../../contracts/agentLoop.js';
 import type { GatewayEvent, GatewayRequest } from '../../contracts/gateway.js';
 import type { ChatMessage, TokenUsage } from '../../contracts/turn.js';
 import type { LayerLogger } from '../../logging/logger.js';
 import type { LlmGateway } from '../LlmGateway.js';
-
-/** One answering turn, no tool loop (Phase 0 baseline; tools arrive with the registry phase). */
-const SINGLE_ANSWER_MAX_TURNS = 1;
 
 /**
  * Adaptive thinking: the model decides when/how deeply to reason, and the raw
@@ -28,6 +32,8 @@ const THINKING_CONFIG = { type: 'adaptive' } as const;
 const ACTIVITY_LABELS = {
   thinking: 'Thought process',
   tool: (name: string): string => `Using tool: ${name}`,
+  toolProgress: (name: string, seconds: number): string =>
+    `${name} still running (${seconds.toFixed(1)}s)`,
 } as const;
 
 /**
@@ -56,13 +62,65 @@ function usageFromResult(usage: {
   };
 }
 
-/** Tracks which stream content-block indexes are activities (thinking/tool blocks). */
+/** Tracks stream content-block indexes and tool_use ids for activity events. */
 export interface StreamBlockState {
   activityKindByIndex: Map<number, 'thinking' | 'tool'>;
+  activityIdByToolUseId: Map<string, string>;
 }
 
 export function createStreamBlockState(): StreamBlockState {
-  return { activityKindByIndex: new Map() };
+  return { activityKindByIndex: new Map(), activityIdByToolUseId: new Map() };
+}
+
+export function resolveToolPolicy(request: GatewayRequest): ToolPolicy {
+  return request.toolPolicy ?? NO_TOOLS_POLICY;
+}
+
+/** Link a parent AbortSignal to a fresh AbortController for the SDK. */
+export function abortControllerFromSignal(signal: AbortSignal | undefined): AbortController {
+  const controller = new AbortController();
+  if (signal === undefined) return controller;
+  if (signal.aborted) {
+    controller.abort();
+    return controller;
+  }
+  signal.addEventListener('abort', () => controller.abort(), { once: true });
+  return controller;
+}
+
+/** Map Gateway system prompt → SDK Options.systemPrompt (cache boundary when split). */
+export function resolveSdkSystemPrompt(systemPrompt: GatewayRequest['systemPrompt']): Options['systemPrompt'] {
+  if (typeof systemPrompt === 'string') return systemPrompt;
+  // Blocks before SYSTEM_PROMPT_DYNAMIC_BOUNDARY are eligible for Bedrock/Anthropic
+  // prompt-cache across turns (sdk.d.ts Options.systemPrompt string[] form).
+  return [systemPrompt.staticPrefix, SYSTEM_PROMPT_DYNAMIC_BOUNDARY, systemPrompt.dynamicSuffix];
+}
+
+/** Map Protean tool policy → Claude Agent SDK Options fields (adapter-only). */
+export function buildClaudeQueryOptions(request: GatewayRequest): Options {
+  const policy = resolveToolPolicy(request);
+  const options: Options = {
+    model: request.model,
+    systemPrompt: resolveSdkSystemPrompt(request.systemPrompt),
+    tools: [...policy.availableTools],
+    allowedTools: [...policy.allowedTools],
+    maxTurns: policy.maxTurns,
+    permissionMode: policy.permissionMode,
+    includePartialMessages: true,
+    persistSession: false,
+    thinking: THINKING_CONFIG,
+    abortController: abortControllerFromSignal(request.abortSignal),
+  };
+  if (request.workspaceDir !== undefined && request.workspaceDir !== '') {
+    options.cwd = request.workspaceDir;
+  }
+  return options;
+}
+
+function isAbortError(cause: unknown): boolean {
+  if (cause instanceof Error && cause.name === 'AbortError') return true;
+  const message = cause instanceof Error ? cause.message : String(cause);
+  return /abort/i.test(message);
 }
 
 /**
@@ -75,6 +133,18 @@ export function gatewayEventsFromSdkMessage(
   turnId: string,
   state: StreamBlockState,
 ): GatewayEvent[] {
+  if (message.type === 'tool_progress') {
+    const activityId = state.activityIdByToolUseId.get(message.tool_use_id);
+    if (activityId === undefined) return [];
+    return [
+      {
+        type: 'activity-delta',
+        activityId,
+        text: ACTIVITY_LABELS.toolProgress(message.tool_name, message.elapsed_time_seconds),
+      },
+    ];
+  }
+
   if (message.type !== 'stream_event') return [];
   const event = message.event;
 
@@ -92,11 +162,13 @@ export function gatewayEventsFromSdkMessage(
       ];
     }
     if (block.type === 'tool_use') {
+      const activityId = `${turnId}-b${event.index}`;
       state.activityKindByIndex.set(event.index, 'tool');
+      state.activityIdByToolUseId.set(block.id, activityId);
       return [
         {
           type: 'activity-start',
-          activityId: `${turnId}-b${event.index}`,
+          activityId,
           kind: 'tool',
           label: ACTIVITY_LABELS.tool(block.name),
         },
@@ -125,24 +197,32 @@ export function createClaudeGateway(log: LayerLogger): LlmGateway {
   return {
     provider: 'claude',
     async *streamTurn(request: GatewayRequest): AsyncIterable<GatewayEvent> {
-      const options: Options = {
-        model: request.model,
-        systemPrompt: request.systemPrompt,
-        tools: [],
-        maxTurns: SINGLE_ANSWER_MAX_TURNS,
-        includePartialMessages: true,
-        persistSession: false,
-        thinking: THINKING_CONFIG,
-      };
+      const policy = resolveToolPolicy(request);
+      const options = buildClaudeQueryOptions(request);
       log.debug('gateway.call', `Calling Claude via Agent SDK, model ${request.model}`, {
         turnId: request.turnId,
-        data: { messageCount: request.messages.length },
+        data: {
+          messageCount: request.messages.length,
+          maxTurns: policy.maxTurns,
+          tools: policy.availableTools,
+          permissionMode: policy.permissionMode,
+          cwd: request.workspaceDir ?? null,
+        },
       });
 
       try {
+        if (request.abortSignal?.aborted) {
+          yield { type: 'error', message: TURN_STOPPED_MESSAGE };
+          return;
+        }
         const stream = query({ prompt: renderPromptFromMessages(request.messages), options });
         const blockState = createStreamBlockState();
         for await (const message of stream) {
+          if (request.abortSignal?.aborted) {
+            // Seize: abortController already fired; stop yielding and surface stop.
+            yield { type: 'error', message: TURN_STOPPED_MESSAGE };
+            return;
+          }
           yield* gatewayEventsFromSdkMessage(message, request.turnId, blockState);
           if (message.type === 'result') {
             if (message.subtype === 'success') {
@@ -160,8 +240,17 @@ export function createClaudeGateway(log: LayerLogger): LlmGateway {
             return;
           }
         }
+        if (request.abortSignal?.aborted) {
+          yield { type: 'error', message: TURN_STOPPED_MESSAGE };
+          return;
+        }
         yield { type: 'error', message: 'Provider stream ended without a result message' };
       } catch (cause) {
+        if (request.abortSignal?.aborted || isAbortError(cause)) {
+          log.info('gateway.stopped', TURN_STOPPED_MESSAGE, { turnId: request.turnId });
+          yield { type: 'error', message: TURN_STOPPED_MESSAGE };
+          return;
+        }
         const message = cause instanceof Error ? cause.message : String(cause);
         log.error('gateway.error', `Claude adapter failed: ${message}`, {
           turnId: request.turnId,

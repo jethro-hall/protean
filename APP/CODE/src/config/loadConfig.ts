@@ -1,6 +1,15 @@
 import { join } from 'node:path';
+import {
+  permissionModeSchema,
+  toolPolicySchema,
+  type ToolPolicy,
+} from '../contracts/agentLoop.js';
 import type { ModelTier } from '../contracts/turn.js';
 import {
+  DEFAULT_AGENT_ALLOWED_TOOLS,
+  DEFAULT_AGENT_AVAILABLE_TOOLS,
+  DEFAULT_AGENT_MAX_TURNS,
+  DEFAULT_AGENT_PERMISSION_MODE,
   DEFAULT_CACHE_MAX_ENTRIES,
   DEFAULT_CACHE_TTL_SECONDS,
   DEFAULT_LOG_LEVEL,
@@ -8,6 +17,7 @@ import {
   DEFAULT_REWRITE_BLOAT_TOKENS,
   DEFAULT_TURN_TOKEN_BUDGET,
   ENV,
+  toolsetVersionFromPolicy,
 } from './defaults.js';
 import { codeDir, loadDotEnv, repoRoot } from './env.js';
 
@@ -25,6 +35,8 @@ export interface ProteanConfig {
     rewriteEnabled: boolean;
     rewriteBloatTokens: number;
   };
+  /** Open-ended dynamic agent loop (tools + multi-turn). Not a scripted workflow. */
+  agentLoop: ToolPolicy & { toolsetVersion: string };
   provider: {
     useBedrock: boolean;
     awsRegion: string | undefined;
@@ -63,6 +75,42 @@ function logLevelFromEnv(): LogLevel {
   return raw as LogLevel;
 }
 
+function csvToolsFromEnv(name: string, fallback: readonly string[]): string[] {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return [...fallback];
+  const tools = raw
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (tools.length === 0) {
+    throw new Error(`Env ${name} listed no tools — use a comma-separated list or unset for defaults`);
+  }
+  return tools;
+}
+
+function agentLoopFromEnv(): ToolPolicy & { toolsetVersion: string } {
+  const permissionRaw = process.env[ENV.agentPermissionMode] ?? DEFAULT_AGENT_PERMISSION_MODE;
+  const permissionParsed = permissionModeSchema.safeParse(permissionRaw);
+  if (!permissionParsed.success) {
+    throw new Error(
+      `Env ${ENV.agentPermissionMode} must be a valid permission mode, got "${permissionRaw}"`,
+    );
+  }
+  const policy = toolPolicySchema.parse({
+    availableTools: csvToolsFromEnv(ENV.agentAvailableTools, DEFAULT_AGENT_AVAILABLE_TOOLS),
+    allowedTools: csvToolsFromEnv(ENV.agentAllowedTools, DEFAULT_AGENT_ALLOWED_TOOLS),
+    maxTurns: intFromEnv(ENV.agentMaxTurns, DEFAULT_AGENT_MAX_TURNS),
+    permissionMode: permissionParsed.data,
+  });
+  if (policy.availableTools.includes('Bash')) {
+    throw new Error(
+      `${ENV.agentAvailableTools} includes Bash — refused until sandbox is proven on this host ` +
+        '(set Read,Grep,Glob only; see BUILD_LOG 2026-07-28)',
+    );
+  }
+  return { ...policy, toolsetVersion: toolsetVersionFromPolicy(policy) };
+}
+
 /** Resolve the full runtime config from env (+ repo-root .env). Fails loudly, never guesses. */
 export function loadConfig(): ProteanConfig {
   loadDotEnv();
@@ -84,6 +132,7 @@ export function loadConfig(): ProteanConfig {
       rewriteEnabled: process.env[ENV.rewriteEnabled] === '1',
       rewriteBloatTokens: intFromEnv(ENV.rewriteBloatTokens, DEFAULT_REWRITE_BLOAT_TOKENS),
     },
+    agentLoop: agentLoopFromEnv(),
     models: {
       ...(strongModel !== undefined ? { strong: strongModel } : {}),
       ...(fastModel !== undefined ? { fast: fastModel } : {}),

@@ -7,8 +7,8 @@ import type { AgentCore, AgentEvent } from '../AgentCore.js';
 /**
  * Claude-SDK-shaped AgentCore: presents the Claude Agent SDK's loop semantics
  * behind the AgentCore interface, with all provider I/O delegated to the
- * LlmGateway (AgentCore → Gateway → Claude Agent SDK). Phase 0 runs the
- * single-answer path; tools/subagents plug in here in the tool-registry phase.
+ * LlmGateway (AgentCore → Gateway → Claude Agent SDK). Carries the open-ended
+ * tool policy (any question → tools → answer); MCP connectors arrive later.
  */
 export function createClaudeSdkAgentCore(gateway: LlmGateway, log: LayerLogger): AgentCore {
   return {
@@ -17,13 +17,25 @@ export function createClaudeSdkAgentCore(gateway: LlmGateway, log: LayerLogger):
       const request: GatewayRequest = {
         turnId: turn.turnId,
         model: turn.model,
-        systemPrompt: turn.systemPrompt,
+        systemPrompt: {
+          staticPrefix: turn.systemPromptStatic,
+          dynamicSuffix: turn.systemPromptDynamic,
+        },
         messages: turn.messages,
+        toolPolicy: turn.toolPolicy,
+        workspaceDir: turn.workspaceDir,
+        ...(turn.abortSignal !== undefined ? { abortSignal: turn.abortSignal } : {}),
       };
       log.info('agent.turn.start', `Agent turn via ${gateway.provider} gateway, tier ${turn.tier}`, {
         turnId: turn.turnId,
         sessionId: turn.sessionId,
-        data: { model: turn.model, domainId: turn.domainId },
+        data: {
+          model: turn.model,
+          domainId: turn.domainId,
+          toolsetVersion: turn.toolsetVersion,
+          maxTurns: turn.toolPolicy.maxTurns,
+          tools: turn.toolPolicy.availableTools,
+        },
       });
       yield* gateway.streamTurn(request);
     },

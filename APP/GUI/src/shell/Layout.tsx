@@ -62,9 +62,7 @@ export function Layout() {
         <span className="brand">
           <span className="mark" aria-hidden />
           Protean{' '}
-          <small>
-            · {state.settings.domainId === 'finance' ? 'Finance' : 'Generic'}
-          </small>
+          <small>· {state.settings.domainId}</small>
         </span>
         <span className="spacer" />
         <TopbarTelemetry />

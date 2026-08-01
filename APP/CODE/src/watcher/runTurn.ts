@@ -1,5 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import type { AgentCore } from '../agent/AgentCore.js';
+import { TURN_STOPPED_MESSAGE } from '../config/defaults.js';
+import type { ToolPolicy } from '../contracts/agentLoop.js';
 import type { DomainPack } from '../contracts/domainPack.js';
 import type {
   ChatMessage,
@@ -48,6 +50,12 @@ export interface TurnPipelineDeps {
   sessions?: SessionStore;
   model: string;
   watcher: WatcherOptions;
+  /** Dynamic agent-loop policy (tools + maxTurns). Required for answering turns. */
+  toolPolicy: ToolPolicy;
+  /** Workspace root for file tools. */
+  workspaceDir: string;
+  /** Client Stop / disconnect — seize the model run. */
+  abortSignal?: AbortSignal;
   log: LayerLogger;
   promptHistoryDir: string;
   tokenTelemetryDir: string;
@@ -66,7 +74,17 @@ export async function* runTurn(
   const startedAt = new Date().toISOString();
   const t0 = performance.now();
 
-  const assembled = assembleTurn({ request, pack, history, model });
+  const assembled = assembleTurn({
+    request,
+    pack,
+    history,
+    model,
+    toolPolicy: deps.toolPolicy,
+    workspaceDir: deps.workspaceDir,
+  });
+  if (deps.abortSignal !== undefined) {
+    assembled.abortSignal = deps.abortSignal;
+  }
   const assembleMs = roundMs(performance.now() - t0);
   // what actually entered the context (input + attachment blocks) — this is what history records
   const userContent = assembled.messages.at(-1)?.content ?? assembled.input;
@@ -247,18 +265,34 @@ export async function* runTurn(
 
   timings.totalMs = roundMs(performance.now() - t0);
 
-  if (failed === null && deps.sessions !== undefined) {
+  const stopped = failed === TURN_STOPPED_MESSAGE || deps.abortSignal?.aborted === true;
+  if (stopped) {
+    failed = TURN_STOPPED_MESSAGE;
+  }
+
+  if ((failed === null || stopped) && deps.sessions !== undefined) {
     // the Watcher owns history (ARCHITECTURE §3): raw output kept so follow-ups can edit
-    // artefacts; userContent includes attachment blocks so files stay in context across turns
+    // artefacts; userContent includes attachment blocks so files stay in context across turns.
+    // Stopped turns keep partial output so the next message still has context.
     deps.sessions.append(assembled.sessionId, { role: 'user', content: userContent });
-    deps.sessions.append(assembled.sessionId, { role: 'assistant', content: output });
+    deps.sessions.append(assembled.sessionId, {
+      role: 'assistant',
+      content: stopped && output === '' ? '[stopped]' : output,
+    });
   }
 
   if (failed !== null) {
-    log.error('watcher.turn.failed', `Turn failed after ${timings.totalMs} ms: ${failed}`, {
-      turnId: assembled.turnId,
-      sessionId: assembled.sessionId,
-    });
+    if (stopped) {
+      log.info('watcher.turn.stopped', `Turn stopped after ${timings.totalMs} ms`, {
+        turnId: assembled.turnId,
+        sessionId: assembled.sessionId,
+      });
+    } else {
+      log.error('watcher.turn.failed', `Turn failed after ${timings.totalMs} ms: ${failed}`, {
+        turnId: assembled.turnId,
+        sessionId: assembled.sessionId,
+      });
+    }
     yield { type: 'error', turnId: assembled.turnId, message: failed };
     return;
   }
@@ -293,12 +327,22 @@ export async function* runTurn(
     totalMs: timings.totalMs,
     inputTokens: usage?.inputTokens ?? null,
     outputTokens: usage?.outputTokens ?? null,
+    cacheReadTokens: usage?.cacheReadTokens ?? null,
+    cacheCreationTokens: usage?.cacheCreationTokens ?? null,
     costUsd,
   });
   log.info(
     'watcher.turn.done',
-    `Turn complete in ${timings.totalMs} ms (TTFT ${timings.ttftMs ?? 'n/a'} ms, cache ${cached !== undefined ? 'hit' : 'miss'})`,
-    { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { ...timings } },
+    `Turn complete in ${timings.totalMs} ms (TTFT ${timings.ttftMs ?? 'n/a'} ms, answer-cache ${cached !== undefined ? 'hit' : 'miss'}, cost ${costUsd ?? 'n/a'} USD)`,
+    {
+      turnId: assembled.turnId,
+      sessionId: assembled.sessionId,
+      data: {
+        ...timings,
+        usage,
+        costUsd,
+      },
+    },
   );
 
   yield {

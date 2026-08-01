@@ -14,10 +14,19 @@ function turn(overrides: Partial<AssembledTurn> = {}): AssembledTurn {
     domainId: 'generic',
     input: 'hello',
     systemPrompt: 'be helpful',
+    systemPromptStatic: 'be helpful',
+    systemPromptDynamic: '',
     messages: [{ role: 'user', content: 'hello' }],
     tier: 'fast',
     model: 'model-a',
     toolsetVersion: 'v0',
+    toolPolicy: {
+      availableTools: [],
+      allowedTools: [],
+      maxTurns: 1,
+      permissionMode: 'dontAsk',
+    },
+    workspaceDir: '/tmp',
     ...overrides,
   };
 }
