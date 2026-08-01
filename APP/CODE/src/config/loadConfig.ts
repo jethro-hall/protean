@@ -13,7 +13,9 @@ import {
   DEFAULT_AUTO_TIER_ESCALATION_TOKENS,
   DEFAULT_CACHE_MAX_ENTRIES,
   DEFAULT_CACHE_TTL_SECONDS,
+  DEFAULT_EMBEDDING_MODEL,
   DEFAULT_LOG_LEVEL,
+  DEFAULT_PG_PORT,
   DEFAULT_PORT,
   DEFAULT_REWRITE_BLOAT_TOKENS,
   DEFAULT_TURN_TOKEN_BUDGET,
@@ -62,6 +64,16 @@ export interface ProteanConfig {
     datasetsDir: string;
     /** User-added providers + MCP overlay (Phase 6 settings UI) -- file-backed, no DB. */
     runtimeConfigDir: string;
+  };
+  /**
+   * Grounded Knowledge v2 (Phase M/N, ADR-0002). Both optional and independently
+   * absent-able -- grounding always degrades to TF-IDF-only rather than failing
+   * a turn (ADR-0003's "optional and degradable" ethos, extended to vectors).
+   */
+  grounding: {
+    pg: { host: string; port: number; user: string; password: string; database: string } | undefined;
+    embeddingModel: string;
+    voyageApiKey: string | undefined;
   };
 }
 
@@ -170,7 +182,28 @@ export function loadConfig(): ProteanConfig {
       datasetsDir: process.env[ENV.datasetsDir] ?? join(dataDir, 'datasets'),
       runtimeConfigDir: join(dataDir, 'runtime-config'),
     },
+    grounding: {
+      pg: pgConfigFromEnv(),
+      embeddingModel: process.env[ENV.embeddingModel] ?? DEFAULT_EMBEDDING_MODEL,
+      voyageApiKey: process.env[ENV.voyageApiKey],
+    },
   };
+}
+
+/** All-or-nothing: PG_HOST is the presence signal (Law 1 -- no half-configured silent state). */
+function pgConfigFromEnv(): ProteanConfig['grounding']['pg'] {
+  const host = process.env[ENV.pgHost];
+  if (host === undefined || host === '') return undefined;
+  const user = process.env[ENV.pgUser];
+  const password = process.env[ENV.pgPassword];
+  const database = process.env[ENV.pgDatabase];
+  if (user === undefined || password === undefined || database === undefined) {
+    throw new Error(
+      `${ENV.pgHost} is set but ${ENV.pgUser}/${ENV.pgPassword}/${ENV.pgDatabase} are not — ` +
+        'set all four or none (grounded vector search stays TF-IDF-only until configured).',
+    );
+  }
+  return { host, port: intFromEnv(ENV.pgPort, DEFAULT_PG_PORT), user, password, database };
 }
 
 /** The model ID for a tier, or a loud failure naming the env var to set (Law 1: no guessing). */

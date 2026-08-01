@@ -7,6 +7,9 @@ export const DEFAULT_LOG_LEVEL = 'info';
 export const DEFAULT_CACHE_TTL_SECONDS = 3600;
 export const DEFAULT_CACHE_MAX_ENTRIES = 500;
 export const DEFAULT_DOMAIN_ID = 'generic';
+export const DEFAULT_PG_PORT = 5432;
+/** Voyage AI's current general-purpose model -- 1024-dim, matches the pgvector schema (Phase M). */
+export const DEFAULT_EMBEDDING_MODEL = 'voyage-4';
 
 /** How many prior messages the Watcher includes when assembling a turn (Phase 0 baseline). */
 export const DEFAULT_HISTORY_WINDOW_MESSAGES = 20;
@@ -190,4 +193,13 @@ export const ENV = {
   agentAllowedTools: 'PROTEAN_AGENT_ALLOWED_TOOLS',
   agentPermissionMode: 'PROTEAN_AGENT_PERMISSION_MODE',
   datasetsDir: 'PROTEAN_DATASETS_DIR',
+  /** Grounded Knowledge v2 (Phase M, ADR-0002) -- optional; absent = vector search degrades to TF-IDF-only. */
+  pgHost: 'PG_HOST',
+  pgPort: 'PG_PORT',
+  pgUser: 'PG_USER',
+  pgPassword: 'PG_PASSWORD',
+  pgDatabase: 'PG_DB',
+  /** Embedding gateway (Phase N) -- optional; absent = grounded ingestion/hybrid search unavailable, TF-IDF still works. */
+  voyageApiKey: 'VOYAGE_API_KEY',
+  embeddingModel: 'PROTEAN_EMBEDDING_MODEL',
 } as const;

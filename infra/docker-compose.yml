@@ -20,6 +20,9 @@ services:
       - protean_pg_data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks: [protean-net]
+    # protean-app runs ON-HOST (see file header) -- it isn't on protean-net, so it
+    # needs a real host port, bound to loopback only (never 0.0.0.0 on a shared box).
+    ports: ["127.0.0.1:5432:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DB:-protean}"]
       interval: 10s
@@ -34,6 +37,7 @@ services:
       - protean_redis_data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks: [protean-net]
+    ports: ["127.0.0.1:6379:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

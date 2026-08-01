@@ -2102,3 +2102,83 @@ provider refresh.
 tabbed Settings, Cursor-style token/cost display, editable/creatable domain packs, temperature/
 effort sampling controls, and per-collection knowledge-base weighting with a confirmed-live effect
 on retrieval ordering.
+
+## 2026-08-01 · Cursor · Solution reaudit (owner request)
+
+**User request:** Reaudit the Protean solution now.
+
+**Findings (evidence-based, no code changes):**
+- Phases 0–5 claimed DONE in ROADMAP; **Phase 6 is current** and only PARTIAL vs acceptance (eval harness + token/cost chips exist; no failover/circuit-breaker, no cost dashboard, no a11y pass artifact).
+- Runtime healthy tonight: engine `:8787` `/healthz` → 200; GUI `:5173` → 200; `GET /api/domains` returns finance/generic/medical.
+- Module map largely real; Law 5 clean. Oversize: `server.ts` 629 lines, `runTurn.ts` 438. Silent fallbacks in runtimeSettingsStore/domainPacks loaders.
+- Infra compose not bootable as documented (missing postgres/redis config files; no protean-* containers). Engine/GUI run as ad hoc node processes.
+- Human user test `docs/ops/human-user-test-20260801/REPORT.md`: **POC-only** — Stop missing; tool→artefact path FAIL on retest; 5 FAIL / 2 PARTIAL.
+- Git: `main` ahead of origin by 12 (Settings v2 H–L + providers/MCP/zip attach). Untracked artefacts under LLMBUILD_DATA/ARTEFACTS/ops.
+- Zip attach already landed in Protean (`expandZipAttachments` / `safeZipInspect`) — separate from Studio paste/upload confusion.
+
+**Agent response:** Delivered written reaudit to owner; no implementation this turn.
+
+**Note:** the "Stop missing" finding above predates this session's earlier "Phase A remediation —
+Stop button" fix and was re-verified live before Phase M below: sent a long generation, waited for
+840 real streamed chars, clicked Stop, confirmed the text stopped growing entirely even 5s later
+(server genuinely kills the model call). Stale on that one point; the tool→artefact empty-output
+finding is real and unrelated to this session's next work — logged here, not silently dropped, not
+investigated this turn (out of scope for the plan below).
+
+## 2026-08-01 · Claude · Phase 6 · Grounded Knowledge v2 Phase M — real Postgres + pgvector, `VectorStore` seam
+
+Owner asked for a "state of the art, industry leading" hallucination-guardrailed knowledge system
+with a real document-ingestion pipeline. Full plan on file at
+`/home/ec2-user/.claude/plans/floofy-pondering-scroll.md` (lettered phases M–S) — this entry covers
+Phase M only. Before planning, three parallel research passes established: retrieval today is
+TF-IDF-only (`tools/knowledge/retrieval.ts`'s own header already names pgvector/Qdrant as the unbuilt
+target); the citation guard (`citationGuard.ts`) detects-and-logs but cannot block a streamed
+response; **ADR-0002** already decided pgvector-over-Qdrant for exactly this (2026-07-27) with a
+`VectorStore` seam named but never written to code; the GPU is real but already shared with an
+unrelated sibling project's own embedding stack on this box, which **ADR-0003**'s "GPU is optional
+and degradable" language already anticipates. Owner confirmed via AskUserQuestion: pgvector (no new
+ADR needed), hosted embeddings not local GPU, infra stand-up in scope, deterministic PDF parsing with
+mandatory human review (later phase). Triage decision logged in `docs/ROADMAP.md` (Phase 6 addendum).
+
+**Infra — finishing an already-correct scaffold, not designing from scratch:**
+`infra/docker-compose.yml` already declared `protean-pg` correctly (`pgvector/pgvector:pg16`,
+healthcheck) but its two bind-mounted config files and `infra/.env` didn't exist —
+`docker compose config` failed on a missing `PG_PASSWORD`. Added `infra/postgres/init.sql`
+(`CREATE EXTENSION vector`, a `knowledge_chunk_embeddings` table with an HNSW cosine index, fixed at
+1024 dims — verified live against Voyage AI's current docs via WebFetch, not guessed: `voyage-4`,
+`voyage-finance-2`, and `voyage-law-2` all default to 1024), `infra/redis/redis.conf` (minimal, no
+password per the existing `.env.example` comment), and a real generated `infra/.env`
+(gitignore-confirmed before writing). `docker compose up -d protean-pg protean-cache` — both healthy.
+
+**Real bug found and fixed before it caused a silent failure:** neither service had a `ports:`
+block — `protean-engine` runs ON-HOST (the compose file's own header comment says so), not inside
+`protean-net`, so it could never have reached the database at all. Confirmed the gap directly
+(`/dev/tcp/127.0.0.1/5432` refused), added `127.0.0.1`-bound port mappings for both services
+(loopback only, never `0.0.0.0` on a shared box), re-verified real host→container connectivity with
+an actual `psql` client in a throwaway container.
+
+**App-side seam:** new `contracts/vectorStore.ts` (`VectorStore` interface — `upsertChunkEmbedding`,
+`similaritySearch`, `deleteCollectionEmbeddings`, `isReachable` — same adapter-boundary shape as
+`LlmGateway`) + new `gateway/vectorStore/pgvectorAdapter.ts`, the only file importing a Postgres
+client (`pg`, new dependency; Law 5). Cosine distance via pgvector's `<=>` operator, converted to a
+similarity score. `config/loadConfig.ts` gains an optional `grounding.pg`/`grounding.embeddingModel`/
+`grounding.voyageApiKey` section — **all-or-nothing on the four `PG_*` vars** (fails loud at config
+load if only some are set, per Law 1), and **entirely absent by default** — grounded vector search
+degrades to TF-IDF-only rather than the engine refusing to start, matching ADR-0003's "optional and
+degradable" ethos extended to vectors.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean; Vitest 201/201 (was 194) — 7 new cases, and unlike this session's
+  usual mocked-fetch tests, these run as a **real integration test** against the actual running
+  Postgres (`test/pgvectorAdapter.test.ts`, `describe.skipIf(!process.env.PG_HOST)` so environments
+  without the container running still pass cleanly): upsert-then-self-nearest-neighbour (cosine
+  similarity ≈1.0 confirmed), a near-identical vector correctly ranking above a dissimilar one,
+  upsert overwriting rather than duplicating a chunk id, collection-scoped search correctly
+  excluding an unrelated collection's rows, delete clearing a collection, and `isReachable()`
+  returning `false` (not throwing) for a genuinely unreachable host.
+- **Live proof beyond the test suite**: `docker exec`'d into `protean-pg` directly and ran a real
+  `INSERT`/cosine-`SELECT`/`DELETE` by hand — self-distance `0`, distance to a random different
+  vector `0.267` — before any app code existed, confirming the extension and schema work
+  independent of the adapter. Restarted `protean-engine.service` after the `loadConfig.ts` change
+  (a core, widely-used file) and confirmed `/healthz` and `/api/domains` both still healthy — no
+  regression to the existing chat path from adding an entirely-optional new config section.
