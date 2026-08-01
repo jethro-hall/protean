@@ -10,6 +10,7 @@ import {
   MAX_ZIP_BYTES,
 } from '../config/uploads';
 import { fetchProviders, type Attachment, type ModelTier, type ProviderSummary } from '../lib/api';
+import { estimateTokens } from '../lib/tokenEstimate';
 
 /** Quick model picker (Phase 6): built-in tiers + any saved provider that has a model set. */
 const BUILTIN_TIER_OPTIONS: Array<{ value: string; tier: ModelTier; label: string }> = [
@@ -156,6 +157,11 @@ export function Composer() {
               }
             }}
           />
+          {draft.trim() !== '' && (
+            <span className="composer-token-estimate" aria-label="Estimated token count">
+              ~{estimateTokens(draft)} tok
+            </span>
+          )}
           {busy ? (
             <button
               type="button"

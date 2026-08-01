@@ -1822,3 +1822,45 @@ from the Phase D popup shell.
   section (General → Model tier; Runtime → Token budget/Max steps; Providers → Providers & Models
   copy; Tools → MCP/Tools JSON editor + catalog list, screenshotted). Existing Providers/MCP
   sections render and their own copy/controls are untouched by the re-parenting.
+
+## 2026-08-01 · Claude · Phase 6 · Settings v2 Phase I — token/cost usage display
+
+Owner: "tokens are not being shown, its supposed to show like cursor does an estimated usage and a
+total at the end." The server (`gateway/adapters/claude.ts` and `customProvider.ts`, both already
+built in earlier phases) has computed real `usage`/`costUsd` per turn since Phase G — it just never
+reached the GUI because `lib/api.ts`'s `TurnDone` type only declared `{turnId, cacheHit, model,
+timings}`. This phase is almost entirely a types-and-rendering fix, no new backend work.
+
+- `lib/api.ts`: added `TokenUsage` interface and `usage: TokenUsage | null` /
+  `costUsd: number | null` to `TurnDone`. `useTurn.ts` already passes the raw parsed SSE 'done'
+  event straight into `dispatch({..., stats: event})` — the server was already sending both
+  fields (`watcher/runTurn.ts:423-430`), so nothing else needed to change for the data to flow.
+- New `lib/usage.ts`: `sumConversationUsage(conversation)` — derives session totals by summing
+  `usage`/`costUsd` across assistant messages, not stored state, so it can never drift from the
+  message list. Tracks `costIncomplete` (true when some turns in the session had usage but no
+  cost figure, e.g. answered by a custom provider that doesn't report pricing) so the total is
+  never silently wrong — rendered with a trailing "+" rather than presented as exact. Also
+  `formatTokenCount`/`formatCostUsd` (compact `1.2k`/`$0.0041` formatting, `$X.XXXX` below one
+  cent so small real costs don't round to `$0.00`).
+- `MessageList.tsx`: the existing per-message `.cite` line (TTFT/total/cache) now appends
+  token counts and — only when the provider actually reported one — a cost figure. Custom-provider
+  turns (which always have `costUsd: null`, Phase G) honestly omit the cost segment rather than
+  showing "$NaN" or a fabricated "$0.00".
+- `TopbarTelemetry.tsx`: new "session" chip next to the existing TTFT/total/cache ones, showing
+  the running total for the active conversation via `sumConversationUsage`. Hidden entirely until
+  at least one turn has real usage (honest-empty, matching this component's existing dash
+  convention for the other stats).
+- New `lib/tokenEstimate.ts`: `estimateTokens(text)`, a `chars/4` heuristic — no tokenizer
+  dependency exists in this codebase, and a real one wasn't worth adding for a scale-indicator.
+  `Composer.tsx` shows it live as `~N tok` in the corner of the input while typing, always
+  `~`-prefixed and never conflated with the exact post-turn figures.
+- `config/fieldHints.ts` `turnStats` hint rewritten to explicitly distinguish the exact
+  provider-reported usage/cost from the composer's approximate estimate.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean on `APP/GUI`.
+- Live Playwright run against the running dev server, real Fast-tier turn (no mocks): typing a
+  76-character message showed "~19 tok" live in the composer; after the turn completed the
+  per-message line read "TTFT 1857ms · total 4.7s · cache miss · 10 in · 210 out · $0.0062"; the
+  topbar session chip read "220 tok · $0.0062" — 10+210=220, matching exactly, confirming the
+  session total is a correct live sum of real provider-reported figures, not a placeholder.

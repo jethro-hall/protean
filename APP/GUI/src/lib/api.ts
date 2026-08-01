@@ -15,11 +15,20 @@ export interface TurnTimings {
   totalMs?: number;
 }
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+}
+
 export interface TurnDone {
   turnId: string;
   cacheHit: boolean;
   model: string;
   timings: TurnTimings;
+  usage: TokenUsage | null;
+  costUsd: number | null;
 }
 
 export type ArtefactType = 'html' | 'markdown' | 'code' | 'text';

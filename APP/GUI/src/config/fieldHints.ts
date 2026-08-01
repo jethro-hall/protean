@@ -49,9 +49,9 @@ export const fieldHints: Record<string, FieldHint> = {
     example: 'Drag the left edge to resize; click an artefact card in the chat to open it here.',
   },
   turnStats: {
-    what: 'Latency and cache facts for the last answer (TTFT, total, cache hit).',
-    why: 'Protean measures every turn \u2014 leanness you can\u2019t see can\u2019t be defended.',
-    example: 'TTFT 640 ms \u00b7 total 3.2 s \u00b7 cache miss',
+    what: 'Latency, cache, and token/cost facts for the last answer, plus a running total for this conversation.',
+    why: 'Protean measures every turn \u2014 leanness you can\u2019t see can\u2019t be defended. The token/cost figures here are exact, reported by the provider after the turn completes; the "~N tok" estimate you see in the composer while typing is a rough client-side heuristic (characters \u00f7 4), not the real count \u2014 it exists to give a sense of scale before you send, not to predict the bill.',
+    example: 'TTFT 640 ms \u00b7 total 3.2 s \u00b7 cache miss \u00b7 1.2k in \u00b7 340 out \u00b7 $0.0041',
   },
   groundedKnowledge: {
     what: 'POC: ground answers in a curated knowledge collection for this domain (e.g. real ATO/RACGP source text), cited by source.',

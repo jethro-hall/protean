@@ -10,6 +10,7 @@ import {
   type MessageSegment,
 } from '../state/appState';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
+import { formatCostUsd, formatTokenCount } from '../lib/usage';
 
 function ArtefactChip({
   segment,
@@ -169,6 +170,19 @@ function Bubble({
               TTFT <span className="num">{message.stats.timings.ttftMs ?? '–'}</span> ms · total{' '}
               <span className="num">{message.stats.timings.totalMs ?? '–'}</span> ms ·{' '}
               {message.stats.cacheHit ? 'cache hit' : 'cache miss'}
+              {message.stats.usage !== null && (
+                <>
+                  {' · '}
+                  <span className="num">{formatTokenCount(message.stats.usage.inputTokens)}</span> in ·{' '}
+                  <span className="num">{formatTokenCount(message.stats.usage.outputTokens)}</span> out
+                  {message.stats.costUsd !== null && (
+                    <>
+                      {' · '}
+                      <span className="num">{formatCostUsd(message.stats.costUsd)}</span>
+                    </>
+                  )}
+                </>
+              )}
               <InfoHint hintKey="turnStats" />
             </div>
           )}

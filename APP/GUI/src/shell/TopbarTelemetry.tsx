@@ -1,6 +1,7 @@
 import { InfoHint } from '../components/InfoHint';
 import { activeConversation } from '../state/appState';
 import { useAppState } from '../state/useAppStore';
+import { formatCostUsd, formatTokenCount, sumConversationUsage } from '../lib/usage';
 
 /** C2 telemetry chip — last completed turn only; dashes when none (honest empty). */
 export function TopbarTelemetry() {
@@ -21,6 +22,9 @@ export function TopbarTelemetry() {
   const cache =
     lastDone === undefined ? '—' : lastDone.cacheHit ? 'hit' : 'miss';
 
+  const usage = sumConversationUsage(conversation);
+  const hasUsage = usage.inputTokens > 0 || usage.outputTokens > 0;
+
   return (
     <div className="telemetry" title="Live latency & cache telemetry for the last turn">
       <span className="t">
@@ -35,6 +39,15 @@ export function TopbarTelemetry() {
         <span>cache</span>
         <b className="num">{cache}</b>
       </span>
+      {hasUsage && (
+        <span className="t tok">
+          <span>session</span>
+          <b className="num">
+            {formatTokenCount(usage.inputTokens + usage.outputTokens)} tok
+            {usage.costUsd !== null && ` · ${formatCostUsd(usage.costUsd)}${usage.costIncomplete ? '+' : ''}`}
+          </b>
+        </span>
+      )}
       <InfoHint hintKey="turnStats" direction="down" />
     </div>
   );

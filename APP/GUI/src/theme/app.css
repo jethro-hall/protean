@@ -383,6 +383,20 @@
 .composer-file-error {
   margin-bottom: var(--s-3);
 }
+.composer .field {
+  position: relative;
+}
+.composer-token-estimate {
+  position: absolute;
+  right: 46px;
+  bottom: var(--s-3);
+  font-size: 10.5px;
+  color: var(--muted);
+  pointer-events: none;
+  background: var(--surface);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+}
 .hidden {
   display: none !important;
 }
