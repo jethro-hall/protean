@@ -33,6 +33,7 @@ function turn(input: string): AssembledTurn {
     wiredTools: [],
     grounded: false,
     knowledgeCollectionsUsed: [],
+    knowledgeCollectionWeights: {},
   };
 }
 

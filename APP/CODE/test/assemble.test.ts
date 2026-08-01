@@ -49,6 +49,7 @@ const assembleBase = {
   domainsDir: '/repo/APP/CODE/src/domains',
   grounded: false,
   knowledgeCollectionsUsed: [],
+  knowledgeCollectionWeights: {},
   knowledgeDigest: '',
   mcpServers: [],
   wiredTools: [
@@ -206,12 +207,12 @@ describe('resolveGrounding (deterministic grounded-knowledge gate)', () => {
 
   it('is off when the pack declares no knowledge collections, even if requested', () => {
     const result = resolveGrounding({ ...request, grounded: true }, pack);
-    expect(result).toEqual({ grounded: false, collectionIds: [] });
+    expect(result).toEqual({ grounded: false, collectionIds: [], weights: {} });
   });
 
   it('is off by default even when the pack has collections (unticked = standard)', () => {
     const result = resolveGrounding(request, groundedPack);
-    expect(result).toEqual({ grounded: false, collectionIds: [] });
+    expect(result).toEqual({ grounded: false, collectionIds: [], weights: {} });
   });
 
   it('is off when explicitly false', () => {
@@ -221,7 +222,20 @@ describe('resolveGrounding (deterministic grounded-knowledge gate)', () => {
 
   it('turns on only when both requested AND the pack declares collections', () => {
     const result = resolveGrounding({ ...request, grounded: true }, groundedPack);
-    expect(result).toEqual({ grounded: true, collectionIds: ['finance-ato-rd-tax-incentive'] });
+    expect(result).toEqual({
+      grounded: true,
+      collectionIds: ['finance-ato-rd-tax-incentive'],
+      weights: {},
+    });
+  });
+
+  it('returns the pack knowledgeCollectionWeights when grounded', () => {
+    const weightedPack: DomainPack = domainPackSchema.parse({
+      ...groundedPack,
+      knowledgeCollectionWeights: { 'finance-ato-rd-tax-incentive': 2.5 },
+    });
+    const result = resolveGrounding({ ...request, grounded: true }, weightedPack);
+    expect(result.weights).toEqual({ 'finance-ato-rd-tax-incentive': 2.5 });
   });
 });
 

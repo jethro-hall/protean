@@ -11,7 +11,12 @@ function tokenize(text: string): string[] {
 }
 
 /** Score every chunk against a query. Empty query or corpus scores nothing. */
-export function scoreChunks(query: string, chunks: readonly KnowledgeChunk[]): ScoredChunk[] {
+export function scoreChunks(
+  query: string,
+  chunks: readonly KnowledgeChunk[],
+  /** Per-collection relevance multiplier (Phase 6 weighting) — defaults to 1 (no effect) when omitted. */
+  weightOf?: (chunk: KnowledgeChunk) => number,
+): ScoredChunk[] {
   const queryTerms = tokenize(query);
   if (queryTerms.length === 0 || chunks.length === 0) return [];
 
@@ -38,7 +43,8 @@ export function scoreChunks(query: string, chunks: readonly KnowledgeChunk[]): S
       score += termFrequency * inverseDocFrequency;
     }
     const lengthNorm = Math.sqrt(terms.length || 1);
-    return { chunk, score: score / lengthNorm };
+    const weight = weightOf?.(chunk) ?? 1;
+    return { chunk, score: (score / lengthNorm) * weight };
   });
 
   return scored.filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score);
@@ -49,6 +55,7 @@ export function topChunks(
   query: string,
   chunks: readonly KnowledgeChunk[],
   limit = 5,
+  weightOf?: (chunk: KnowledgeChunk) => number,
 ): ScoredChunk[] {
-  return scoreChunks(query, chunks).slice(0, limit);
+  return scoreChunks(query, chunks, weightOf).slice(0, limit);
 }

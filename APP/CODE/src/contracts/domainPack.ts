@@ -24,6 +24,14 @@ export const domainPackSchema = z.object({
    * Declaration only — consulted only when the caller opts in (TurnRequest.grounded).
    */
   knowledgeCollections: z.array(z.string()).default([]),
+  /**
+   * Per-collection relevance multiplier (Phase 6 weighting), keyed by collection
+   * id. A sibling map rather than restructuring knowledgeCollections itself, so
+   * every existing pack keeps working unchanged (absent id = weight 1, no
+   * effect). Applied at retrieval score time (tools/knowledge/retrieval.ts) and
+   * to collection order in the Tier-0 digest (watcher/runTurn.ts).
+   */
+  knowledgeCollectionWeights: z.record(z.string(), z.number().positive()).default({}),
   outputTemplates: z.record(z.string(), z.string()).default({}),
   validation: z.record(z.string(), z.unknown()).default({}),
   tiers: z

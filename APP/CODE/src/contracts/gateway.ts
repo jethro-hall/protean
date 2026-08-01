@@ -34,6 +34,8 @@ export interface GatewayRequest {
   domainsDir?: string;
   /** Knowledge collection ids the knowledgeBase MCP handler may query this turn. */
   knowledgeCollectionIds?: string[];
+  /** Per-collection relevance multiplier (Phase 6 weighting) — absent id means weight 1. */
+  knowledgeCollectionWeights?: Record<string, number>;
   /** Reasoning effort (Phase 6) — the Claude adapter maps this to Options.effort. */
   effort?: EffortLevel;
   /** Sampling temperature (Phase 6) — the custom-provider adapter only; the Claude adapter has no such vendor field. */

@@ -51,6 +51,36 @@ describe('scoreChunks', () => {
   });
 });
 
+describe('scoreChunks / topChunks weighting (Phase 6 knowledge-base weighting)', () => {
+  it('a higher weightOf multiplier reorders an otherwise-tied result to the top', () => {
+    const a = chunk({ id: 'a', heading: 'Threshold', text: 'threshold applies here' });
+    const b = chunk({ id: 'b', heading: 'Threshold', text: 'threshold applies here' });
+    // Identical text -> identical base score; only the weight differs.
+    const unweighted = scoreChunks('threshold', [a, b]);
+    expect(unweighted[0]?.score).toBe(unweighted[1]?.score);
+
+    const weighted = scoreChunks('threshold', [a, b], (chunkArg) => (chunkArg.id === 'b' ? 5 : 1));
+    expect(weighted[0]?.chunk.id).toBe('b');
+    expect(weighted[0]?.score).toBeGreaterThan(weighted[1]?.score ?? 0);
+  });
+
+  it('defaults every chunk to weight 1 (no reordering) when weightOf is omitted', () => {
+    const chunks = [
+      chunk({ id: 'a', heading: 'Threshold', text: 'threshold applies here' }),
+      chunk({ id: 'b', heading: 'Threshold', text: 'threshold applies here twice as much' }),
+    ];
+    expect(scoreChunks('threshold', chunks)).toEqual(scoreChunks('threshold', chunks, () => 1));
+  });
+
+  it('topChunks threads weightOf through before slicing to the limit', () => {
+    const low = chunk({ id: 'low', heading: 'Threshold', text: 'threshold once' });
+    const high = chunk({ id: 'high', heading: 'Threshold', text: 'threshold once' });
+    const top = topChunks('threshold', [low, high], 1, (chunkArg) => (chunkArg.id === 'high' ? 10 : 1));
+    expect(top).toHaveLength(1);
+    expect(top[0]?.chunk.id).toBe('high');
+  });
+});
+
 describe('buildDigest', () => {
   it('returns an empty string for no collections', () => {
     expect(buildDigest([])).toBe('');

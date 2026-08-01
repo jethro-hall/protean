@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import type { ProviderAdminConfig, ProviderType } from '../gateway/providerAdmin/types.js';
 import { stdioMcpConnectorSchema } from '../contracts/connectors.js';
+import type { DomainPack } from '../contracts/domainPack.js';
 
 /**
  * File-backed store for user-added LLM providers (Phase 6 settings UI) --
@@ -203,5 +204,65 @@ export function deleteMcpOverlayEntry(runtimeConfigDir: string, connectorId: str
   const next = entries.filter((e) => e.connectorId !== connectorId);
   if (next.length === entries.length) return false;
   writeMcpOverlay(runtimeConfigDir, next);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Domain pack overlay: user-created/edited packs (Phase 6 settings UI).
+// Same overlay convention as the MCP section above -- editing a built-in pack
+// (finance/medical/generic) shadows it here without ever mutating the
+// checked-in domains/<id>/pack.json; deleting the overlay entry is "reset to
+// default" for a shadowed built-in, or a real delete for an overlay-only pack.
+// ---------------------------------------------------------------------------
+
+export interface DomainPackOverlayEntry {
+  id: string;
+  pack: DomainPack;
+  createdAt: string;
+}
+
+function domainPackOverlayFile(runtimeConfigDir: string): string {
+  return join(runtimeConfigDir, 'domain-packs.json');
+}
+
+export function readDomainPackOverlay(runtimeConfigDir: string): DomainPackOverlayEntry[] {
+  const path = domainPackOverlayFile(runtimeConfigDir);
+  if (!existsSync(path)) return [];
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    return Array.isArray(parsed) ? (parsed as DomainPackOverlayEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeDomainPackOverlay(runtimeConfigDir: string, entries: DomainPackOverlayEntry[]): void {
+  mkdirSync(runtimeConfigDir, { recursive: true });
+  writeFileSync(domainPackOverlayFile(runtimeConfigDir), JSON.stringify(entries, null, 2), 'utf8');
+}
+
+export function saveDomainPackOverlayEntry(runtimeConfigDir: string, pack: DomainPack): DomainPackOverlayEntry {
+  const entries = readDomainPackOverlay(runtimeConfigDir);
+  const existingIndex = entries.findIndex((e) => e.id === pack.id);
+  const record: DomainPackOverlayEntry = {
+    id: pack.id,
+    pack,
+    createdAt: existingIndex >= 0 ? entries[existingIndex]!.createdAt : new Date().toISOString(),
+  };
+  if (existingIndex >= 0) {
+    entries[existingIndex] = record;
+  } else {
+    entries.push(record);
+  }
+  writeDomainPackOverlay(runtimeConfigDir, entries);
+  return record;
+}
+
+/** Removes the overlay entry only -- "reset to default" when a checked-in pack.json still exists for this id, a real delete otherwise. */
+export function deleteDomainPackOverlayEntry(runtimeConfigDir: string, id: string): boolean {
+  const entries = readDomainPackOverlay(runtimeConfigDir);
+  const next = entries.filter((e) => e.id !== id);
+  if (next.length === entries.length) return false;
+  writeDomainPackOverlay(runtimeConfigDir, next);
   return true;
 }

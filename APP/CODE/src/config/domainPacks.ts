@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { domainPackSchema, type DomainPack } from '../contracts/domainPack.js';
+import { readDomainPackOverlay } from './runtimeSettingsStore.js';
 
 /**
  * Loader for Domain Packs. Packs themselves are data-only (Law 2); this is the one
@@ -35,4 +36,29 @@ export function listDomainPacks(domainsDir: string): string[] {
       }
     })
     .sort();
+}
+
+/**
+ * Checked-in pack + user overlay (Phase 6 domain-pack CRUD), mirroring the
+ * MCP-overlay pattern in config/loadConnectors.ts. The overlay wins by id
+ * when present -- editing a built-in pack (finance/medical/generic) shadows
+ * it without ever mutating the checked-in file; a pack with no checked-in
+ * file at all lives purely in the overlay. Overlay checked FIRST so a
+ * brand-new pack never hits loadDomainPack's "not found on disk" failure.
+ */
+export function loadDomainPackWithOverlay(
+  runtimeConfigDir: string,
+  domainsDir: string,
+  domainId: string,
+): DomainPack {
+  const overlayEntry = readDomainPackOverlay(runtimeConfigDir).find((entry) => entry.id === domainId);
+  if (overlayEntry !== undefined) return overlayEntry.pack;
+  return loadDomainPack(domainsDir, domainId);
+}
+
+/** Checked-in pack ids + overlay-only pack ids (new packs with no checked-in file), deduped and sorted. */
+export function listDomainPacksWithOverlay(runtimeConfigDir: string, domainsDir: string): string[] {
+  const checkedIn = listDomainPacks(domainsDir);
+  const overlayIds = readDomainPackOverlay(runtimeConfigDir).map((entry) => entry.id);
+  return Array.from(new Set([...checkedIn, ...overlayIds])).sort();
 }

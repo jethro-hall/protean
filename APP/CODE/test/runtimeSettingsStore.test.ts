@@ -2,10 +2,14 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { domainPackSchema, type DomainPack } from '../src/contracts/domainPack.js';
 import {
+  deleteDomainPackOverlayEntry,
   deleteProvider,
   getProviderConfig,
   listProviders,
+  readDomainPackOverlay,
+  saveDomainPackOverlayEntry,
   saveProvider,
 } from '../src/config/runtimeSettingsStore.js';
 
@@ -71,5 +75,45 @@ describe('runtimeSettingsStore', () => {
     expect(deleteProvider(dir, record.id)).toBe(true);
     expect(listProviders(dir)).toEqual([]);
     expect(deleteProvider(dir, record.id)).toBe(false);
+  });
+});
+
+function testPack(overrides: Partial<DomainPack> = {}): DomainPack {
+  return domainPackSchema.parse({
+    id: 'testpack',
+    displayName: 'Test pack',
+    version: '0.0.1',
+    systemPrompt: 'You are a test assistant.',
+    ...overrides,
+  });
+}
+
+describe('domain pack overlay (Phase 6 domain-pack CRUD)', () => {
+  it('starts empty', () => {
+    expect(readDomainPackOverlay(tempDir())).toEqual([]);
+  });
+
+  it('saves a pack keyed by its own id and round-trips it back', () => {
+    const dir = tempDir();
+    const record = saveDomainPackOverlayEntry(dir, testPack());
+    expect(record.id).toBe('testpack');
+    expect(readDomainPackOverlay(dir)).toEqual([record]);
+  });
+
+  it('updates an existing overlay entry in place, preserving createdAt', () => {
+    const dir = tempDir();
+    const first = saveDomainPackOverlayEntry(dir, testPack({ displayName: 'V1' }));
+    const second = saveDomainPackOverlayEntry(dir, testPack({ displayName: 'V2' }));
+    expect(second.createdAt).toBe(first.createdAt);
+    expect(readDomainPackOverlay(dir)).toHaveLength(1);
+    expect(readDomainPackOverlay(dir)[0]?.pack.displayName).toBe('V2');
+  });
+
+  it('deletes an overlay entry by id and reports whether anything was removed', () => {
+    const dir = tempDir();
+    saveDomainPackOverlayEntry(dir, testPack());
+    expect(deleteDomainPackOverlayEntry(dir, 'testpack')).toBe(true);
+    expect(readDomainPackOverlay(dir)).toEqual([]);
+    expect(deleteDomainPackOverlayEntry(dir, 'testpack')).toBe(false);
   });
 });

@@ -33,6 +33,7 @@ function turn(overrides: Partial<AssembledTurn> = {}): AssembledTurn {
     wiredTools: [],
     grounded: false,
     knowledgeCollectionsUsed: [],
+    knowledgeCollectionWeights: {},
     ...overrides,
   };
 }

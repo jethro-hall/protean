@@ -13,7 +13,8 @@ import {
   resolveEffectiveAgentMaxTurns,
   SSE_HEADERS,
 } from './config/defaults.js';
-import { listDomainPacks, loadDomainPack } from './config/domainPacks.js';
+import { loadDomainPackWithOverlay, listDomainPacksWithOverlay } from './config/domainPacks.js';
+import { domainPackSchema } from './contracts/domainPack.js';
 import { loadConnectorCatalog, loadConnectorCatalogWithOverlay } from './config/loadConnectors.js';
 import { loadConfig, requireModel, type ProteanConfig } from './config/loadConfig.js';
 import { resolveToolset } from './tools/registry.js';
@@ -37,11 +38,13 @@ import { expandZipAttachments } from './watcher/expandZipAttachments.js';
 import {
   deleteProvider,
   deleteMcpOverlayEntry,
+  deleteDomainPackOverlayEntry,
   getProviderConfig,
   getProviderRecord,
   listProviders,
   readMcpOverlay,
   saveMcpOverlayEntry,
+  saveDomainPackOverlayEntry,
   saveProvider,
 } from './config/runtimeSettingsStore.js';
 import { listProviderModels, testProviderConnection } from './gateway/providerAdmin/dispatch.js';
@@ -189,7 +192,7 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
   let toolset;
   let customAgent: AgentCore | undefined;
   try {
-    pack = loadDomainPack(deps.config.paths.domainsDir, request.domainId);
+    pack = loadDomainPackWithOverlay(deps.config.paths.runtimeConfigDir, deps.config.paths.domainsDir, request.domainId);
     // Same call runTurn.ts makes with the same watcher config — deterministic, so
     // the model picked here and the tier recorded in lineage always agree (Law 6).
     model = requireModel(
@@ -327,9 +330,9 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
 }
 
 function handleDomains(deps: AppDeps, res: ServerResponse): void {
-  const ids = listDomainPacks(deps.config.paths.domainsDir);
+  const ids = listDomainPacksWithOverlay(deps.config.paths.runtimeConfigDir, deps.config.paths.domainsDir);
   const packs = ids.map((id) => {
-    const pack = loadDomainPack(deps.config.paths.domainsDir, id);
+    const pack = loadDomainPackWithOverlay(deps.config.paths.runtimeConfigDir, deps.config.paths.domainsDir, id);
     return { id: pack.id, displayName: pack.displayName, version: pack.version };
   });
   writeJson(res, 200, { domains: packs });
@@ -472,6 +475,41 @@ function handleDeleteMcp(deps: AppDeps, connectorId: string, res: ServerResponse
   writeJson(res, 200, { ok: true });
 }
 
+// ---------------------------------------------------------------------------
+// Settings: Domain Packs (Phase 6). Overlay-backed CRUD -- editing a built-in
+// pack (finance/medical/generic) shadows it without mutating the checked-in
+// pack.json; a pack with no checked-in file lives purely in the overlay.
+// ---------------------------------------------------------------------------
+
+function handleGetDomainPack(deps: AppDeps, id: string, res: ServerResponse): void {
+  try {
+    const pack = loadDomainPackWithOverlay(deps.config.paths.runtimeConfigDir, deps.config.paths.domainsDir, id);
+    writeJson(res, 200, { pack });
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    writeJson(res, 404, { error: message });
+  }
+}
+
+async function handleSaveDomainPack(deps: AppDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = domainPackSchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid domain pack: ${parsed.error.message}` });
+    return;
+  }
+  const record = saveDomainPackOverlayEntry(deps.config.paths.runtimeConfigDir, parsed.data);
+  writeJson(res, 200, { ok: true, pack: record.pack });
+}
+
+function handleDeleteDomainPack(deps: AppDeps, id: string, res: ServerResponse): void {
+  const removed = deleteDomainPackOverlayEntry(deps.config.paths.runtimeConfigDir, id);
+  if (!removed) {
+    writeJson(res, 404, { error: `No saved domain pack override with id "${id}".` });
+    return;
+  }
+  writeJson(res, 200, { ok: true });
+}
+
 export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
   const log = deps.logger.child('server');
   const server = createServer((req, res) => {
@@ -542,6 +580,26 @@ export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
       const connectorId = url.pathname.slice('/api/settings/mcp/'.length);
       if (connectorId !== '') {
         handleDeleteMcp(deps, connectorId, res);
+        return;
+      }
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/domains') {
+      void handleSaveDomainPack(deps, req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'GET' && url.pathname.startsWith('/api/settings/domains/')) {
+      const id = url.pathname.slice('/api/settings/domains/'.length);
+      if (id !== '') {
+        handleGetDomainPack(deps, id, res);
+        return;
+      }
+    }
+    if (req.method === 'DELETE' && url.pathname.startsWith('/api/settings/domains/')) {
+      const id = url.pathname.slice('/api/settings/domains/'.length);
+      if (id !== '') {
+        handleDeleteDomainPack(deps, id, res);
         return;
       }
     }

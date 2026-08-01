@@ -101,7 +101,11 @@ function buildCalendarServer(datasetsDir: string): McpServerConfig {
   });
 }
 
-function buildKnowledgeBaseServer(domainsDir: string, collectionIds: readonly string[]): McpServerConfig {
+function buildKnowledgeBaseServer(
+  domainsDir: string,
+  collectionIds: readonly string[],
+  weights: Record<string, number>,
+): McpServerConfig {
   return createSdkMcpServer({
     name: 'protean-knowledgebase',
     version: '0.1.0',
@@ -123,7 +127,7 @@ function buildKnowledgeBaseServer(domainsDir: string, collectionIds: readonly st
         async (args) => {
           try {
             return jsonResult({
-              hits: queryKnowledgeBase(domainsDir, collectionIds, args.query, args.limit ?? 5),
+              hits: queryKnowledgeBase(domainsDir, collectionIds, args.query, args.limit ?? 5, weights),
             });
           } catch (cause) {
             return errorResult(cause instanceof Error ? cause.message : String(cause));
@@ -140,6 +144,7 @@ export function materializeMcpServers(
   datasetsDir: string,
   domainsDir?: string,
   knowledgeCollectionIds?: string[],
+  knowledgeCollectionWeights?: Record<string, number>,
 ): Record<string, McpServerConfig> {
   const out: Record<string, McpServerConfig> = {};
   for (const binding of bindings) {
@@ -165,7 +170,11 @@ export function materializeMcpServers(
       if (domainsDir === undefined || domainsDir === '') {
         throw new Error('GatewayRequest.domainsDir is required when a knowledgeBase MCP server is bound');
       }
-      out[binding.serverId] = buildKnowledgeBaseServer(domainsDir, knowledgeCollectionIds ?? []);
+      out[binding.serverId] = buildKnowledgeBaseServer(
+        domainsDir,
+        knowledgeCollectionIds ?? [],
+        knowledgeCollectionWeights ?? {},
+      );
       continue;
     }
     const _exhaustive: never = binding.handlerId;

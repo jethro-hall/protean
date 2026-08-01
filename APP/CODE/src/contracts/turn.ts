@@ -113,6 +113,8 @@ export interface AssembledTurn {
   grounded: boolean;
   /** Collection ids actually consulted to build the digest, when grounded. */
   knowledgeCollectionsUsed: string[];
+  /** Per-collection relevance multiplier (Phase 6 weighting), keyed by collection id. */
+  knowledgeCollectionWeights: Record<string, number>;
   /** Reasoning effort (Phase 6) — built-in tiers only, see effortLevelSchema. */
   effort?: EffortLevel;
   /** Sampling temperature (Phase 6) — custom providers only. */

@@ -95,10 +95,16 @@ export async function* runTurn(
   // Grounded-knowledge POC (Phase 6, off unless the caller opts in): the actual
   // corpus read (I/O) happens here, not in assemble.ts (Law 4 keeps assembly pure).
   const grounding = resolveGrounding(request, pack);
-  const knowledgeDigest =
-    grounding.grounded && grounding.collectionIds.length > 0
-      ? buildDigest(loadKnowledgeCollections(deps.domainsDir, grounding.collectionIds))
-      : '';
+  let knowledgeDigest = '';
+  if (grounding.grounded && grounding.collectionIds.length > 0) {
+    const collections = loadKnowledgeCollections(deps.domainsDir, grounding.collectionIds);
+    // Weight affects digest ORDER only (never truncation) -- higher-weight
+    // collections read first, deterministic tie-break on unweighted (=1) ids.
+    const orderedByWeight = [...collections].sort(
+      (a, b) => (grounding.weights[b.id] ?? 1) - (grounding.weights[a.id] ?? 1),
+    );
+    knowledgeDigest = buildDigest(orderedByWeight);
+  }
 
   const assembled = assembleTurn({
     request,
@@ -114,6 +120,7 @@ export async function* runTurn(
     wiredTools: deps.wiredTools,
     grounded: grounding.grounded,
     knowledgeCollectionsUsed: grounding.collectionIds,
+    knowledgeCollectionWeights: grounding.weights,
     knowledgeDigest,
   });
   if (deps.abortSignal !== undefined) {

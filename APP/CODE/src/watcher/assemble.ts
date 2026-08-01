@@ -43,6 +43,8 @@ export interface AssembleInput {
   /** Resolved by the caller via resolveGrounding() — same reasoning as `tier` above. */
   grounded: boolean;
   knowledgeCollectionsUsed: string[];
+  /** Resolved by the caller via resolveGrounding() — carried through for lineage/scoring. */
+  knowledgeCollectionWeights: Record<string, number>;
   /** Pre-built Tier-0 digest text (empty when not grounded) — assemble.ts stays I/O-free. */
   knowledgeDigest: string;
 }
@@ -59,6 +61,8 @@ export function resolveTier(request: TurnRequest, pack: DomainPack): ModelTier {
 export interface GroundingResolution {
   grounded: boolean;
   collectionIds: string[];
+  /** Per-collection relevance multiplier (Phase 6 weighting) — absent id means weight 1. */
+  weights: Record<string, number>;
 }
 
 /**
@@ -68,7 +72,11 @@ export interface GroundingResolution {
  */
 export function resolveGrounding(request: TurnRequest, pack: DomainPack): GroundingResolution {
   const grounded = request.grounded === true && pack.knowledgeCollections.length > 0;
-  return { grounded, collectionIds: grounded ? pack.knowledgeCollections : [] };
+  return {
+    grounded,
+    collectionIds: grounded ? pack.knowledgeCollections : [],
+    weights: grounded ? pack.knowledgeCollectionWeights : {},
+  };
 }
 
 /**
@@ -214,6 +222,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     wiredTools,
     grounded,
     knowledgeCollectionsUsed,
+    knowledgeCollectionWeights,
     knowledgeDigest,
   } = input;
   const windowSize = input.historyWindow ?? DEFAULT_HISTORY_WINDOW_MESSAGES;
@@ -254,6 +263,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     wiredTools,
     grounded,
     knowledgeCollectionsUsed,
+    knowledgeCollectionWeights,
     ...(request.effort !== undefined ? { effort: request.effort } : {}),
     ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
     ...(request.maxTokens !== undefined ? { maxTokens: request.maxTokens } : {}),

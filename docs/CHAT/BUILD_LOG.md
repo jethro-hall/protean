@@ -1943,3 +1943,92 @@ natively. Confirmed via AskUserQuestion before building — the owner chose "bot
   too: the session-total chip read "912 tok · $0.0063+" — the trailing "+" correctly present
   because the second (custom-provider) turn had no cost figure to add. Test provider deleted
   afterward — no debris in the live service.
+
+## 2026-08-01 · Claude · Phase 6 · Settings v2 Phase K — domain-pack overlay + weighted knowledge retrieval
+
+Owner: "need to be able to edit and create these profiles (doctor/finance etc)... the most
+important its knowledge base needs to be able to be set and weighted i believe what o you feel is
+best practice here?" — explicitly asked for a recommendation on the weighting design before this
+was built. Presented via AskUserQuestion: a numeric per-collection weight multiplier applied to
+relevance score during retrieval and to collection order in the digest (vs. a simpler priority-only
+ordering, or deferring weighting entirely) — owner picked the multiplier. Also confirmed: editing a
+built-in pack (finance/medical/generic) should create a reversible personal override, mirroring the
+Phase F MCP-overlay pattern, rather than mutating checked-in files directly.
+
+**Domain-pack overlay backend** (`config/runtimeSettingsStore.ts`, new section, same convention as
+the existing MCP overlay in the same file): `LLMBUILD_DATA/runtime-config/domain-packs.json`, an
+array of `{id, pack, createdAt}` entries. `saveDomainPackOverlayEntry`/`deleteDomainPackOverlayEntry`
+— delete is "reset to default" when a checked-in `pack.json` still exists for that id, or a real
+delete for an overlay-only pack.
+- `config/domainPacks.ts`: new `loadDomainPackWithOverlay`/`listDomainPacksWithOverlay` wrap the
+  existing `loadDomainPack`/`listDomainPacks` — overlay checked FIRST (not catalog-then-override
+  like the MCP pattern), because a brand-new pack with no checked-in file would otherwise hit
+  `loadDomainPack`'s "not found on disk" failure before the overlay ever got a chance. Kept as
+  separate wrapper functions rather than changing the base loaders' signatures — the base loaders
+  are also called from `bench.ts`/`spike.ts`/`eval/runEval.ts`, which should stay pinned to
+  checked-in fixtures for reproducible evals, not runtime-mutable overlay state.
+- `server.ts`: new `POST /api/settings/domains` (validates the full body against `domainPackSchema`,
+  writes the overlay), `GET /api/settings/domains/:id` (full pack, for the Phase L editor — the
+  existing `GET /api/domains` only returns `{id, displayName, version}` summaries, too thin to
+  edit), `DELETE /api/settings/domains/:id`. `GET /api/domains` and `handleTurn`'s pack lookup both
+  switched from `loadDomainPack`/`listDomainPacks` to the overlay-aware versions, so an edited/new
+  pack is immediately live in both the picker and actual turn execution, not just visible in
+  Settings.
+
+**Weighting — the schema decision:** `contracts/domainPack.ts` `domainPackSchema` gained
+`knowledgeCollectionWeights: z.record(z.string(), z.number().positive()).default({})` as a
+*sibling* map keyed by collection id, rather than restructuring the existing
+`knowledgeCollections: string[]` array into objects. Restructuring would have forced updating every
+call site that already treats it as plain strings (e.g. `runTurn.ts`'s log line joins it with
+`.join(', ')`) and required migrating all three checked-in packs. The sibling-map shape means every
+existing pack keeps working completely unchanged — an absent collection id in the map is weight 1,
+no effect.
+
+**Threading the weight to where scoring actually happens** — the same path
+`knowledgeCollectionsUsed`/`knowledgeCollectionIds` already takes, just carrying a weights map
+alongside it at every layer: `watcher/assemble.ts` `resolveGrounding()` now also returns `weights`;
+`AssembledTurn`/`GatewayRequest` (`contracts/turn.ts`/`contracts/gateway.ts`) both gained a sibling
+`knowledgeCollectionWeights` field; `agent/adapters/claudeSdk.ts` threads it onto the
+`GatewayRequest`; `gateway/adapters/claude.ts`'s `buildClaudeQueryOptions` passes it to
+`materializeMcpServers` (now a 5th param); `gateway/adapters/claudeMcp.ts`'s
+`buildKnowledgeBaseServer`/`queryKnowledgeBase` call receives it last.
+
+**Applying the weight (the actual retrieval change), `tools/knowledge/retrieval.ts`:**
+`scoreChunks`/`topChunks` both gained an optional `weightOf?: (chunk) => number` parameter,
+multiplied straight into the score at the point it's computed
+(`score: (score / lengthNorm) * (weightOf?.(chunk) ?? 1)`) — one extra optional argument on an
+already-pure, already-tested function, no restructuring of its sort/slice logic. Deliberately kept
+the existing pooled-corpus TF-IDF behaviour (all collections' chunks scored together, same IDF/
+corpus-size semantics as today) rather than scoring each collection separately, so weighting only
+*biases* the existing ranking rather than changing what "relevant" means. `tools/handlers/
+knowledgeBase.ts`'s `queryKnowledgeBase` (the Tier-1 on-demand tool) builds a `chunkId →
+collectionId` map while flattening collections (chunk ids are unique per schema), then passes a
+`weightOf` closure through to `topChunks`. For the Tier-0 digest (no scoring today, just an
+extractive summary — `tools/knowledge/digest.ts`), weight affects *order only*: `watcher/
+runTurn.ts` now sorts loaded collections by `weights[id] ?? 1` descending before calling
+`buildDigest`, never touching token-budget truncation (flagged as separate future work if it
+matters later, not addressed here).
+
+**Real gap avoided, not a live bug:** double-checked whether `watcher/cache.ts`'s turn cache key
+needed to include the weights the same way Phase J's effort/temperature did. It doesn't — weight
+changes only ever alter the *digest text*, which is already embedded in `systemPrompt` and thus
+already part of the cache key via the existing `normaliseForKey(turn.systemPrompt)` material. No
+change needed there, but worth writing down so a future session doesn't have to re-derive it.
+
+**Proof:**
+- Backend: `tsc --noEmit` + `eslint` clean; Vitest 193/193 (was 180) — 13 new cases: domain-pack
+  overlay store round-trip (`runtimeSettingsStore.test.ts`), `loadDomainPackWithOverlay`/
+  `listDomainPacksWithOverlay` covering fallback/shadow/brand-new/not-found/dedup (new
+  `domainPacks.test.ts`), `resolveGrounding` returning weights (`assemble.test.ts`), and
+  `scoreChunks`/`topChunks` weight-multiplier reordering plus the "omitted = weight 1, unchanged
+  ranking" default case (`knowledgeRetrieval.test.ts`).
+- **Live proof against the running engine** (curl, real HTTP, no mocks): `GET /api/domains` lists
+  finance/generic/medical; `GET /api/settings/domains/generic` returns the full pack including the
+  new `knowledgeCollectionWeights: {}` field; `POST /api/settings/domains` created a real override
+  pack with a weighted collection reference, which immediately appeared in `GET /api/domains`
+  (proving `handleDomains` reads through the overlay-aware loader, not just accepts the write);
+  `DELETE /api/settings/domains/:id` removed it and it disappeared from the list again. Full
+  end-to-end weighting proof (setting different weights via the GUI and observing retrieval order
+  change) deferred to the Phase L entry, once there's a GUI to set weights from — the plan bundles
+  that verification with the editor it depends on. No debris left in
+  `LLMBUILD_DATA/runtime-config/domain-packs.json` after the curl round-trip.

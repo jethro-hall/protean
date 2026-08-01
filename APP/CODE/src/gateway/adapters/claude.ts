@@ -140,6 +140,7 @@ export function buildClaudeQueryOptions(request: GatewayRequest): Options {
       datasetsDir,
       request.domainsDir,
       request.knowledgeCollectionIds,
+      request.knowledgeCollectionWeights,
     );
   }
   return options;

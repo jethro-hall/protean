@@ -1,4 +1,5 @@
 import { loadKnowledgeCollections } from '../../config/knowledgeCollections.js';
+import type { KnowledgeChunk } from '../../contracts/knowledge.js';
 import { topChunks } from '../knowledge/retrieval.js';
 
 export interface KnowledgeQueryHit {
@@ -21,10 +22,20 @@ export function queryKnowledgeBase(
   collectionIds: readonly string[],
   query: string,
   limit = 5,
+  /** Per-collection relevance multiplier (Phase 6 weighting) — absent id means weight 1. */
+  weights: Record<string, number> = {},
 ): KnowledgeQueryHit[] {
   const collections = loadKnowledgeCollections(domainsDir, collectionIds);
-  const chunks = collections.flatMap((collection) => collection.chunks);
-  return topChunks(query, chunks, limit).map(({ chunk, score }) => ({
+  const collectionIdByChunkId = new Map<string, string>();
+  const chunks = collections.flatMap((collection) => {
+    for (const chunk of collection.chunks) collectionIdByChunkId.set(chunk.id, collection.id);
+    return collection.chunks;
+  });
+  const weightOf = (chunk: KnowledgeChunk): number => {
+    const collectionId = collectionIdByChunkId.get(chunk.id);
+    return collectionId === undefined ? 1 : (weights[collectionId] ?? 1);
+  };
+  return topChunks(query, chunks, limit, weightOf).map(({ chunk, score }) => ({
     heading: chunk.heading,
     text: chunk.text,
     sourceTitle: chunk.sourceTitle,
