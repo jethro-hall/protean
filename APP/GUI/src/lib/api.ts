@@ -327,3 +327,74 @@ export async function deleteMcpConnector(connectorId: string): Promise<void> {
   const res = await settingsFetch(`/api/settings/mcp/${encodeURIComponent(connectorId)}`, { method: 'DELETE' });
   await settingsJson(res, 'Failed to delete MCP connector.');
 }
+
+// ---------------------------------------------------------------------------
+// Settings: Domain Packs (Phase 6). Mirrors src/contracts/domainPack.ts's
+// domainPackSchema — the full editable shape, not the thin DomainSummary
+// used elsewhere for the picker.
+// ---------------------------------------------------------------------------
+
+export interface DomainPackDetail {
+  id: string;
+  displayName: string;
+  version: string;
+  systemPrompt: string;
+  vocabulary: Record<string, string>;
+  tools: string[];
+  knowledgeCollections: string[];
+  /** Per-collection relevance multiplier (Phase 6 weighting) — absent id means weight 1. */
+  knowledgeCollectionWeights: Record<string, number>;
+  outputTemplates: Record<string, string>;
+  validation: Record<string, unknown>;
+  tiers: { default: ModelTier; cheapPath: ModelTier };
+  examples: unknown[];
+  hints: Record<string, { what: string; why: string; example?: string }>;
+}
+
+export const NEW_DOMAIN_PACK_TEMPLATE: DomainPackDetail = {
+  id: '',
+  displayName: '',
+  version: '0.1.0',
+  systemPrompt: '',
+  vocabulary: {},
+  tools: [],
+  knowledgeCollections: [],
+  knowledgeCollectionWeights: {},
+  outputTemplates: {},
+  validation: {},
+  tiers: { default: 'strong', cheapPath: 'fast' },
+  examples: [],
+  hints: {},
+};
+
+export interface KnowledgeCollectionSummary {
+  id: string;
+  displayName: string;
+}
+
+export async function fetchDomainPackDetail(id: string): Promise<DomainPackDetail> {
+  const res = await settingsFetch(`/api/settings/domains/${encodeURIComponent(id)}`);
+  const body = await settingsJson<{ pack: DomainPackDetail }>(res, 'Failed to load domain pack.');
+  return body.pack;
+}
+
+export async function saveDomainPack(pack: DomainPackDetail): Promise<DomainPackDetail> {
+  const res = await settingsFetch('/api/settings/domains', { method: 'POST', body: JSON.stringify(pack) });
+  const body = await settingsJson<{ pack: DomainPackDetail }>(res, 'Failed to save domain pack.');
+  return body.pack;
+}
+
+/** Reset-to-default when a checked-in pack.json still exists for this id; a real delete otherwise. */
+export async function deleteDomainPackOverride(id: string): Promise<void> {
+  const res = await settingsFetch(`/api/settings/domains/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  await settingsJson(res, 'Failed to reset/delete domain pack.');
+}
+
+export async function fetchKnowledgeCollections(): Promise<KnowledgeCollectionSummary[]> {
+  const res = await settingsFetch('/api/settings/knowledge-collections');
+  const body = await settingsJson<{ collections: KnowledgeCollectionSummary[] }>(
+    res,
+    'Failed to load knowledge collections.',
+  );
+  return body.collections;
+}

@@ -12,6 +12,7 @@ import {
 import { useAppDispatch, useAppState } from '../state/useAppStore';
 import { ProvidersModelsSection } from './ProvidersModelsSection';
 import { McpToolsSection } from './McpToolsSection';
+import { DomainPacksSection } from './DomainPacksSection';
 
 const TIERS: Array<{ id: ModelTier; label: string }> = [
   { id: 'fast', label: 'Fast' },
@@ -34,13 +35,14 @@ const RESPONSE_DEPTHS: Array<{ id: ResponseDepth | undefined; label: string }> =
   { id: 'professor', label: 'Professor' },
 ];
 
-type TabId = 'general' | 'runtime' | 'providers' | 'tools';
+type TabId = 'general' | 'runtime' | 'providers' | 'tools' | 'domains';
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'general', label: 'General' },
   { id: 'runtime', label: 'Runtime' },
   { id: 'providers', label: 'Providers' },
   { id: 'tools', label: 'Tools' },
+  { id: 'domains', label: 'Domain Packs' },
 ];
 
 function GeneralTab({
@@ -302,11 +304,13 @@ export function SettingsMenu() {
   const prevTabIndexRef = useRef(0);
   const [slideDir, setSlideDir] = useState<'left' | 'right'>('right');
 
-  useEffect(() => {
+  const reloadDomains = (): void => {
     fetchDomains()
       .then(setDomains)
       .catch(() => setDomains('unavailable'));
-  }, []);
+  };
+
+  useEffect(reloadDomains, []);
 
   useEffect(() => {
     if (!open) return;
@@ -328,6 +332,10 @@ export function SettingsMenu() {
     setSlideDir(nextIndex >= prevTabIndexRef.current ? 'right' : 'left');
     prevTabIndexRef.current = nextIndex;
     setActiveTab(tab);
+    // Domain Packs edits a pack that the General tab's picker also lists --
+    // refresh so a just-created/edited pack shows up without a full reload
+    // (same stale-list bug class fixed for the composer's provider picker).
+    if (tab === 'general') reloadDomains();
   };
 
   return (
@@ -399,6 +407,7 @@ export function SettingsMenu() {
                 {activeTab === 'runtime' && <RuntimeTab state={state} dispatch={dispatch} />}
                 {activeTab === 'providers' && <ProvidersModelsSection />}
                 {activeTab === 'tools' && <McpToolsSection />}
+                {activeTab === 'domains' && <DomainPacksSection />}
               </div>
             </div>
           </div>

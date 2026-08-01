@@ -2032,3 +2032,73 @@ change needed there, but worth writing down so a future session doesn't have to 
   change) deferred to the Phase L entry, once there's a GUI to set weights from — the plan bundles
   that verification with the editor it depends on. No debris left in
   `LLMBUILD_DATA/runtime-config/domain-packs.json` after the curl round-trip.
+
+## 2026-08-01 · Claude · Phase 6 · Settings v2 Phase L — domain-pack CRUD GUI (closes the round)
+
+Final phase of the Settings v2 round (Phases H–L). Builds the editor GUI on top of Phase K's
+overlay backend, and delivers the full end-to-end weighting proof that Phase K's entry deferred.
+
+**One backend addition, discovered as a real gap while designing the editor, not pre-planned:**
+there was no way to enumerate which knowledge collections exist at all — `loadKnowledgeCollection`
+requires already knowing an id. Without that, the weighting UI (the owner's "most important" ask)
+would have nothing to show checkboxes for. Added `listKnowledgeCollections(domainsDir)` to
+`config/knowledgeCollections.ts` and a new `GET /api/settings/knowledge-collections` route
+returning `[{id, displayName}]`.
+
+**GUI — new `APP/GUI/src/shell/DomainPacksSection.tsx`**, rendered as Phase H's 5th tab
+("Domain Packs" — the tab bar's data-driven `TABS` array made this a one-line addition, as
+planned):
+- List view (existing packs via `fetchDomains`, each with an Edit button) + "New pack".
+- Editor maps 1:1 to `domainPackSchema`: id (locked once editing an existing pack — a brand-new
+  pack's id becomes the create key), displayName, version, systemPrompt (textarea), vocabulary (a
+  small key/value row editor built for this), tools (checkboxes against the connector catalog from
+  the existing `fetchMcpConnectors()` — reused rather than duplicated), **knowledge collections +
+  weights** (checkbox per collection from the new endpoint; checking one reveals a weight number
+  input next to it, defaulting to 1, writing into `knowledgeCollectionWeights`), outputTemplates/
+  validation (JSON textareas with inline parse-error feedback, same lighter-touch validation style
+  as `McpToolsSection`'s JSON editor), tiers (default/cheapPath pills).
+- Save → `saveDomainPack()` → `POST /api/settings/domains`. Editing an existing pack (built-in or
+  previously-created) shows "Reset to default" → `DELETE /api/settings/domains/:id`.
+- New `lib/api.ts` additions: `DomainPackDetail` (the full editable shape — `DomainSummary` stayed
+  intentionally thin), `fetchDomainPackDetail`, `saveDomainPack`, `deleteDomainPackOverride`,
+  `fetchKnowledgeCollections`, `NEW_DOMAIN_PACK_TEMPLATE`.
+- `config/fieldHints.ts`: `domainPackId`, `domainPackSystemPrompt`, `domainPackTools`,
+  `domainPackKnowledgeWeight` (explains the multiplier and that it only takes effect with Grounded
+  knowledge ticked on), `domainPackOutputTemplates`, `domainPackValidation`.
+
+**Real bug caught and fixed during live verification, same class as Phase G's provider-picker
+fix:** `SettingsMenu.tsx`'s General tab fetched the domain list once on mount; creating a new pack
+in the Domain Packs tab and switching to General didn't show it without a full page reload. Fixed
+by extracting the fetch into a `reloadDomains()` function called both on mount and whenever the
+General tab is selected (`selectTab`) — mirrors the composer's existing `onFocus`-triggered
+provider refresh.
+
+**Proof:**
+- Backend: `tsc --noEmit` + `eslint` clean; Vitest 194/194 (was 193) — 1 new case for
+  `listKnowledgeCollections` (`knowledgeBase.test.ts`).
+- GUI: `tsc --noEmit` + `eslint` clean.
+- **Live proof against the running engine** (Playwright, real HTTP, no mocks):
+  - Created a brand-new pack ("Phase L Verify Pack") entirely through the GUI — filled id/display
+    name/system prompt, checked both known knowledge collections, set weights 3 and 0.5 via the
+    number inputs, saved. `GET /api/settings/domains/phase-l-verify` confirmed the exact weights
+    (`{"finance-ato-rd-tax-incentive": 3, "medical-racgp-standards": 0.5}`) persisted correctly.
+  - Confirmed the stale-list bug live (General tab didn't show the new pack), fixed it, re-ran —
+    now shows immediately.
+  - **Full end-to-end weighting proof, the one Phase K's entry deferred:** switched the active
+    conversation to the new pack, ticked Grounded knowledge, and asked the model to report — from
+    its own system prompt, not a tool call — which collection heading appears first in its
+    grounded-knowledge digest. Its visible thinking quoted the digest verbatim:
+    `### ATO — R&D Tax Incentive guidance` appearing before the RACGP section, and it answered
+    "ATO" — the weight-3 finance collection, correctly ordered ahead of the weight-0.5 medical
+    collection, observed directly in the real model's own context rather than inferred from logs.
+  - Edited the built-in `generic` pack's display name through the GUI (id field correctly
+    disabled/locked), confirmed the overlay-shadowed name appeared in the list, then hit "Reset to
+    default" and confirmed it reverted — and confirmed via direct read of
+    `domains/generic/pack.json` on disk that the checked-in file's `displayName` was never touched
+    at any point in this cycle.
+  - Cleaned up: deleted the `phase-l-verify` overlay entry via the API; `LLMBUILD_DATA/runtime-config/domain-packs.json` back to `[]`; no debris in the live service.
+
+**This closes the Settings v2 round (Phases H–L)**, covering all five of the owner's original asks:
+tabbed Settings, Cursor-style token/cost display, editable/creatable domain packs, temperature/
+effort sampling controls, and per-collection knowledge-base weighting with a confirmed-live effect
+on retrieval ordering.

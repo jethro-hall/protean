@@ -15,6 +15,7 @@ import {
 } from './config/defaults.js';
 import { loadDomainPackWithOverlay, listDomainPacksWithOverlay } from './config/domainPacks.js';
 import { domainPackSchema } from './contracts/domainPack.js';
+import { listKnowledgeCollections } from './config/knowledgeCollections.js';
 import { loadConnectorCatalog, loadConnectorCatalogWithOverlay } from './config/loadConnectors.js';
 import { loadConfig, requireModel, type ProteanConfig } from './config/loadConfig.js';
 import { resolveToolset } from './tools/registry.js';
@@ -510,6 +511,11 @@ function handleDeleteDomainPack(deps: AppDeps, id: string, res: ServerResponse):
   writeJson(res, 200, { ok: true });
 }
 
+/** Every known knowledge collection id (Phase 6 domain-pack editor's weighting UI). */
+function handleListKnowledgeCollections(deps: AppDeps, res: ServerResponse): void {
+  writeJson(res, 200, { collections: listKnowledgeCollections(deps.config.paths.domainsDir) });
+}
+
 export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
   const log = deps.logger.child('server');
   const server = createServer((req, res) => {
@@ -602,6 +608,10 @@ export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
         handleDeleteDomainPack(deps, id, res);
         return;
       }
+    }
+    if (req.method === 'GET' && url.pathname === '/api/settings/knowledge-collections') {
+      handleListKnowledgeCollections(deps, res);
+      return;
     }
     writeJson(res, 404, { error: `No route for ${req.method} ${url.pathname}` });
   });

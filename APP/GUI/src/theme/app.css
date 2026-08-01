@@ -347,6 +347,10 @@
 .protean-settings-model-list .tag {
   cursor: default;
 }
+.protean-settings-panel .detail {
+  color: var(--muted);
+  font-size: var(--fz-11);
+}
 
 /* Message / preview helpers (namespaced or thin glue on design classes) */
 .thread.empty-hero {

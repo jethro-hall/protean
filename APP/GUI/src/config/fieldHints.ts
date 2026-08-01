@@ -138,4 +138,34 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'Only "stdioMcp" (an external process) can be added this way \u2014 built-in tools require code in the engine itself. Edit the template fields to match your server.',
     example: '{"kind":"stdioMcp","serverId":"my-server","command":"npx",...}',
   },
+  domainPackId: {
+    what: 'The pack\u2019s unique id \u2014 what the domain picker and API calls reference it by.',
+    why: 'Locked after creation. If it matches a built-in pack (finance/medical/generic) your changes become a personal override of that pack, reversible with "Reset to default"; any other id creates a brand-new pack.',
+    example: 'legal, hr-onboarding, sales-enablement',
+  },
+  domainPackSystemPrompt: {
+    what: 'The persona and behaviour instructions that open every turn answered by this pack.',
+    why: 'This is the single biggest lever on how the assistant sounds and what it prioritises for this domain \u2014 it\u2019s rendered into the cacheable system-prompt prefix, so keep it stable rather than editing it every turn.',
+    example: '"You are a precise, evidence-first R&D tax analyst. Always cite the specific ATO provision you\u2019re relying on."',
+  },
+  domainPackTools: {
+    what: 'Which connectors (from the Tools tab\u2019s catalog) this pack\u2019s conversations can use.',
+    why: 'A tool only becomes available in a conversation if its id is checked here \u2014 adding a connector under the Tools tab makes it available platform-wide, but a pack must still opt in to actually use it.',
+    example: 'search, dataLakeQuery',
+  },
+  domainPackKnowledgeWeight: {
+    what: 'Which curated knowledge collections this pack may ground answers in, and how strongly each is weighted.',
+    why: 'A weight is a relevance multiplier (default 1) applied when ranking retrieved chunks and ordering the always-included digest \u2014 a collection weighted 2 is preferred roughly twice as strongly over one weighted 1 for the same query match. Only takes effect when the conversation has "Grounded knowledge" ticked on.',
+    example: 'Weight the core regulation text at 2 and a supplementary FAQ collection at 0.5 so the FAQ only wins on an exact-term match.',
+  },
+  domainPackOutputTemplates: {
+    what: 'Named output shapes (as JSON) the pack\u2019s system prompt can reference by name.',
+    why: 'Keeps a consistent structure for recurring deliverables (e.g. a report\u2019s section order) without hardcoding it into every prompt edit.',
+    example: '{"brief": "answer first \u2192 detail"}',
+  },
+  domainPackValidation: {
+    what: 'Free-form validation rules (as JSON) associated with this pack \u2014 not yet enforced by the engine, kept as declared metadata.',
+    why: 'A place to record domain-specific constraints (e.g. required disclaimers) so they\u2019re documented alongside the pack even before enforcement code exists for them.',
+    example: '{}',
+  },
 };

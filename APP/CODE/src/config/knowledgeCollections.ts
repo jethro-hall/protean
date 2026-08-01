@@ -46,3 +46,15 @@ export function loadKnowledgeCollections(
 ): KnowledgeCollection[] {
   return collectionIds.map((id) => loadKnowledgeCollection(domainsDir, id));
 }
+
+/** Every known collection's id + display name (Phase 6 domain-pack editor: what a pack can weight/reference). */
+export function listKnowledgeCollections(
+  domainsDir: string,
+): Array<{ id: string; displayName: string }> {
+  const out: Array<{ id: string; displayName: string }> = [];
+  for (const filePath of collectionFilePaths(domainsDir)) {
+    const parsed = knowledgeCollectionSchema.safeParse(JSON.parse(readFileSync(filePath, 'utf8')));
+    if (parsed.success) out.push({ id: parsed.data.id, displayName: parsed.data.displayName });
+  }
+  return out.sort((a, b) => a.id.localeCompare(b.id));
+}

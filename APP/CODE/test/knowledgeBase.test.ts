@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config/loadConfig.js';
-import { loadKnowledgeCollection, loadKnowledgeCollections } from '../src/config/knowledgeCollections.js';
+import {
+  listKnowledgeCollections,
+  loadKnowledgeCollection,
+  loadKnowledgeCollections,
+} from '../src/config/knowledgeCollections.js';
 import { queryKnowledgeBase } from '../src/tools/handlers/knowledgeBase.js';
 
 describe('loadKnowledgeCollection', () => {
@@ -24,6 +28,16 @@ describe('loadKnowledgeCollection', () => {
   it('fails loud for an unknown collection id (Law 1 — no silent empty)', () => {
     const domainsDir = loadConfig().paths.domainsDir;
     expect(() => loadKnowledgeCollection(domainsDir, 'does-not-exist')).toThrow(/not found/);
+  });
+});
+
+describe('listKnowledgeCollections (Phase 6 domain-pack editor)', () => {
+  it('lists every checked-in collection id + display name, sorted', () => {
+    const domainsDir = loadConfig().paths.domainsDir;
+    const ids = listKnowledgeCollections(domainsDir).map((c) => c.id);
+    expect(ids).toContain('finance-ato-rd-tax-incentive');
+    expect(ids).toContain('medical-racgp-standards');
+    expect(ids).toEqual([...ids].sort());
   });
 });
 
