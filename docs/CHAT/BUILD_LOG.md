@@ -1285,3 +1285,51 @@ and the model's own citation text.
 **Next step:** Owner to A/B the tickbox live against real questions across sessions; if the pattern
 holds up, next real step is a proper ingestion/versioning pipeline and the pgvector upgrade — not
 more hand-authored JSON chunks.
+
+## 2026-08-01 · Claude · Phase 6 · Fix the fabricated-citation finding — two-layer, not a patch
+
+**Context:** Owner asked for the citation-fabrication finding from the entry above to be fixed
+properly, "future proof" and rule-adherent — not quietly patched over. A prompt-only fix was tried
+first and PROVED insufficient live (see below), which is exactly why this ships as two independent
+layers rather than one.
+
+**Layer 1 — prevention (prompt):** new engine-level (pack-agnostic) protocol constant
+`CITATION_HONESTY_PROTOCOL_PROMPT` in `config/defaults.ts`, injected into every domain's dynamic
+system suffix in `assemble.ts` unconditionally (same category as `ARTEFACT_PROTOCOL_PROMPT` /
+`NARRATION_PROTOCOL_PROMPT` — an engine rule, not a domain fact). States plainly: a tool/dataset/
+knowledge-base lookup may only be claimed if it actually happened this turn; a correct figure with
+a fabricated citation is still a fabrication.
+
+**Layer 2 — detection (deterministic, Law 4/6):** `watcher/citationGuard.ts`,
+`findUnverifiedProvenanceClaims(output, toolsCalled)` — pure, exported, unit-tested. Checks
+provenance-claim phrases ("knowledge base", "database", "retrieved from", "looked up") against
+whether a tool call that could actually corroborate THAT specific claim ran — not just "any tool
+ran" (see the regression below for why that distinction matters). Wired into `runTurn.ts` right
+before `recordLineage`; a hit logs `watcher.unverified_citation_claim` loudly and is recorded on
+`TurnLineage.unverifiedCitationClaims` — permanent audit trail, not a silent pass-through.
+
+**Why two layers, not one (the live proof that mattered):** shipped Layer 1 alone first and
+re-ran the exact repro. The model stopped saying "official knowledge base" — and said **"documented
+in the same ATO knowledge base sourced in the codebase"** instead, while only `Grep`/`Glob`/`Read`
+had run (unrelated file-search tools, not the knowledge base). My first cut of Layer 2 used "any
+tool ran this turn" as the corroboration bar and MISSED this — Grep/Glob/Read count as "a tool ran"
+but don't corroborate a knowledge-base-specific claim. Fixed before shipping: corroboration is now
+claim-specific (a "knowledge base" claim needs a tool name containing `knowledge_base`; a generic
+"retrieved from" claim accepts any real tool call). Regression test added for the exact case that
+was missed.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean; Vitest 120/120 (was 115) — 5 new `citationGuard` cases including
+  the corroboration-specificity regression.
+- **Live re-verification** (services restarted onto this code, same finance/unticked repro that
+  found the original bug): one generation produced the fully honest ideal — *"I have not called
+  any tools to verify this claim this turn... From general knowledge (training data, not verified
+  against a live source)... I cannot cite the exact figure without proof."* Model variance means
+  this isn't guaranteed every time (a later identical-prompt run still tried "the same ATO knowledge
+  base sourced in the codebase" with zero corroborating tools) — which is exactly why Layer 2 exists
+  and is confirmed catching it, not Layer 1 alone.
+
+**Residual:** Layer 2 detects and logs; it does not (and structurally cannot) rewrite text already
+streamed to the GUI by the time the full output is available for scanning. A future pass could
+surface `unverifiedCitationClaims` as a visible GUI banner on the turn, not just a log/lineage
+line — logged as a next step, not built here.

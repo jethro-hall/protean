@@ -22,6 +22,7 @@ import {
 import { assembleTurn, resolveEffectiveTier, resolveGrounding } from './assemble.js';
 import { budgetMessages } from './budget.js';
 import { computeCacheKey, type CacheStore } from './cache.js';
+import { findUnverifiedProvenanceClaims } from './citationGuard.js';
 import { loadKnowledgeCollections } from '../config/knowledgeCollections.js';
 import { recordLineage, recordTelemetry } from './record.js';
 import { rewriteTurnInput, shouldRewriteTurn } from './rewrite.js';
@@ -350,6 +351,15 @@ export async function* runTurn(
     return;
   }
 
+  const unverifiedCitationClaims = findUnverifiedProvenanceClaims(output, toolsCalled);
+  if (unverifiedCitationClaims.length > 0) {
+    log.warn(
+      'watcher.unverified_citation_claim',
+      `Output claims a lookup ("${unverifiedCitationClaims.join('", "')}") but no tool was called this turn — likely fabricated provenance`,
+      { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { unverifiedCitationClaims } },
+    );
+  }
+
   recordLineage(deps.promptHistoryDir, {
     turnId: assembled.turnId,
     sessionId: assembled.sessionId,
@@ -373,6 +383,7 @@ export async function* runTurn(
     registryVersion: deps.registryVersion,
     grounded: assembled.grounded,
     knowledgeCollectionsUsed: assembled.knowledgeCollectionsUsed,
+    ...(unverifiedCitationClaims.length > 0 ? { unverifiedCitationClaims } : {}),
   });
   recordTelemetry(deps.tokenTelemetryDir, {
     ts: startedAt,

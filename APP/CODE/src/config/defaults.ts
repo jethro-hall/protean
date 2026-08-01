@@ -73,6 +73,22 @@ export const NARRATION_PROTOCOL_PROMPT =
   'changed and why, item by item. Never reply with a bare confirmation like "done" or ' +
   '"updated" — the user must be able to follow your reasoning from the transcript alone.';
 
+/**
+ * Citation-honesty protocol — an ENGINE protocol constant (every pack, not domain-specific),
+ * closing a real failure mode found in the grounded-knowledge POC (2026-08-01 BUILD_LOG):
+ * with no tool called, the model still produced a plausible-sounding "Source: ... official
+ * knowledge base" citation for a lookup that never happened. Law 6 ("evidence or nothing")
+ * forbids that regardless of whether the underlying figure happened to be correct.
+ */
+export const CITATION_HONESTY_PROTOCOL_PROMPT =
+  'You may only claim you consulted a tool, dataset, document, or knowledge base if you actually ' +
+  'called it THIS turn — a real tool call will appear in your own working steps. Never write ' +
+  'phrases like "official knowledge base", "retrieved from", "looked up", or "according to our ' +
+  'database" unless a tool call backs that exact claim. When a fact comes from your own trained ' +
+  'knowledge and no tool was called, say so plainly (e.g. "from general knowledge, not verified ' +
+  'against a live source this turn") — a correct figure with a fabricated citation is still a ' +
+  'fabrication.';
+
 /** Upload limits: text attachments only for now; caps keep prompts inside the token budget. */
 export const MAX_ATTACHMENT_BYTES = 512 * 1024;
 export const MAX_ATTACHMENTS_PER_TURN = 5;

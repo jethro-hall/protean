@@ -229,6 +229,7 @@ describe('assembleTurn', () => {
     expect(assembled.systemPromptDynamic).toContain('<protean:artefact');
     expect(assembled.systemPromptDynamic).toContain('Live tool registry wiring');
     expect(assembled.systemPromptDynamic).toContain('search → Grep, Glob');
+    expect(assembled.systemPromptDynamic).toContain('official knowledge base');
     expect(assembled.systemPrompt.startsWith(assembled.systemPromptStatic)).toBe(true);
     expect(assembled.wiredTools).toHaveLength(2);
   });

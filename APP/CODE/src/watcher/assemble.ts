@@ -11,6 +11,7 @@ import type {
 } from '../contracts/turn.js';
 import {
   ARTEFACT_PROTOCOL_PROMPT,
+  CITATION_HONESTY_PROTOCOL_PROMPT,
   DEFAULT_HISTORY_WINDOW_MESSAGES,
   NARRATION_PROTOCOL_PROMPT,
   toolsetVersionFromPolicy,
@@ -208,6 +209,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
   const systemPromptDynamic = [
     ARTEFACT_PROTOCOL_PROMPT,
     NARRATION_PROTOCOL_PROMPT,
+    CITATION_HONESTY_PROTOCOL_PROMPT,
     renderWiredToolsPrompt(wiredTools),
     ...(knowledgeDigest !== '' ? [knowledgeDigest] : []),
   ].join('\n\n');

@@ -148,4 +148,6 @@ export interface TurnLineage {
   /** Grounded-knowledge POC evidence (Law 6) — false/empty unless explicitly requested. */
   grounded?: boolean;
   knowledgeCollectionsUsed?: string[];
+  /** Citation-honesty audit (Law 6): phrases claiming a lookup with no tool call to back it. */
+  unverifiedCitationClaims?: string[];
 }
