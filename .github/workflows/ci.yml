@@ -1,9 +1,8 @@
 # Protean CI — the gate. Red = not mergeable (Law 1: no workarounds to force green).
-# [VERIFY] adjust Node version + commands once package.json exists in Phase 0.
 name: ci
 on:
   push:
-    branches: [main, "phase/**"]
+    branches: [main, "phase/**", "feat/**"]
   pull_request:
     branches: [main]
 
@@ -12,18 +11,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-      - name: Install
-        run: npm ci || echo "no package.json yet (pre-Phase-0 scaffold)"
-      - name: Typecheck
-        run: npm run typecheck --if-present
-      - name: Lint
-        run: npm run lint --if-present
-      - name: Test
-        run: npm test --if-present
+          cache-dependency-path: |
+            APP/CODE/package-lock.json
+            APP/GUI/package-lock.json
+
+      - name: Install CODE
+        working-directory: APP/CODE
+        run: npm ci
+
+      - name: Typecheck CODE
+        working-directory: APP/CODE
+        run: npx tsc --noEmit
+
+      - name: Test CODE
+        working-directory: APP/CODE
+        run: npm test
+
+      - name: Install GUI
+        working-directory: APP/GUI
+        run: npm ci
+
+      - name: Typecheck GUI
+        working-directory: APP/GUI
+        run: npx tsc --noEmit
+
+      - name: Build GUI
+        working-directory: APP/GUI
+        run: npm run build
+
       - name: Guard — no secrets committed
         # Matches secret VALUES, not variable NAMES. Legit source must reference
         # ANTHROPIC_API_KEY / AWS_BEARER_TOKEN as env-var keys — flagging those is a
