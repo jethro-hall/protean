@@ -53,4 +53,14 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'Unticked is standard behaviour \u2014 this is an experimental parallel path, off by default, so you can A/B it against normal answers.',
     example: 'Finance grounded in ATO R&D Tax Incentive guidance; Medical grounded in RACGP Standards.',
   },
+  responseDepth: {
+    what: 'A plain-language stand-in for the response length/complexity budget (the raw number was previously only a server env var).',
+    why: 'Bigger, more expert answers cost more tokens and take longer \u2014 this lets you trade that off per question instead of a fixed engine-wide number. It never changes which model tier answers, only how much room and depth the reply gets.',
+    example: 'HSC Level: short, plain-language, ~3,000 tokens. Uni Degree: standard depth, ~8,000 tokens. Professor: full expert rigor, ~16,000 tokens.',
+  },
+  advancedTurnTokenBudget: {
+    what: 'Manual override of the exact response token budget for this turn, overriding whichever depth preset is selected.',
+    why: 'For when none of the three presets fit \u2014 e.g. a very long document that needs more room than "Professor" budgets by default.',
+    example: '24000 for a long multi-section report; leave blank to use the selected depth preset.',
+  },
 };

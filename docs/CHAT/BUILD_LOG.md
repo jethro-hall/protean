@@ -1333,3 +1333,54 @@ was missed.
 streamed to the GUI by the time the full output is available for scanning. A future pass could
 surface `unverifiedCitationClaims` as a visible GUI banner on the turn, not just a log/lineage
 line — logged as a next step, not built here.
+
+## 2026-08-01 · Claude · Phase 6 · Friendly response-depth presets + advanced token override
+
+**Context:** Owner pointed out the turn-token-budget ceiling was only ever a raw number behind an
+env var (`PROTEAN_TURN_TOKEN_BUDGET`) — no live control, no plain-language framing. Asked for three
+friendly presets ("HSC Level / Uni Degree / Professor") plus a floating "total adjustment" option
+exposing the real settings, each with an (i) info icon (what/why/example) — the same InfoHint
+pattern already used everywhere else in this GUI (Law 2: hints are data, `fieldHints.ts`).
+
+**Design decision worth recording:** `responseDepth` controls ONLY the response token budget and a
+writing-depth instruction — it deliberately does **not** touch model tier. Tier is already its own
+independent control (Fast/Strong pills); conflating "how long/sophisticated should the answer be"
+with "which model answers" would mean picking a reading-level preset could silently escalate or
+downgrade cost/quality behind the user's back. Locked in with a test
+(`resolveTier` "is untouched by responseDepth").
+
+**Backend:**
+- `contracts/turn.ts`: `responseDepthSchema` (`hscLevel`/`uniDegree`/`professor`), `TurnRequest.
+  responseDepth` + `TurnRequest.turnTokenBudget` (advanced manual override, capped at 64000).
+- `config/defaults.ts`: `RESPONSE_DEPTH_PRESETS` — each preset is `{label, turnTokenBudget,
+  instruction}` only. `uniDegree` reuses `DEFAULT_TURN_TOKEN_BUDGET` (8000) so it reproduces the
+  platform's pre-existing standard behaviour exactly — picking nothing (Standard) or picking "Uni
+  Degree" both give today's baseline.
+- `watcher/assemble.ts`: `resolveTurnTokenBudget()` (explicit override → preset → platform default)
+  and `resolveResponseDepthInstruction()` (both pure, exported, unit-tested); the instruction is
+  injected into the dynamic system suffix only when a depth was actually requested.
+- `watcher/runTurn.ts`: `budgetMessages()` now uses the resolved per-request budget, not the fixed
+  global one; `watcher.assembled` log line and lineage record the resolved budget + depth for
+  evidence (Law 6).
+
+**GUI (`SettingsMenu.tsx`):** a fourth "Standard" pill alongside the three requested presets (always
+one selected, matching the existing Tier-pill pattern — avoids an ambiguous "nothing highlighted"
+state) plus an "Advanced ▾" disclosure inside the same settings panel (chose to extend the existing
+floating panel rather than add a second competing floating trigger — UX_STANDARDS' "no clutter" law)
+revealing a numeric token-budget override, with its own InfoHint. Wired through `appState.ts` →
+`api.ts` → `useTurn.ts`, mirroring the `grounded` tickbox's plumbing exactly.
+
+**Proof:**
+- Backend: `tsc --noEmit` + `eslint` clean; Vitest 128/128 (was 120) — 9 new cases covering
+  `resolveTurnTokenBudget` (default/preset/override precedence), `resolveResponseDepthInstruction`,
+  the tier-independence guarantee, and `assembleTurn`'s injection/omission of the instruction text.
+- GUI: `tsc --noEmit` + `eslint` clean.
+- **Live browser proof**: "Standard" confirmed selected by default; picked "Professor", opened
+  Advanced, set an override of `9999` — engine log shows `budget 9999` (override beat the
+  Professor preset's 16000), `depth professor`, `tier fast` unchanged (still whatever Fast/Strong
+  pill was separately selected) — confirms the override → preset → default precedence and the
+  tier-independence guarantee both hold live, not just in unit tests.
+
+**Residual:** only `turnTokenBudget` is exposed in Advanced today — the other adjustable settings
+(tier, domain, grounded) already have their own top-level controls, so nothing else currently needs
+a manual-override home; the Advanced section is there to grow into, not a stub for its own sake.

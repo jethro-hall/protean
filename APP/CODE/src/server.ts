@@ -17,6 +17,7 @@ import { resolveToolset } from './tools/registry.js';
 import {
   attachmentSchema,
   modelTierSchema,
+  responseDepthSchema,
   type TurnEvent,
   type TurnRequest,
 } from './contracts/turn.js';
@@ -37,6 +38,10 @@ const turnBodySchema = z.object({
   tier: modelTierSchema.optional(),
   /** Grounded-knowledge POC tickbox (Phase 6). Unticked/omitted = standard behaviour. */
   grounded: z.boolean().optional(),
+  /** Friendly depth preset (Phase 6). Omitted = platform standard. */
+  responseDepth: responseDepthSchema.optional(),
+  /** Advanced manual override — wins over responseDepth's own budget. */
+  turnTokenBudget: z.number().int().positive().max(64000).optional(),
   attachments: z
     .array(
       attachmentSchema.refine((file) => file.textContent.length <= MAX_ATTACHMENT_BYTES, {
@@ -106,6 +111,8 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
     input: body.input,
     ...(body.tier !== undefined ? { tier: body.tier } : {}),
     ...(body.grounded !== undefined ? { grounded: body.grounded } : {}),
+    ...(body.responseDepth !== undefined ? { responseDepth: body.responseDepth } : {}),
+    ...(body.turnTokenBudget !== undefined ? { turnTokenBudget: body.turnTokenBudget } : {}),
     ...(body.attachments !== undefined ? { attachments: body.attachments } : {}),
   };
 

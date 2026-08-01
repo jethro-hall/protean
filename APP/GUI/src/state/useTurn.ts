@@ -53,6 +53,12 @@ export function useSendTurn(): (input: string, attachments?: Attachment[]) => vo
         tier: state.settings.tier,
         ...(attachments !== undefined && attachments.length > 0 ? { attachments } : {}),
         grounded: state.settings.grounded,
+        ...(state.settings.responseDepth !== undefined
+          ? { responseDepth: state.settings.responseDepth }
+          : {}),
+        ...(state.settings.turnTokenBudget !== undefined
+          ? { turnTokenBudget: state.settings.turnTokenBudget }
+          : {}),
         signal: controller.signal,
         onEvent: (event) => {
           if (event.type === 'text') {

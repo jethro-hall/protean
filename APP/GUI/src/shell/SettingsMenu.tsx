@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { InfoHint } from '../components/InfoHint';
-import { fetchDomains, type DomainSummary, type ModelTier } from '../lib/api';
+import { fetchDomains, type DomainSummary, type ModelTier, type ResponseDepth } from '../lib/api';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
 
 const TIERS: Array<{ id: ModelTier; label: string }> = [
@@ -8,11 +8,20 @@ const TIERS: Array<{ id: ModelTier; label: string }> = [
   { id: 'strong', label: 'Strong' },
 ];
 
+/** undefined = "Standard" (platform default) — always one pill selected, like Tier above. */
+const RESPONSE_DEPTHS: Array<{ id: ResponseDepth | undefined; label: string }> = [
+  { id: undefined, label: 'Standard' },
+  { id: 'hscLevel', label: 'HSC Level' },
+  { id: 'uniDegree', label: 'Uni Degree' },
+  { id: 'professor', label: 'Professor' },
+];
+
 /** Domain pill + settings gear (prototype top-actions). */
 export function SettingsMenu() {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [domains, setDomains] = useState<DomainSummary[] | 'loading' | 'unavailable'>('loading');
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -132,6 +141,55 @@ export function SettingsMenu() {
               />
               <span>Ground answers in curated domain sources (experimental)</span>
             </label>
+          </fieldset>
+          <fieldset>
+            <legend>
+              Response depth <InfoHint hintKey="responseDepth" />
+            </legend>
+            <div className="protean-settings-row protean-settings-row-wrap">
+              {RESPONSE_DEPTHS.map((depth) => (
+                <button
+                  key={depth.label}
+                  type="button"
+                  className={`pill${state.settings.responseDepth === depth.id ? ' on' : ''}`}
+                  aria-pressed={state.settings.responseDepth === depth.id}
+                  onClick={() => dispatch({ type: 'setResponseDepth', responseDepth: depth.id })}
+                >
+                  <span className="dot" aria-hidden />
+                  {depth.label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="btn-ghost protean-settings-advanced-toggle"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((value) => !value)}
+            >
+              Advanced {advancedOpen ? '▴' : '▾'}
+            </button>
+            {advancedOpen && (
+              <div className="protean-settings-advanced">
+                <label>
+                  Token budget override <InfoHint hintKey="advancedTurnTokenBudget" />
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={64000}
+                  placeholder="Use selected depth preset"
+                  value={state.settings.turnTokenBudget ?? ''}
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    const parsed = raw === '' ? undefined : Number.parseInt(raw, 10);
+                    dispatch({
+                      type: 'setTurnTokenBudget',
+                      turnTokenBudget: parsed !== undefined && Number.isFinite(parsed) ? parsed : undefined,
+                    });
+                  }}
+                />
+              </div>
+            )}
           </fieldset>
         </div>
       )}
