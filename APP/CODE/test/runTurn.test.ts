@@ -39,7 +39,13 @@ function makeDeps(agent: AgentCore): TurnPipelineDeps & { dataDir: string } {
     pack,
     history: [],
     model: 'test-model',
-    watcher: { turnTokenBudget: 8000, rewriteEnabled: false, rewriteBloatTokens: 600 },
+    watcher: {
+      turnTokenBudget: 8000,
+      rewriteEnabled: false,
+      rewriteBloatTokens: 600,
+      autoTierEnabled: false,
+      autoTierEscalationTokens: 2000,
+    },
     toolPolicy: NO_TOOLS_POLICY,
     workspaceDir: dataDir,
     datasetsDir: join(dataDir, 'datasets'),
@@ -159,7 +165,14 @@ describe('runTurn pipeline', () => {
     const rewriteDeps: TurnPipelineDeps = {
       ...deps,
       gateway: rewritingGateway,
-      watcher: { turnTokenBudget: 8000, rewriteEnabled: true, rewriteBloatTokens: 100, fastModel: 'fast' },
+      watcher: {
+        turnTokenBudget: 8000,
+        rewriteEnabled: true,
+        rewriteBloatTokens: 100,
+        fastModel: 'fast',
+        autoTierEnabled: false,
+        autoTierEscalationTokens: 2000,
+      },
     };
     const events = await collect(runTurn({ ...request, input: bloated }, rewriteDeps));
     const done = events.at(-1);

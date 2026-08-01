@@ -6,6 +6,7 @@ import {
   assembleTurn,
   renderInputWithAttachments,
   renderPackSystemPrompt,
+  resolveEffectiveTier,
   resolveTier,
   windowHistory,
 } from '../src/watcher/assemble.js';
@@ -38,6 +39,7 @@ const assembleBase = {
   request,
   pack,
   model: 'm',
+  tier: 'strong' as const,
   toolPolicy,
   workspaceDir: '/repo',
   datasetsDir: '/repo/APP/LLMBUILD_DATA/datasets',
@@ -85,6 +87,74 @@ describe('resolveTier', () => {
   });
   it('falls back to the pack default', () => {
     expect(resolveTier(request, pack)).toBe('strong');
+  });
+});
+
+describe('resolveEffectiveTier (deterministic auto-tier gate)', () => {
+  const fastPack: DomainPack = domainPackSchema.parse({
+    ...pack,
+    id: 'fastpack',
+    tiers: { default: 'fast', cheapPath: 'fast' },
+  });
+  const shortRequest: TurnRequest = { ...request, domainId: 'fastpack', input: 'hi' };
+  const longRequest: TurnRequest = {
+    ...request,
+    domainId: 'fastpack',
+    input: 'x'.repeat(4 * 3000), // ~3000 estimated tokens
+  };
+
+  it('never escalates when auto-tier is disabled', () => {
+    const result = resolveEffectiveTier(longRequest, fastPack, {
+      autoTierEnabled: false,
+      autoTierEscalationTokens: 2000,
+    });
+    expect(result).toEqual({
+      tier: 'fast',
+      escalated: false,
+      reason: 'pack default tier — auto-tier off or already strong',
+    });
+  });
+
+  it('never escalates over an explicit tier choice, even above threshold', () => {
+    const result = resolveEffectiveTier({ ...longRequest, tier: 'fast' }, fastPack, {
+      autoTierEnabled: true,
+      autoTierEscalationTokens: 2000,
+    });
+    expect(result.tier).toBe('fast');
+    expect(result.escalated).toBe(false);
+    expect(result.reason).toContain('explicit tier requested');
+  });
+
+  it('escalates fast→strong when enabled and input exceeds the threshold', () => {
+    const result = resolveEffectiveTier(longRequest, fastPack, {
+      autoTierEnabled: true,
+      autoTierEscalationTokens: 2000,
+    });
+    expect(result.tier).toBe('strong');
+    expect(result.escalated).toBe(true);
+    expect(result.reason).toContain('auto-tier threshold');
+  });
+
+  it('stays on the deterministic path when enabled but input is within the threshold', () => {
+    const result = resolveEffectiveTier(shortRequest, fastPack, {
+      autoTierEnabled: true,
+      autoTierEscalationTokens: 2000,
+    });
+    expect(result.tier).toBe('fast');
+    expect(result.escalated).toBe(false);
+    expect(result.reason).toContain('deterministic path');
+  });
+
+  it('is a no-op when the pack default is already strong', () => {
+    const result = resolveEffectiveTier(request, pack, {
+      autoTierEnabled: true,
+      autoTierEscalationTokens: 2000,
+    });
+    expect(result).toEqual({
+      tier: 'strong',
+      escalated: false,
+      reason: 'pack default tier — auto-tier off or already strong',
+    });
   });
 });
 
