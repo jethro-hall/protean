@@ -55,6 +55,8 @@ export interface ProteanConfig {
     dataDir: string;
     promptHistoryDir: string;
     tokenTelemetryDir: string;
+    /** Embedding gateway call telemetry (Phase N) -- separate from turn telemetry since embeddings aren't turns. */
+    embeddingTelemetryDir: string;
     sessionsDir: string;
     evalSetsDir: string;
     evalResultsDir: string;
@@ -174,6 +176,7 @@ export function loadConfig(): ProteanConfig {
       dataDir,
       promptHistoryDir: join(dataDir, 'prompt-history'),
       tokenTelemetryDir: join(dataDir, 'token-telemetry'),
+      embeddingTelemetryDir: join(dataDir, 'embedding-telemetry'),
       sessionsDir: join(dataDir, 'sessions'),
       evalSetsDir: join(dataDir, 'eval-sets'),
       evalResultsDir: join(dataDir, 'eval-results'),

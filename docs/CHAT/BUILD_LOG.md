@@ -2182,3 +2182,45 @@ degradable" ethos extended to vectors.
   independent of the adapter. Restarted `protean-engine.service` after the `loadConfig.ts` change
   (a core, widely-used file) and confirmed `/healthz` and `/api/domains` both still healthy — no
   regression to the existing chat path from adding an entirely-optional new config section.
+
+## 2026-08-01 · Claude · Phase 6 · Grounded Knowledge v2 Phase N — embedding gateway adapter (Voyage AI)
+
+Before writing any code, fetched Voyage AI's live docs (not memory) twice: once to confirm every
+model's output dimension (`voyage-4`/`voyage-finance-2`/`voyage-law-2` all default to 1024, already
+used to size Phase M's pgvector column), once to confirm the exact REST shape (`POST
+https://api.voyageai.com/v1/embeddings`, `Authorization: Bearer`, `{input, model, input_type?}` →
+`{data:[{embedding,index}], model, usage:{total_tokens}}`) — both verified live, not guessed. Owner
+provided a real `VOYAGE_API_KEY`, written straight to `.env` (gitignore-confirmed), never echoed
+back in chat/logs/commits.
+
+**Backend:** new `contracts/embedding.ts` (`EmbeddingRequest`/`EmbeddingResult`, with an
+`inputType?: 'query'|'document'` field — Voyage's own asymmetric-embedding guidance for better
+retrieval quality, since indexing a document and embedding a search query benefit from different
+treatment). New `gateway/embeddings/EmbeddingGateway.ts` interface (same one-method shape as
+`LlmGateway`) + `gateway/embeddings/voyageAdapter.ts`, the only file shaping a Voyage-specific
+request (Law 5) — plain `fetch`, no vendor SDK, same pattern already proven in
+`gateway/adapters/customProvider.ts`. Response embeddings are re-sorted by their `index` field
+before returning, since nothing guarantees the API echoes them back in request order. New
+`watcher/record.ts` `recordEmbeddingTelemetry()` + `EmbeddingTelemetryRow`, a sibling to the
+existing turn-telemetry recorder (embeddings aren't turns, so a separate JSONL stream — new
+`config.paths.embeddingTelemetryDir`) — not yet called anywhere; wired in by whichever of Phase
+O/P/Q first calls `embed()` for real, so there's no dead call site sitting unused.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean; Vitest 207/207 (was 201) — 6 new mocked-`fetch` cases mirroring
+  `customProvider.test.ts`'s style: correct request shape, response re-sorted by index (fed
+  deliberately out-of-order to prove it), `input_type` omitted when not provided, a specific error
+  message on HTTP failure (not bare "error"), pre-network-call rejection of an empty batch and of a
+  batch over Voyage's own 1000-item cap, and a specific error when the response is missing expected
+  fields rather than silently returning `undefined`.
+- **Live proof against the real Voyage API** (no mocks): embedded two real sentences, got back real
+  1024-dimension vectors (confirming Phase M's schema choice was correct) and real token usage (34
+  tokens) — not fabricated numbers.
+- **Full end-to-end live proof, embeddings + pgvector together — the concrete "state of the art"
+  claim, demonstrated not asserted**: embedded a finance chunk and an unrelated medical chunk, stored
+  both in pgvector, then embedded a deliberately paraphrased query ("How much money in research
+  spending is needed before a company can get the government tax break?") sharing almost no literal
+  words with the finance chunk (no "money"/"incur", "research"/"R&D", "tax break"/"tax offset"
+  overlap — TF-IDF alone would score this pair near zero). Cosine similarity search correctly
+  ranked the finance chunk at 0.627 against the medical chunk's 0.055 — real semantic matching,
+  measured, not claimed. Test rows cleaned up immediately after — no debris in the live database.

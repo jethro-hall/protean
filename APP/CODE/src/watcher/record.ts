@@ -45,3 +45,21 @@ export function recordLineage(promptHistoryDir: string, lineage: TurnLineage): s
 export function recordTelemetry(tokenTelemetryDir: string, row: TelemetryRow): string {
   return appendJsonl(tokenTelemetryDir, row);
 }
+
+/** One embedding gateway call (Phase N) -- measured like every other provider call (Law 6), never assumed free. */
+export interface EmbeddingTelemetryRow {
+  ts: string;
+  provider: string;
+  model: string;
+  /** Which collection this batch was embedding for, when known (ingestion/hybrid-search query calls both pass it). */
+  collectionId: string | null;
+  textCount: number;
+  totalTokens: number;
+}
+
+export function recordEmbeddingTelemetry(
+  embeddingTelemetryDir: string,
+  row: EmbeddingTelemetryRow,
+): string {
+  return appendJsonl(embeddingTelemetryDir, row);
+}
