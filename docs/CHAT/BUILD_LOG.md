@@ -1093,3 +1093,35 @@ Caddy routes `studio.rideai.com.au` to `agentic_workflow_web:3000` (deployment #
 
 **Next step:** Phase 6 hardening; optionally enable external MCP connectors when credentials
 exist; prove Bash only after sandbox.
+
+## 2026-08-01 · Cursor (Cloud Agent) · Dev environment setup for Cursor Cloud
+
+**User request (faithful summary):**
+> Set up a new development environment for this codebase. Run the relevant applications and
+> demonstrate that the environment works end to end.
+
+**What changed (no product code touched):**
+- Added `## Cursor Cloud specific instructions` to `AGENTS.md`: two-package layout (no root
+  `package.json`), engine-then-GUI run order + ports, Vite binds `localhost`/IPv6 (not
+  `127.0.0.1`), file-backed state (no Docker/DB needed to run), agent tools limited to
+  `Read,Grep,Glob`, and the credential requirement for live `/api/turn`.
+- Configured the Cursor Cloud startup update script to `npm ci` in `APP/CODE` and `APP/GUI`.
+- Created repo-root `.env` from `.env.example` (untracked; empty provider values).
+
+**Agent response / status (evidence):**
+- **Install:** `npm ci` clean in both `APP/CODE` (252 pkgs) and `APP/GUI` (151 pkgs); Node v22.
+- **Quality gates:** `APP/CODE` — `npm run lint` clean, `npm run typecheck` clean, `npm test`
+  **88/88** pass. `APP/GUI` — `npm run lint` clean, `npm run build` OK (vite build 220 kB bundle).
+- **Services running:** engine `npm run dev` on `:8787` (`GET /healthz` → `{"ok":true}`,
+  `GET /api/domains` → finance/generic/medical); GUI `npm run dev` on `:5173`, `/api/domains`
+  proxied through Vite → engine returns the same list.
+- **GUI browser-verified:** three-pane shell (conversations rail · chat · live preview), settings
+  gear exposes Model Tier (Fast/Strong) + Domain Pack (Finance/Generic/Medical). Sending a chat
+  posted through the proxy to the engine and surfaced the honest error banner *"The turn failed —
+  No model configured for tier 'fast'"* (Law 1, no silent fallback).
+- **Blocker (logged, not papered over):** no LLM provider credentials are present in the base VM
+  (no `ANTHROPIC_API_KEY`, no `AWS_BEARER_TOKEN_BEDROCK`, no AWS CLI/ambient role). A successful
+  live turn requires provider creds via Cursor Secrets; requested from the owner.
+
+**Next step:** owner supplies Bedrock (or Anthropic) credentials as Cursor Secrets so a future
+cloud agent can complete a live `POST /api/turn`; no further setup changes needed.
