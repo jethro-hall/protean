@@ -1093,3 +1093,63 @@ Caddy routes `studio.rideai.com.au` to `agentic_workflow_web:3000` (deployment #
 
 **Next step:** Phase 6 hardening; optionally enable external MCP connectors when credentials
 exist; prove Bash only after sandbox.
+## 2026-08-01 · Claude · Phase 6 · Phase A remediation — Stop button + silent-success guard
+
+**Context:** Picks up Tier 1 ("Must fix first") of `docs/ops/CURSOR_PROMPT_best-practice-to-10.md`,
+written after today's HUT scored Best practice 5.0/10 (POC-only) on two failures: Stop missing
+from Composer, and a finance tool→artefact retest that came back empty. Both root causes were
+diagnosed (not guessed) before this plan: (1) the backend abort path (`server.ts` req
+`'aborted'`/res `'close'` → `AbortController.abort()` → SDK seize) already worked — the GUI simply
+never created or fed an `AbortSignal`; `api.ts`'s `streamTurn()` already accepted one, unused. (2)
+The registry/MCP tool-wiring path was already correct (an earlier same-day turn proved it clean);
+the failing HUT turn's own evidence — `usage:{input:0,output:0}`, `providerDurationMs:0`, yet
+`totalMs:145321` — is a transient SDK hang (subprocess spawn / Bedrock auth) surfacing as
+`subtype:'success'`, not a wiring bug.
+
+**What changed:**
+- **Stop button (`APP/GUI`):** `state/useTurn.ts` — module-level `Map<conversationId,
+  AbortController>` (ephemeral UI wiring, not app state); `useSendTurn` creates one per turn and
+  feeds `controller.signal` to `streamTurn`; new `useStopTurn()` aborts the active conversation's
+  controller. `state/appState.ts` — new `stopped?: boolean` on `ChatMessage` + `assistantStopped`
+  action (mirrors `turnError`'s partial-content handling but keeps `status:'idle'`, not `'error'`
+  — a user-initiated stop is not a failure). `components/Composer.tsx` — while busy, the Send
+  button becomes a Stop button (■, `--err` red) wired to `useStopTurn()`, instead of a disabled
+  `aria-label="Streaming"` no-op. `components/MessageList.tsx` + `theme/{components,app}.css` —
+  render `[stopped]` under a stopped message.
+- **Silent-success guard (`APP/CODE`):** `gateway/adapters/claude.ts` — new `isVacuousSuccess()`
+  (pure, exported, unit-tested): a `result` message with `subtype:'success'` but zero usage on
+  every axis (input/output/cache-read/cache-creation tokens) is now logged loudly
+  (`gateway.vacuous_success`) and surfaced as an `error` event, never a silent `done`. Tool/MCP
+  wiring untouched — Law 1 forbids "fixing" a correct path to paper over an unrelated hang.
+- Tests: `test/claudeAdapter.test.ts` +3 cases for `isVacuousSuccess` (zero-usage flagged,
+  real-usage not flagged, cache-only-turn not flagged).
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean on both `APP/CODE` and `APP/GUI`; Vitest 96/96 (was 93 before
+  the +3 `isVacuousSuccess` cases). GUI has no test runner configured (pre-existing gap, not
+  addressed here — out of Tier-1 scope).
+- **Live browser proof (headless Chromium via `playwright-core`, `protean-gui`/`protean-engine`
+  services restarted onto this code first):**
+  - Stop: long-running generic-domain turn → Stop button appears while streaming → clicked →
+    engine log `server.turn.client_abort "Client disconnected — seizing model run"` fires (proves
+    the fetch abort really reaches the backend seize path) → GUI shows partial thinking +
+    `[stopped]`, Send button returns. Reproduced twice (two separate turnIds/sessionIds in the
+    engine log).
+  - Tool→artefact: finance domain, "list datasets and summarize the RD ledger costs" → toolchips
+    `list_datasets` + `summarize_csv` called, real inline answer, no error banner (usage was real,
+    guard correctly did not fire). Then "build a board memo" → same tools called + artefact
+    `Board Memo: R&D Ledger Cost Reconciliation RY2024` (html) opened live in the preview pane
+    with real figures ($472,156.11 total, matching the Phase 5 proof) — full tool→artefact chain
+    confirmed working end-to-end via the actual GUI, not just the API.
+  - Engine log for both finance turns shows normal `watcher.turn.done` with real non-zero usage
+    and cost; no `gateway.vacuous_success` log line — confirms the new guard doesn't false-positive
+    on the good path.
+
+**Residual (not this phase):** No frontend test coverage still exists (from the original audit);
+item 3's "re-run the full HUT" was done narrowly (these two controls only), not the full 20-point
+sweep — a fresh full HUT pass is still owed before claiming best-practice ≥7-8. Items #4–10 of the
+Cursor prompt (hardcode removal, telemetry, failover, eval coverage, accessibility, Bash sandbox)
+remain explicitly deferred per that document's own sequencing.
+
+**Next step:** Full HUT re-run to confirm the best-practice score actually moved; then Tier 2 of
+the Cursor prompt (hardcode removal, domain-agnostic hints) before Phase 6 telemetry/failover work.

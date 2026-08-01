@@ -60,6 +60,8 @@ export interface ChatMessage {
   activities?: Activity[];
   /** Assistant only: everything that streamed, in arrival order. */
   segments?: MessageSegment[];
+  /** User hit Stop mid-turn — content/steps are honestly partial, not an error. */
+  stopped?: boolean;
 }
 
 export type ConversationStatus = 'idle' | 'waiting' | 'streaming' | 'error';
@@ -134,6 +136,7 @@ export type Action =
     }
   | { type: 'selectArtefact'; conversationId: string; artefactId: string }
   | { type: 'turnError'; conversationId: string; messageId: string; message: string }
+  | { type: 'assistantStopped'; conversationId: string; messageId: string }
   | { type: 'setTier'; tier: ModelTier }
   | { type: 'setDomain'; domainId: string }
   | { type: 'toggleRail' }
@@ -369,6 +372,26 @@ export function reducer(state: AppState, action: Action): AppState {
           ),
         status: 'error',
         errorMessage: action.message,
+      }));
+    case 'assistantStopped':
+      return updateConversation(state, action.conversationId, (conversation) => ({
+        ...conversation,
+        // drop the assistant placeholder if nothing streamed; keep partial output/steps honestly
+        messages: conversation.messages
+          .filter(
+            (message) =>
+              !(
+                message.id === action.messageId &&
+                message.content === '' &&
+                (message.activities === undefined || message.activities.length === 0)
+              ),
+          )
+          .map((message) =>
+            message.id === action.messageId
+              ? { ...message, streaming: false, stopped: true }
+              : message,
+          ),
+        status: 'idle',
       }));
     case 'setTier':
       return { ...state, settings: { ...state.settings, tier: action.tier } };

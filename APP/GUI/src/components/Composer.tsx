@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { InfoHint } from './InfoHint';
-import { useSendTurn } from '../state/useTurn';
+import { useSendTurn, useStopTurn } from '../state/useTurn';
 import { activeConversation } from '../state/appState';
 import { useAppState } from '../state/useAppStore';
 import {
@@ -16,6 +16,7 @@ export function Composer() {
   const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sendTurn = useSendTurn();
+  const stopTurn = useStopTurn();
   const state = useAppState();
   const busy = ['waiting', 'streaming'].includes(activeConversation(state).status);
 
@@ -96,14 +97,25 @@ export function Composer() {
               }
             }}
           />
-          <button
-            type="submit"
-            className="send"
-            aria-label={busy ? 'Streaming' : 'Send message'}
-            disabled={busy || draft.trim() === ''}
-          >
-            ✈
-          </button>
+          {busy ? (
+            <button
+              type="button"
+              className="send stop"
+              aria-label="Stop generating"
+              onClick={stopTurn}
+            >
+              ■
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="send"
+              aria-label="Send message"
+              disabled={draft.trim() === ''}
+            >
+              ✈
+            </button>
+          )}
         </div>
         <div className="composer-foot">
           <input
