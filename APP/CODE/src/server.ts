@@ -8,6 +8,7 @@ import {
   GROUNDING_TOOL_ID,
   MAX_ATTACHMENTS_PER_TURN,
   MAX_ATTACHMENT_BYTES,
+  MAX_ZIP_BYTES,
   SSE_HEADERS,
 } from './config/defaults.js';
 import { listDomainPacks, loadDomainPack } from './config/domainPacks.js';
@@ -29,6 +30,7 @@ import { resolveEffectiveTier, resolveGrounding } from './watcher/assemble.js';
 import { runTurn } from './watcher/runTurn.js';
 import { createFileSessionStore, type SessionStore } from './watcher/sessionStore.js';
 import { saveUpload } from './watcher/uploads.js';
+import { expandZipAttachments } from './watcher/expandZipAttachments.js';
 
 /** What the GUI/CLI actually posts — session/domain default server-side. */
 const turnBodySchema = z.object({
@@ -44,9 +46,15 @@ const turnBodySchema = z.object({
   turnTokenBudget: z.number().int().positive().max(64000).optional(),
   attachments: z
     .array(
-      attachmentSchema.refine((file) => file.textContent.length <= MAX_ATTACHMENT_BYTES, {
-        message: `attachment exceeds ${MAX_ATTACHMENT_BYTES} bytes`,
-      }),
+      attachmentSchema.refine(
+        (file) => {
+          const limit = file.encoding === 'base64' ? MAX_ZIP_BYTES : MAX_ATTACHMENT_BYTES;
+          return file.textContent.length <= limit;
+        },
+        {
+          message: `attachment exceeds its size limit (${MAX_ATTACHMENT_BYTES} bytes for text, ${MAX_ZIP_BYTES} bytes encoded for a zip)`,
+        },
+      ),
     )
     .max(MAX_ATTACHMENTS_PER_TURN)
     .optional(),
@@ -105,6 +113,13 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
     return;
   }
 
+  // Zip attachments expand into individual text attachments before anything
+  // else touches them, so uploads/prompt-assembly downstream only ever see
+  // ordinary text (Phase 6 zip attach support).
+  const { attachments: expandedAttachments, warnings: attachmentWarnings } = expandZipAttachments(
+    body.attachments ?? [],
+  );
+
   const request: TurnRequest = {
     sessionId: body.sessionId ?? randomUUID(),
     domainId: body.domainId ?? DEFAULT_DOMAIN_ID,
@@ -113,7 +128,7 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
     ...(body.grounded !== undefined ? { grounded: body.grounded } : {}),
     ...(body.responseDepth !== undefined ? { responseDepth: body.responseDepth } : {}),
     ...(body.turnTokenBudget !== undefined ? { turnTokenBudget: body.turnTokenBudget } : {}),
-    ...(body.attachments !== undefined ? { attachments: body.attachments } : {}),
+    ...(expandedAttachments.length > 0 ? { attachments: expandedAttachments } : {}),
   };
 
   // uploads land on disk with the rest of the turn's lineage (Law 6)
@@ -177,6 +192,18 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
   );
 
   res.writeHead(200, { ...SSE_HEADERS, 'X-Session-Id': request.sessionId });
+
+  // Constructive, visible attachment notes (e.g. a zip's binary entries were
+  // skipped) — reuses the existing activity-stream event types rather than a
+  // new one; renders in the GUI's own "real working steps" surface, never a
+  // silently-dropped file.
+  if (attachmentWarnings.length > 0) {
+    const activityId = randomUUID();
+    writeSseEvent(res, { type: 'activity-start', activityId, kind: 'stage', label: 'Attachment file note' });
+    writeSseEvent(res, { type: 'activity-delta', activityId, text: attachmentWarnings.join('\n') });
+    writeSseEvent(res, { type: 'activity-end', activityId });
+  }
+
   // snapshot history BEFORE the turn — the Watcher appends this turn itself
   const history = [...deps.sessions.history(request.sessionId)];
 

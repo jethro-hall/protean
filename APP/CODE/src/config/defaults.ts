@@ -130,6 +130,13 @@ export const CITATION_HONESTY_PROTOCOL_PROMPT =
 export const MAX_ATTACHMENT_BYTES = 512 * 1024;
 export const MAX_ATTACHMENTS_PER_TURN = 5;
 
+/**
+ * Zip archives get their own, larger cap (base64-encoded size, before decode) — a zip is
+ * expected to hold several small text files. Unpacked entries are still subject to
+ * MAX_ATTACHMENT_BYTES / MAX_ATTACHMENTS_PER_TURN individually, same as any attachment.
+ */
+export const MAX_ZIP_BYTES = 2 * 1024 * 1024;
+
 /** Surfaced when the client aborts mid-turn (Stop) — not a provider failure. */
 export const TURN_STOPPED_MESSAGE = 'Turn stopped by user';
 

@@ -7,8 +7,23 @@ import {
   ATTACHMENT_ACCEPT,
   MAX_ATTACHMENTS_PER_TURN,
   MAX_ATTACHMENT_BYTES,
+  MAX_ZIP_BYTES,
 } from '../config/uploads';
 import type { Attachment } from '../lib/api';
+
+function isZipFile(file: File): boolean {
+  return file.type === 'application/zip' || file.name.toLowerCase().endsWith('.zip');
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
 
 export function Composer() {
   const [draft, setDraft] = useState('');
@@ -40,6 +55,22 @@ export function Composer() {
         setFileError(`Up to ${MAX_ATTACHMENTS_PER_TURN} files per message.`);
         break;
       }
+      if (isZipFile(file)) {
+        if (file.size > MAX_ZIP_BYTES) {
+          setFileError(
+            `"${file.name}" is ${(file.size / 1024).toFixed(0)} KB — the zip limit is ${MAX_ZIP_BYTES / 1024} KB.`,
+          );
+          continue;
+        }
+        const base64 = arrayBufferToBase64(await file.arrayBuffer());
+        next.push({
+          name: file.name,
+          mimeType: file.type || 'application/zip',
+          encoding: 'base64',
+          textContent: base64,
+        });
+        continue;
+      }
       if (file.size > MAX_ATTACHMENT_BYTES) {
         setFileError(
           `"${file.name}" is ${(file.size / 1024).toFixed(0)} KB — the limit is ${MAX_ATTACHMENT_BYTES / 1024} KB.`,
@@ -51,7 +82,7 @@ export function Composer() {
         setFileError(`"${file.name}" is empty.`);
         continue;
       }
-      next.push({ name: file.name, mimeType: file.type || 'text/plain', textContent });
+      next.push({ name: file.name, mimeType: file.type || 'text/plain', encoding: 'utf8', textContent });
     }
     setAttachments(next);
   };
@@ -63,7 +94,7 @@ export function Composer() {
           <div className="composer-attach">
             {attachments.map((file) => (
               <span key={file.name} className="tag">
-                📄 {file.name}
+                {file.encoding === 'base64' ? '📦' : '📄'} {file.name}
                 <button
                   type="button"
                   aria-label={`Remove ${file.name}`}

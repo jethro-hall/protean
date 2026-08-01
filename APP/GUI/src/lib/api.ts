@@ -24,10 +24,15 @@ export interface TurnDone {
 
 export type ArtefactType = 'html' | 'markdown' | 'code' | 'text';
 
-/** Text file attached to a turn (mirrors APP/CODE attachmentSchema). */
+/**
+ * File attached to a turn (mirrors APP/CODE attachmentSchema). `encoding:
+ * 'utf8'` (default) is plain text; `encoding: 'base64'` is a zip archive —
+ * the engine unpacks it server-side into individual text attachments.
+ */
 export interface Attachment {
   name: string;
   mimeType: string;
+  encoding?: 'utf8' | 'base64';
   textContent: string;
 }
 

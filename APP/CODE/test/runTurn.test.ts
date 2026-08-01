@@ -109,7 +109,7 @@ describe('runTurn pipeline', () => {
     const sessions = createMemorySessionStore();
     const withFile: TurnRequest = {
       ...request,
-      attachments: [{ name: 'data.json', mimeType: 'application/json', textContent: '{"x":2}' }],
+      attachments: [{ name: 'data.json', mimeType: 'application/json', encoding: 'utf8', textContent: '{"x":2}' }],
     };
     const events = await collect(runTurn(withFile, { ...deps, sessions }));
     const stage = events.find((e) => e.type === 'activity-start');

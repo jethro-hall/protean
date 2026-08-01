@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.220",
+    "fflate": "^0.8.3",
     "zod": "4.4.3"
   },
   "devDependencies": {

@@ -1434,3 +1434,65 @@ popup off-screen above y=0.
 provider/model management, MCP/tool config UI, zip attach support) — plan on file, phases land as
 separate commits so the live dev server reflects progress incrementally instead of one big-bang
 change.
+
+## 2026-08-01 · Claude · Phase 6 · Zip attach support for Protean's own chat
+
+Phase B of the GUI overhaul. Attach previously only accepted text files (`config/uploads.ts`'s
+`ATTACHMENT_ACCEPT`) — no zip, by explicit design ("binary formats arrive in a later phase").
+Owner wants zip specifically, in Protean's own chat (not Studio, a separate app this session
+mistakenly targeted first — corrected before this phase started).
+
+**Design:** expand a zip into ordinary text attachments *before* anything downstream sees it, so
+`saveUpload`, `assembleTurn`, and prompt rendering need zero changes — they only ever see plain
+utf8 attachments, same as always.
+
+**Backend:**
+- `contracts/turn.ts`: `attachmentSchema` gains `encoding: z.enum(['utf8','base64']).default('utf8')`
+  — `'base64'` marks a zip payload; `textContent` holds the base64 string in that case.
+- New `watcher/safeZipInspect.ts` (new dependency: `fflate`) — the same three guards any
+  zip-accepting feature needs: path-traversal (zip-slip) rejection, per-entry size cap (reuses
+  `MAX_ATTACHMENT_BYTES`), and a text-likeness heuristic (control-character/replacement-character
+  density) that skips binary entries — every skip produces a specific, useable reason string, never
+  a bare drop or a bare "error".
+- New `config/defaults.ts` `MAX_ZIP_BYTES` (2MB encoded) — a zip gets a larger cap than a single
+  text file since it's expected to hold several.
+- New `watcher/expandZipAttachments.ts` — pure function, base64-decodes + `safeZipInspect`s each
+  zip attachment, turns each safe entry into its own `Attachment` named `<zip>/<entry path>`, then
+  re-applies the existing `MAX_ATTACHMENTS_PER_TURN` cap to the expanded list (warns about anything
+  left out rather than silently truncating).
+- `server.ts` `handleTurn`: runs the expansion right after body validation, before the existing
+  `saveUpload` lineage loop (so what lands on disk is already the expanded, text-only list); any
+  warnings are emitted as a `stage`-kind activity event (`activity-start`/`-delta`/`-end`) right
+  after headers are written — reuses the existing activity-stream machinery instead of inventing a
+  new event type, so it renders in the GUI's own "Worked" disclosure with zero new UI plumbing.
+  `turnBodySchema`'s byte-size `.refine()` now branches on `encoding` (`MAX_ZIP_BYTES` vs
+  `MAX_ATTACHMENT_BYTES`).
+
+**GUI:**
+- `config/uploads.ts`: `ATTACHMENT_ACCEPT` gains `.zip`/`application/zip`; new `MAX_ZIP_BYTES`.
+- `Composer.tsx`: `onFilesPicked` detects a zip by extension/mimetype, reads it via
+  `arrayBuffer()` + base64-encodes it (never `.text()`, which would corrupt binary zip bytes),
+  tags it `encoding: 'base64'`. Attachment chip shows 📦 for a zip vs 📄 for text.
+- `lib/api.ts`: `Attachment` gains the optional `encoding` field.
+- `config/fieldHints.ts`: `attachFile` hint updated to mention zip and the skip-with-a-note
+  behaviour for binary entries inside one.
+
+**Proof:**
+- Backend: `tsc --noEmit` clean; Vitest 138/138 (was 128) — 10 new cases across
+  `safeZipInspect.test.ts` (safe extraction, zip-slip rejection, binary-entry skip with a specific
+  message, corrupt-archive handling, directory-entry handling) and `expandZipAttachments.test.ts`
+  (pass-through for plain attachments, expansion, warning content, the 5-file cap, corrupt-base64
+  handling).
+- GUI: `tsc --noEmit` clean.
+- **Live browser proof** (Playwright, against the live engine + GUI — not a mock): attached a real
+  zip containing `notes.txt` ("The secret code word is PINEAPPLE-42.") and a fake `photo.bin`
+  binary; asked "What is the secret code word in the attached file?" The Worklog shows
+  "Attachment file note — test-attach.zip: \"photo.bin\" looks like a binary file -- skipped
+  (only text files are read into the turn)." followed by "Read test-attach.zip/notes.txt (0.0 KB)
+  into context"; the model's own thinking step quotes the file content verbatim and it answered
+  **PINEAPPLE-42** correctly — confirms the full path (browser → base64 → server-side unzip →
+  expansion → prompt) works end-to-end against the real model, not just in unit tests. TTFT/Total
+  (2786ms / 4.2s) and cache (miss) also displayed correctly, both at the top and per-message —
+  further live confirmation the Phase A telemetry fix holds.
+- Restarted `protean-engine.service` (systemd --user) to pick up the backend change — the GUI's
+  Vite dev server hot-reloads automatically but the engine does not (`npm start`, not `tsx watch`).

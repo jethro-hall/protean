@@ -26,12 +26,18 @@ export const responseDepthSchema = z.enum(['hscLevel', 'uniDegree', 'professor']
 export type ResponseDepth = z.infer<typeof responseDepthSchema>;
 
 /**
- * A text file the user attached to a turn. Text-only for now — binary
- * (images/PDF) arrives with a later phase and its own contract.
+ * A file the user attached to a turn. `encoding: 'utf8'` (the default) is the
+ * original text-only path. `encoding: 'base64'` is a zip archive — the engine
+ * unpacks it server-side and expands it into individual utf8 attachments
+ * before it ever reaches the prompt (see watcher/expandZipAttachments.ts), so
+ * everything downstream of that expansion step still only ever sees text.
+ * True arbitrary binary (images/PDF as first-class model input) is still a
+ * later phase with its own contract.
  */
 export const attachmentSchema = z.object({
   name: z.string().min(1),
   mimeType: z.string().min(1),
+  encoding: z.enum(['utf8', 'base64']).default('utf8'),
   textContent: z.string().min(1),
 });
 export type Attachment = z.infer<typeof attachmentSchema>;

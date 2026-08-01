@@ -25,9 +25,9 @@ export const fieldHints: Record<string, FieldHint> = {
     example: 'Finance / CFO\u2019s-CFO analyst',
   },
   attachFile: {
-    what: 'Attach text files (JSON, Markdown, CSV\u2026) to your message.',
-    why: 'The file content is read into the turn and stays in the conversation, so follow-ups can keep working on it.',
-    example: 'Upload an n8n workflow spec and ask Protean to build the workflow JSON.',
+    what: 'Attach text files (JSON, Markdown, CSV\u2026) or a .zip of them to your message.',
+    why: 'File content is read into the turn and stays in the conversation, so follow-ups can keep working on it. A zip is unpacked server-side into its individual text files \u2014 binary entries inside it are skipped with a note, never silently dropped.',
+    example: 'Upload a zipped export of CSV files and ask Protean to reconcile them.',
   },
   agentActivity: {
     what: 'The real working steps of this turn \u2014 reasoning, file reads, tool runs.',

@@ -313,7 +313,7 @@ describe('assembleTurn', () => {
   it('renders attachments into the final user message as fenced blocks', () => {
     const withFile: TurnRequest = {
       ...request,
-      attachments: [{ name: 'spec.json', mimeType: 'application/json', textContent: '{"a":1}' }],
+      attachments: [{ name: 'spec.json', mimeType: 'application/json', encoding: 'utf8', textContent: '{"a":1}' }],
     };
     const assembled = assembleTurn({ ...assembleBase, request: withFile, history: [] });
     const last = assembled.messages.at(-1);
