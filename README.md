@@ -66,5 +66,5 @@ why the literal version is impossible — is in the [Charter](docs/PROJECT_CHART
 
 ---
 
-*Status: Phase 4 done (multi-domain packs). Phase 5 — tool/connector registry & real
-workflows. Security is explicitly deferred until proof-of-concept is proven (see Charter §6).*
+*Status: Phase 5 done (tool/connector registry + live finance MCP workflow). Phase 6 —
+hardening. Security is explicitly deferred until proof-of-concept is proven (see Charter §6).*

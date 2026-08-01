@@ -8,7 +8,7 @@ import type { AgentCore, AgentEvent } from '../AgentCore.js';
  * Claude-SDK-shaped AgentCore: presents the Claude Agent SDK's loop semantics
  * behind the AgentCore interface, with all provider I/O delegated to the
  * LlmGateway (AgentCore → Gateway → Claude Agent SDK). Carries the open-ended
- * tool policy (any question → tools → answer); MCP connectors arrive later.
+ * tool policy + registry MCP bindings (any question → tools → answer).
  */
 export function createClaudeSdkAgentCore(gateway: LlmGateway, log: LayerLogger): AgentCore {
   return {
@@ -24,6 +24,8 @@ export function createClaudeSdkAgentCore(gateway: LlmGateway, log: LayerLogger):
         messages: turn.messages,
         toolPolicy: turn.toolPolicy,
         workspaceDir: turn.workspaceDir,
+        mcpServers: turn.mcpServers,
+        datasetsDir: turn.datasetsDir,
         ...(turn.abortSignal !== undefined ? { abortSignal: turn.abortSignal } : {}),
       };
       log.info('agent.turn.start', `Agent turn via ${gateway.provider} gateway, tier ${turn.tier}`, {
@@ -35,6 +37,8 @@ export function createClaudeSdkAgentCore(gateway: LlmGateway, log: LayerLogger):
           toolsetVersion: turn.toolsetVersion,
           maxTurns: turn.toolPolicy.maxTurns,
           tools: turn.toolPolicy.availableTools,
+          mcpServers: turn.mcpServers.map((server) => server.serverId),
+          wiredTools: turn.wiredTools.map((tool) => tool.packToolId),
         },
       });
       yield* gateway.streamTurn(request);

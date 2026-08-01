@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ToolPolicy } from './agentLoop.js';
+import type { ProteanMcpServerBinding, WiredTool } from './connectors.js';
 
 /** Roles a chat message can carry across any boundary. */
 export const chatRoleSchema = z.enum(['user', 'assistant']);
@@ -57,6 +58,12 @@ export interface AssembledTurn {
   toolsetVersion: string;
   toolPolicy: ToolPolicy;
   workspaceDir: string;
+  /** MCP bindings resolved from the Tool/Connector Registry for this turn. */
+  mcpServers: ProteanMcpServerBinding[];
+  /** Datasets root for in-process connectors. */
+  datasetsDir: string;
+  /** Pack tool ids after registry wiring (lineage evidence). */
+  wiredTools: WiredTool[];
   /** Runtime cancel — not part of the cache key; seize the model when aborted. */
   abortSignal?: AbortSignal;
 }
@@ -122,4 +129,9 @@ export interface TurnLineage {
   usage: TokenUsage | null;
   costUsd: number | null;
   timings: TurnTimings;
+  /** Registry wiring for this turn (pack tool ids → live tools). */
+  wiredTools?: WiredTool[];
+  /** Tool names observed via activity-start (kind=tool) during the turn. */
+  toolsCalled?: string[];
+  registryVersion?: string;
 }

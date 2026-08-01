@@ -54,6 +54,8 @@ export interface ProteanConfig {
     evalResultsDir: string;
     uploadsDir: string;
     artefactsDir: string;
+    /** CSV/JSON datasets for registry MCP connectors (data lake, calendar). */
+    datasetsDir: string;
   };
 }
 
@@ -154,6 +156,7 @@ export function loadConfig(): ProteanConfig {
       evalResultsDir: join(dataDir, 'eval-results'),
       uploadsDir: join(dataDir, 'uploads'),
       artefactsDir: process.env[ENV.artefactsDir] ?? join(root, 'APP', 'ARTEFACTS'),
+      datasetsDir: process.env[ENV.datasetsDir] ?? join(dataDir, 'datasets'),
     },
   };
 }

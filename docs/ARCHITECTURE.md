@@ -198,10 +198,12 @@ No stack choice is "just done" — it's done *and recorded*.
 ```
 agent/       AgentCore interface + Claude Agent SDK adapter; the agentic loop; subagents
 gateway/     LLM Gateway interface + provider adapters (claude, openai, …); streaming normalise
+             (Claude adapter also materializes MCP from Protean bindings — Law 5)
 watcher/     prompt assembly, token budgeting, tiering, cache-check, conditional rewrite, record
+tools/       Tool/Connector Registry resolve + deterministic connector handlers (no vendor SDK)
 logging/     structured logger, redaction, human-readable renderer, log event contracts
 contracts/   typed schemas (zod/TS types) for messages, turns, tool I/O, config — the seams
-config/      runtime config loader; env/secret resolution; tenant + tier + model settings
+config/      runtime config loader; connector catalog; env/secret resolution; tier + model settings
 domains/     Domain Packs (finance/, medical/, education/, generic/) — data & config only
 ```
 GUI, PREVIEWPANE, ARTEFACTS, LLMBUILD_DATA are siblings of CODE under APP/ (see README map).

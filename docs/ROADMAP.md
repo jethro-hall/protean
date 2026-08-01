@@ -86,18 +86,24 @@ output. This validates Charter §3 and Law 2.
 
 ---
 
-## Phase 5 — Tool/Connector Registry & real workflows  ← WE ARE HERE
-**Goal:** register real tools (MCP servers: Odoo, GhostDL, search, email) and run a genuine
-multi-step workflow end-to-end (e.g. the TFM reconciliation, or a finance question) inside
-Protean. Dynamic agent-loop substrate (Read/Grep/Glob, maxTurns) was pulled forward; Bash +
-MCP registry remain.
+## Phase 5 — Tool/Connector Registry & real workflows  ✅ DONE
+**Evidence:** `docs/CHAT/BUILD_LOG.md` (Phase 5 registry + live finance workflow) —
+`POST /api/turn` finance pack → MCP `list_datasets` + `summarize_csv` → boardMemo artefact
+with banner/orphan reconciliation + lineage `wiredTools`/`toolsCalled`.
+
+**Goal:** register real tools (MCP / connectors as appropriate) and run a genuine multi-step
+workflow end-to-end inside Protean. Dynamic agent-loop substrate (Read/Grep/Glob, maxTurns)
+landed in Phase 4; Phase 5 = registry wiring + MCP connectors + business workflow proof.
 
 **Acceptance test:** a real business workflow runs through Protean, calls tools, produces a
 correct artefact with full evidence lineage.
 
+**Residual (not blocking acceptance):** Bash still refused until sandbox proven; external
+stdio MCP (Odoo / GhostDL / email) catalogued as `stdioMcp` seam but not enabled on this host.
+
 ---
 
-## Phase 6 — Hardening for real use (still pre-SaaS)
+## Phase 6 — Hardening for real use (still pre-SaaS)  ← WE ARE HERE
 **Goal:** eval coverage, cost telemetry dashboard, graceful provider failover (designed, logged —
 not a workaround), accessibility pass.
 

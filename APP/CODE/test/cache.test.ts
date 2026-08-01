@@ -27,6 +27,9 @@ function turn(overrides: Partial<AssembledTurn> = {}): AssembledTurn {
       permissionMode: 'dontAsk',
     },
     workspaceDir: '/tmp',
+    datasetsDir: '/tmp/datasets',
+    mcpServers: [],
+    wiredTools: [],
     ...overrides,
   };
 }

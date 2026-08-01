@@ -1,4 +1,5 @@
 import type { ToolPolicy } from './agentLoop.js';
+import type { ProteanMcpServerBinding } from './connectors.js';
 import type { ChatMessage, TokenUsage } from './turn.js';
 
 /**
@@ -22,6 +23,13 @@ export interface GatewayRequest {
   toolPolicy?: ToolPolicy;
   /** Workspace root for file tools (Read/Grep/Glob). Required when tools are enabled. */
   workspaceDir?: string;
+  /**
+   * Provider-neutral MCP bindings from the Tool/Connector Registry.
+   * Claude adapter materializes vendor mcpServers (Law 5).
+   */
+  mcpServers?: ProteanMcpServerBinding[];
+  /** Datasets root for in-process MCP handlers (data lake / calendar fixtures). */
+  datasetsDir?: string;
   /** When aborted, the provider adapter must seize the model run immediately. */
   abortSignal?: AbortSignal;
 }

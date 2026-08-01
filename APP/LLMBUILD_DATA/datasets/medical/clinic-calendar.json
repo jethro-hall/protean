@@ -1,0 +1,33 @@
+{
+  "clinicId": "demo-gp-south",
+  "timezone": "Australia/Sydney",
+  "appointments": [
+    {
+      "id": "appt-1001",
+      "startsAt": "2026-08-03T09:00:00+10:00",
+      "endsAt": "2026-08-03T09:15:00+10:00",
+      "patientLabel": "Patient A",
+      "reason": "Repeat script review",
+      "clinician": "Dr Lee",
+      "status": "booked"
+    },
+    {
+      "id": "appt-1002",
+      "startsAt": "2026-08-03T09:30:00+10:00",
+      "endsAt": "2026-08-03T09:45:00+10:00",
+      "patientLabel": "Patient B",
+      "reason": "New patient intake",
+      "clinician": "Dr Patel",
+      "status": "booked"
+    },
+    {
+      "id": "appt-1003",
+      "startsAt": "2026-08-04T11:00:00+10:00",
+      "endsAt": "2026-08-04T11:20:00+10:00",
+      "patientLabel": "Patient C",
+      "reason": "Care plan follow-up",
+      "clinician": "Dr Lee",
+      "status": "cancelled"
+    }
+  ]
+}

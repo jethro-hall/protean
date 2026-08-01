@@ -21,6 +21,7 @@ import type { GatewayEvent, GatewayRequest } from '../../contracts/gateway.js';
 import type { ChatMessage, TokenUsage } from '../../contracts/turn.js';
 import type { LayerLogger } from '../../logging/logger.js';
 import type { LlmGateway } from '../LlmGateway.js';
+import { materializeMcpServers } from './claudeMcp.js';
 
 /**
  * Adaptive thinking: the model decides when/how deeply to reason, and the raw
@@ -89,20 +90,28 @@ export function abortControllerFromSignal(signal: AbortSignal | undefined): Abor
 }
 
 /** Map Gateway system prompt → SDK Options.systemPrompt (cache boundary when split). */
-export function resolveSdkSystemPrompt(systemPrompt: GatewayRequest['systemPrompt']): Options['systemPrompt'] {
+export function resolveSdkSystemPrompt(
+  systemPrompt: GatewayRequest['systemPrompt'],
+): Exclude<Options['systemPrompt'], undefined> {
   if (typeof systemPrompt === 'string') return systemPrompt;
   // Blocks before SYSTEM_PROMPT_DYNAMIC_BOUNDARY are eligible for Bedrock/Anthropic
   // prompt-cache across turns (sdk.d.ts Options.systemPrompt string[] form).
   return [systemPrompt.staticPrefix, SYSTEM_PROMPT_DYNAMIC_BOUNDARY, systemPrompt.dynamicSuffix];
 }
 
+/** Built-in SDK tool names only — MCP tools come from mcpServers, not `tools`. */
+export function builtinToolsFromPolicy(policy: ToolPolicy): string[] {
+  return policy.availableTools.filter((name) => !name.startsWith('mcp__'));
+}
+
 /** Map Protean tool policy → Claude Agent SDK Options fields (adapter-only). */
 export function buildClaudeQueryOptions(request: GatewayRequest): Options {
   const policy = resolveToolPolicy(request);
+  const builtinTools = builtinToolsFromPolicy(policy);
   const options: Options = {
     model: request.model,
     systemPrompt: resolveSdkSystemPrompt(request.systemPrompt),
-    tools: [...policy.availableTools],
+    tools: [...builtinTools],
     allowedTools: [...policy.allowedTools],
     maxTurns: policy.maxTurns,
     permissionMode: policy.permissionMode,
@@ -110,9 +119,17 @@ export function buildClaudeQueryOptions(request: GatewayRequest): Options {
     persistSession: false,
     thinking: THINKING_CONFIG,
     abortController: abortControllerFromSignal(request.abortSignal),
+    strictMcpConfig: true,
   };
   if (request.workspaceDir !== undefined && request.workspaceDir !== '') {
     options.cwd = request.workspaceDir;
+  }
+  if (request.mcpServers !== undefined && request.mcpServers.length > 0) {
+    const datasetsDir = request.datasetsDir;
+    if (datasetsDir === undefined || datasetsDir === '') {
+      throw new Error('GatewayRequest.datasetsDir is required when mcpServers are bound');
+    }
+    options.mcpServers = materializeMcpServers(request.mcpServers, datasetsDir);
   }
   return options;
 }
@@ -205,6 +222,7 @@ export function createClaudeGateway(log: LayerLogger): LlmGateway {
           messageCount: request.messages.length,
           maxTurns: policy.maxTurns,
           tools: policy.availableTools,
+          mcpServers: (request.mcpServers ?? []).map((server) => server.serverId),
           permissionMode: policy.permissionMode,
           cwd: request.workspaceDir ?? null,
         },

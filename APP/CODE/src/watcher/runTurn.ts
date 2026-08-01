@@ -2,6 +2,7 @@ import { performance } from 'node:perf_hooks';
 import type { AgentCore } from '../agent/AgentCore.js';
 import { TURN_STOPPED_MESSAGE } from '../config/defaults.js';
 import type { ToolPolicy } from '../contracts/agentLoop.js';
+import type { ProteanMcpServerBinding, WiredTool } from '../contracts/connectors.js';
 import type { DomainPack } from '../contracts/domainPack.js';
 import type {
   ChatMessage,
@@ -54,6 +55,10 @@ export interface TurnPipelineDeps {
   toolPolicy: ToolPolicy;
   /** Workspace root for file tools. */
   workspaceDir: string;
+  datasetsDir: string;
+  mcpServers: ProteanMcpServerBinding[];
+  wiredTools: WiredTool[];
+  registryVersion: string;
   /** Client Stop / disconnect — seize the model run. */
   abortSignal?: AbortSignal;
   log: LayerLogger;
@@ -81,6 +86,9 @@ export async function* runTurn(
     model,
     toolPolicy: deps.toolPolicy,
     workspaceDir: deps.workspaceDir,
+    datasetsDir: deps.datasetsDir,
+    mcpServers: deps.mcpServers,
+    wiredTools: deps.wiredTools,
   });
   if (deps.abortSignal !== undefined) {
     assembled.abortSignal = deps.abortSignal;
@@ -157,6 +165,7 @@ export async function* runTurn(
 
   let output = '';
   let thinking = '';
+  const toolsCalled: string[] = [];
   let usage: TokenUsage | null = null;
   let costUsd: number | null = null;
   let failed: string | null = null;
@@ -244,6 +253,13 @@ export async function* runTurn(
         event.type === 'activity-end'
       ) {
         if (event.type === 'activity-delta') thinking += event.text;
+        if (event.type === 'activity-start' && event.kind === 'tool') {
+          const match = /^Using tool:\s*(.+)$/.exec(event.label);
+          const toolName = match?.[1]?.trim();
+          if (toolName !== undefined && toolName !== '' && !toolsCalled.includes(toolName)) {
+            toolsCalled.push(toolName);
+          }
+        }
         if (timings.ttftMs === undefined && event.type === 'activity-start') {
           // first sign of life from the model — an honest first token
           timings.ttftMs = roundMs(performance.now() - t0);
@@ -315,6 +331,9 @@ export async function* runTurn(
     usage,
     costUsd,
     timings,
+    wiredTools: deps.wiredTools,
+    toolsCalled,
+    registryVersion: deps.registryVersion,
   });
   recordTelemetry(deps.tokenTelemetryDir, {
     ts: startedAt,

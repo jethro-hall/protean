@@ -1052,3 +1052,44 @@ Caddy routes `studio.rideai.com.au` to `agentic_workflow_web:3000` (deployment #
 - No commit (user did not ask).
 
 **Next step:** Phase 5 — sandbox Bash + MCP tool registry + real multi-step business workflow acceptance.
+
+## 2026-08-01 · Cursor · Phase 5 DONE — tool registry + live finance MCP workflow
+
+**User request (verbatim or faithful summary):**
+> Mission: Phase 5 — Tool/Connector Registry & real workflows. Register real tools (MCP /
+> connectors), run genuine multi-step workflow end-to-end. Branch `feat/phase5-tool-registry`
+> from Phase 4 HEAD, lean increments, tests, BUILD_LOG, push. Live proof via POST
+> http://127.0.0.1:8787/api/turn when possible. No PR unless acceptance clearly met.
+
+**What changed:**
+- Branch `feat/phase5-tool-registry` from `14ce59c`.
+- **Registry:** `contracts/connectors.ts` + `config/connectors.catalog.json` +
+  `tools/registry.ts` — pack tool ids → builtin SDK tools and/or MCP bindings; unknown ids
+  fail loud; Bash still refused at `loadConfig`.
+- **Handlers (deterministic):** `tools/handlers/dataLake.ts` (CSV list/summarise, path-confined),
+  `tools/handlers/calendar.ts` (medical fixture appointments).
+- **Claude adapter MCP materialization (Law 5):** `gateway/adapters/claudeMcp.ts` via
+  `createSdkMcpServer` / `tool()`; `buildClaudeQueryOptions` sets `mcpServers` +
+  `strictMcpConfig`; strips `mcp__*` from Options.tools.
+- **Wire-through:** server resolves registry before SSE; assemble injects live wiring into
+  dynamic system suffix; lineage records `wiredTools` / `toolsCalled` / `registryVersion`.
+- **Fixtures:** `APP/LLMBUILD_DATA/datasets/finance/rd-ledger-ry2024.csv`,
+  `.../medical/clinic-calendar.json`.
+- ROADMAP Phase 5 ✅ / Phase 6 ← WE ARE HERE; README + ARCHITECTURE module map + domains README.
+
+**Agent response / status:**
+- **Proof (vitest):** 88/88 pass; `tsc --noEmit` clean.
+- **Proof (live Bedrock, `au.anthropic.claude-sonnet-5`):**
+  `POST /api/turn` session `phase5-proof-finance-20260801T032036Z` / turn
+  `4d8265f3-1e91-4c4a-85ae-d6628a0a707b` —
+  - Registry wired `search`/`fileRead`/`dataLakeQuery` → Grep/Glob/Read +
+    `mcp__protean-datalake__{list_datasets,summarize_csv}`.
+  - Tools called: `list_datasets`, `summarize_csv`.
+  - Artefact saved: boardMemo markdown reconciling banner **$464,156.11**, orphans **$8,000.00**,
+    grand total **$472,156.11** (matches tool `numericSums.total_cost`).
+  - Lineage has `wiredTools`, `toolsCalled`, `registryVersion`, full system prompt + output.
+- **Residual (logged, not papered over):** Bash still sandbox-gated; external stdio MCP
+  (Odoo/GhostDL/email) seam exists (`kind: stdioMcp`) but not enabled on this host.
+
+**Next step:** Phase 6 hardening; optionally enable external MCP connectors when credentials
+exist; prove Bash only after sandbox.

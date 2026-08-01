@@ -10,7 +10,9 @@ import {
   SSE_HEADERS,
 } from './config/defaults.js';
 import { listDomainPacks, loadDomainPack } from './config/domainPacks.js';
+import { loadConnectorCatalog } from './config/loadConnectors.js';
 import { loadConfig, requireModel, type ProteanConfig } from './config/loadConfig.js';
+import { resolveToolset } from './tools/registry.js';
 import {
   attachmentSchema,
   modelTierSchema,
@@ -119,15 +121,38 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
 
   let pack;
   let model: string;
+  let toolset;
   try {
     pack = loadDomainPack(deps.config.paths.domainsDir, request.domainId);
     model = requireModel(deps.config, resolveTier(request, pack));
+    toolset = resolveToolset({
+      packToolIds: pack.tools,
+      agentLoop: {
+        availableTools: deps.config.agentLoop.availableTools,
+        allowedTools: deps.config.agentLoop.allowedTools,
+        maxTurns: deps.config.agentLoop.maxTurns,
+        permissionMode: deps.config.agentLoop.permissionMode,
+      },
+      catalog: loadConnectorCatalog(),
+    });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     log.error('server.turn.rejected', `Turn rejected before start: ${message}`);
     writeJson(res, 422, { error: message });
     return;
   }
+
+  log.info(
+    'server.turn.registry',
+    `Registry wired ${toolset.wired.length} pack tools → [${toolset.toolPolicy.availableTools.join(', ')}]`,
+    {
+      sessionId: request.sessionId,
+      data: {
+        registryVersion: toolset.registryVersion,
+        mcpServers: toolset.mcpServers.map((server) => server.serverId),
+      },
+    },
+  );
 
   res.writeHead(200, { ...SSE_HEADERS, 'X-Session-Id': request.sessionId });
   // snapshot history BEFORE the turn — the Watcher appends this turn itself
@@ -165,13 +190,12 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
         rewriteBloatTokens: deps.config.watcher.rewriteBloatTokens,
         ...(deps.config.models.fast !== undefined ? { fastModel: deps.config.models.fast } : {}),
       },
-      toolPolicy: {
-        availableTools: deps.config.agentLoop.availableTools,
-        allowedTools: deps.config.agentLoop.allowedTools,
-        maxTurns: deps.config.agentLoop.maxTurns,
-        permissionMode: deps.config.agentLoop.permissionMode,
-      },
+      toolPolicy: toolset.toolPolicy,
       workspaceDir: deps.config.paths.repoRoot,
+      datasetsDir: deps.config.paths.datasetsDir,
+      mcpServers: toolset.mcpServers,
+      wiredTools: toolset.wired,
+      registryVersion: toolset.registryVersion,
       abortSignal: turnAbort.signal,
       log: deps.logger.child('watcher'),
       promptHistoryDir: deps.config.paths.promptHistoryDir,

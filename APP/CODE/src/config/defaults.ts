@@ -98,4 +98,5 @@ export const ENV = {
   agentAvailableTools: 'PROTEAN_AGENT_AVAILABLE_TOOLS',
   agentAllowedTools: 'PROTEAN_AGENT_ALLOWED_TOOLS',
   agentPermissionMode: 'PROTEAN_AGENT_PERMISSION_MODE',
+  datasetsDir: 'PROTEAN_DATASETS_DIR',
 } as const;

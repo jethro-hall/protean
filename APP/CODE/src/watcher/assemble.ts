@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { ToolPolicy } from '../contracts/agentLoop.js';
+import type { ProteanMcpServerBinding, WiredTool } from '../contracts/connectors.js';
 import type { DomainPack } from '../contracts/domainPack.js';
 import type {
   AssembledTurn,
@@ -27,6 +28,9 @@ export interface AssembleInput {
   model: string;
   toolPolicy: ToolPolicy;
   workspaceDir: string;
+  datasetsDir: string;
+  mcpServers: ProteanMcpServerBinding[];
+  wiredTools: WiredTool[];
   historyWindow?: number;
 }
 
@@ -57,8 +61,7 @@ export function renderPackSystemPrompt(pack: DomainPack): string {
 
   if (pack.tools.length > 0) {
     sections.push(
-      `Declared domain tools (registry ids — live wiring is Phase 5):\n` +
-        pack.tools.map((tool) => `- ${tool}`).join('\n'),
+      `Declared domain tools (registry ids):\n` + pack.tools.map((tool) => `- ${tool}`).join('\n'),
     );
   }
 
@@ -93,8 +96,35 @@ export function renderInputWithAttachments(
   return `${input}\n\n${blocks.join('\n\n')}`;
 }
 
+/** Render live registry wiring into the dynamic (per-turn) system suffix. */
+export function renderWiredToolsPrompt(wiredTools: readonly WiredTool[]): string {
+  if (wiredTools.length === 0) {
+    return 'Tool registry: no pack-specific connectors wired; agent-loop substrate tools only.';
+  }
+  const lines = wiredTools.map((tool) => {
+    const live =
+      tool.mcpToolNames.length > 0
+        ? tool.mcpToolNames.join(', ')
+        : tool.sdkTools.join(', ');
+    return `- ${tool.packToolId} → ${live} (${tool.description})`;
+  });
+  return (
+    `Live tool registry wiring (use these — do not invent connectors):\n${lines.join('\n')}`
+  );
+}
+
 export function assembleTurn(input: AssembleInput): AssembledTurn {
-  const { request, pack, history, model, toolPolicy, workspaceDir } = input;
+  const {
+    request,
+    pack,
+    history,
+    model,
+    toolPolicy,
+    workspaceDir,
+    datasetsDir,
+    mcpServers,
+    wiredTools,
+  } = input;
   const windowSize = input.historyWindow ?? DEFAULT_HISTORY_WINDOW_MESSAGES;
   const userContent = renderInputWithAttachments(request.input, request.attachments);
   const messages: ChatMessage[] = [
@@ -104,7 +134,11 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
   // Pack prompt = stable, cacheable prefix. Engine protocols = suffix after the
   // provider prompt-cache boundary (Claude adapter inserts the SDK marker).
   const systemPromptStatic = renderPackSystemPrompt(pack);
-  const systemPromptDynamic = `${ARTEFACT_PROTOCOL_PROMPT}\n\n${NARRATION_PROTOCOL_PROMPT}`;
+  const systemPromptDynamic = [
+    ARTEFACT_PROTOCOL_PROMPT,
+    NARRATION_PROTOCOL_PROMPT,
+    renderWiredToolsPrompt(wiredTools),
+  ].join('\n\n');
   return {
     turnId: randomUUID(),
     sessionId: request.sessionId,
@@ -119,5 +153,8 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     toolsetVersion: toolsetVersionFromPolicy(toolPolicy),
     toolPolicy,
     workspaceDir,
+    datasetsDir,
+    mcpServers,
+    wiredTools,
   };
 }

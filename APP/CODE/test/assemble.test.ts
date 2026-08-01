@@ -40,6 +40,24 @@ const assembleBase = {
   model: 'm',
   toolPolicy,
   workspaceDir: '/repo',
+  datasetsDir: '/repo/APP/LLMBUILD_DATA/datasets',
+  mcpServers: [],
+  wiredTools: [
+    {
+      packToolId: 'search',
+      kind: 'builtin' as const,
+      description: 'Search workspace',
+      sdkTools: ['Grep', 'Glob'],
+      mcpToolNames: [],
+    },
+    {
+      packToolId: 'fileRead',
+      kind: 'builtin' as const,
+      description: 'Read file',
+      sdkTools: ['Read'],
+      mcpToolNames: [],
+    },
+  ],
 };
 
 function historyOf(count: number): ChatMessage[] {
@@ -107,7 +125,10 @@ describe('assembleTurn', () => {
     expect(assembled.toolPolicy.maxTurns).toBe(8);
     expect(assembled.systemPromptStatic).toBe(renderPackSystemPrompt(pack));
     expect(assembled.systemPromptDynamic).toContain('<protean:artefact');
+    expect(assembled.systemPromptDynamic).toContain('Live tool registry wiring');
+    expect(assembled.systemPromptDynamic).toContain('search → Grep, Glob');
     expect(assembled.systemPrompt.startsWith(assembled.systemPromptStatic)).toBe(true);
+    expect(assembled.wiredTools).toHaveLength(2);
   });
 
   it('assigns a fresh turnId per assembly', () => {
