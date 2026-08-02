@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { KnowledgeChunk } from '../src/contracts/knowledge.js';
-import { scoreChunks, topChunks } from '../src/tools/knowledge/retrieval.js';
+import { hybridScoreChunks, scoreChunks, topChunks } from '../src/tools/knowledge/retrieval.js';
 import { buildDigest } from '../src/tools/knowledge/digest.js';
+import type { EmbeddingGateway } from '../src/gateway/embeddings/EmbeddingGateway.js';
+import type { VectorStore } from '../src/contracts/vectorStore.js';
 
 function chunk(overrides: Partial<KnowledgeChunk> = {}): KnowledgeChunk {
   return {
@@ -116,5 +118,113 @@ describe('buildDigest', () => {
     expect(digest).toContain('…');
     const line = digest.split('\n').find((l) => l.includes('aaa'));
     expect(line?.length).toBeLessThan(120);
+  });
+});
+
+function fakeEmbeddingGateway(vector: number[]): EmbeddingGateway {
+  return {
+    provider: 'fake',
+    async embed() {
+      return { embeddings: [vector], model: 'fake-model', totalTokens: 1 };
+    },
+  };
+}
+
+function fakeVectorStore(hits: Array<{ chunkId: string; score: number }>): VectorStore {
+  return {
+    async upsertChunkEmbedding() {},
+    async similaritySearch() {
+      return hits;
+    },
+    async deleteCollectionEmbeddings() {},
+    async isReachable() {
+      return true;
+    },
+  };
+}
+
+describe('hybridScoreChunks (Phase Q — TF-IDF + vector similarity via RRF)', () => {
+  it('includes a chunk found only by vector search (no keyword overlap) alongside a keyword-only match', async () => {
+    const keywordChunk = chunk({ id: 'keyword-match', heading: 'Threshold', text: 'threshold applies here' });
+    const semanticChunk = chunk({ id: 'semantic-match', heading: 'Unrelated words', text: 'zzz yyy xxx' });
+    const result = await hybridScoreChunks('threshold', [keywordChunk, semanticChunk], {
+      vectorStore: fakeVectorStore([{ chunkId: 'semantic-match', score: 0.9 }]),
+      embeddingGateway: fakeEmbeddingGateway([0.1, 0.2]),
+      collectionIds: ['col-1'],
+    });
+    const ids = result.map((entry) => entry.chunk.id);
+    expect(ids).toContain('keyword-match');
+    expect(ids).toContain('semantic-match');
+  });
+
+  it('a chunk ranked first in both the keyword and vector rankings ends up first in the fused result', async () => {
+    const top = chunk({ id: 'top', heading: 'Threshold', text: 'threshold threshold threshold' });
+    const other = chunk({ id: 'other', heading: 'Threshold', text: 'threshold once' });
+    const result = await hybridScoreChunks('threshold', [top, other], {
+      vectorStore: fakeVectorStore([
+        { chunkId: 'top', score: 0.95 },
+        { chunkId: 'other', score: 0.4 },
+      ]),
+      embeddingGateway: fakeEmbeddingGateway([0.1, 0.2]),
+      collectionIds: ['col-1'],
+    });
+    expect(result[0]?.chunk.id).toBe('top');
+  });
+
+  it('ignores a vector hit for a chunkId outside this turn\'s corpus (stale/foreign row), not trusted blind', async () => {
+    const only = chunk({ id: 'only', heading: 'Threshold', text: 'threshold applies here' });
+    const result = await hybridScoreChunks('threshold', [only], {
+      vectorStore: fakeVectorStore([
+        { chunkId: 'only', score: 0.5 },
+        { chunkId: 'not-in-this-turn', score: 0.99 },
+      ]),
+      embeddingGateway: fakeEmbeddingGateway([0.1, 0.2]),
+      collectionIds: ['col-1'],
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.chunk.id).toBe('only');
+  });
+
+  it('applies the collection weight to the keyword-ranking component before fusion', async () => {
+    const a = chunk({ id: 'a', heading: 'Threshold', text: 'threshold applies here' });
+    const b = chunk({ id: 'b', heading: 'Threshold', text: 'threshold applies here' });
+    const result = await hybridScoreChunks('threshold', [a, b], {
+      vectorStore: fakeVectorStore([]),
+      embeddingGateway: fakeEmbeddingGateway([0.1, 0.2]),
+      collectionIds: ['col-1'],
+      weightOf: (c) => (c.id === 'b' ? 5 : 1),
+    });
+    expect(result[0]?.chunk.id).toBe('b');
+  });
+
+  it('is deterministic — identical inputs produce identical ordering across separate calls', async () => {
+    const chunks = [
+      chunk({ id: 'a', heading: 'Threshold', text: 'threshold applies here' }),
+      chunk({ id: 'b', heading: 'Threshold', text: 'threshold once mentioned' }),
+    ];
+    const opts = {
+      vectorStore: fakeVectorStore([{ chunkId: 'b', score: 0.8 }]),
+      embeddingGateway: fakeEmbeddingGateway([0.1, 0.2]),
+      collectionIds: ['col-1'],
+    };
+    const first = await hybridScoreChunks('threshold', chunks, opts);
+    const second = await hybridScoreChunks('threshold', chunks, opts);
+    expect(first.map((e) => e.chunk.id)).toEqual(second.map((e) => e.chunk.id));
+  });
+
+  it('throws when the embedding gateway returns no vector, letting the caller degrade to TF-IDF', async () => {
+    const emptyGateway: EmbeddingGateway = {
+      provider: 'fake',
+      async embed() {
+        return { embeddings: [], model: 'fake-model', totalTokens: 0 };
+      },
+    };
+    await expect(
+      hybridScoreChunks('threshold', [chunk()], {
+        vectorStore: fakeVectorStore([]),
+        embeddingGateway: emptyGateway,
+        collectionIds: ['col-1'],
+      }),
+    ).rejects.toThrow(/no vector/);
   });
 });

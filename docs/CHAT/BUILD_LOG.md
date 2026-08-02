@@ -2394,3 +2394,54 @@ live-verified pipeline from raw PDF bytes to a grounded, correctly-answered ques
 guesswork, absolute guardrails" core of the owner's original ask. Remaining: Phase Q (hybrid
 retrieval upgrade), Phase R (anti-hallucination guardrail hardening — GUI-visible fabrication
 banner, honest refusal), Phase S (honest stop-and-ask clarification protocol).
+
+## 2026-08-02 · Claude · Phase 6 · Grounded Knowledge v2 Phase Q — hybrid retrieval (TF-IDF + vector via RRF)
+
+TF-IDF alone (`retrieval.ts`'s existing `scoreChunks`) misses paraphrases — a real question worded
+differently from the source text scores low even when the right chunk exists. New `hybridScoreChunks()`
+in `tools/knowledge/retrieval.ts` fuses the existing TF-IDF ranking with `VectorStore.similaritySearch()`
+via **Reciprocal Rank Fusion** (`1/(60 + rank + 1)` per ranking, summed) — the standard published
+technique for combining two incompatible score scales (TF-IDF magnitude vs. cosine similarity) without
+inventing a new tuning surface. `queryKnowledgeBase` (`tools/handlers/knowledgeBase.ts`) now accepts an
+optional `HybridSearchServices` (`vectorStore` + `embeddingGateway`); when present it tries the hybrid
+path and **falls back to pure TF-IDF if the embedding call or vector store fails** — never a hard turn
+failure, extending ADR-0003's "optional and degradable" ethos to the vector store. The Tier-0 digest
+stays extractive/synchronous/embedding-free (today's low-latency default path is untouched); hybrid
+search applies only to the on-demand Tier-1 `query_knowledge_base` tool.
+
+`groundingConfig` (the `PgConnectionConfig` + Voyage key + model, already built in Phases M–N) is now
+threaded through the full live-turn call chain — `GatewayRequest` → `AssembledTurn` → `assembleTurn()`
+→ `TurnPipelineDeps`/`runTurn()` → the Claude SDK adapter → `materializeMcpServers()` →
+`buildKnowledgeBaseServer()` — the same deep-threading pattern already proven for `runtimeConfigDir` in
+Phase P. `gateway/adapters/claudeMcp.ts` gained `hybridServicesFrom(grounding)`, which only constructs
+real `pgvectorAdapter`/`voyageAdapter` instances when both `pg` and `voyageApiKey` are actually
+configured — an engine with no grounding infra configured degrades to TF-IDF-only automatically, no
+crash, no silent wrong-behavior.
+
+One-time backfill (`npm run backfill-embeddings`, new `src/backfillEmbeddings.ts`): embeds every
+checked-in chunk (10 finance + 6 medical) into `knowledge_chunk_embeddings`, one batched Voyage call
+per collection rather than one call per chunk — the first version (one call per chunk) immediately hit
+Voyage's free-tier 3-requests/minute cap; batching fixed it for real (2 calls total instead of 16) and
+is also just better practice. Idempotent (`ON CONFLICT DO UPDATE`), safe to re-run.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` + `vitest run` clean — 257/257 tests, including 6 new `hybridScoreChunks`
+  unit tests (vector-only match inclusion, both-rankings-agree ordering, foreign/stale-chunkId
+  rejection, weight passthrough, determinism, no-vector-throws) and 3 new `queryKnowledgeBase`
+  integration tests exercising the actual hybrid-then-fallback branch (vector-only surfacing, fallback
+  on embedding failure, fallback on vector-store failure) — the prior test suite only ever exercised
+  the pure-TF-IDF branch.
+- **Live backfill against the real Docker Postgres+pgvector**, confirmed via direct `psql`: 10 rows for
+  `finance-ato-rd-tax-incentive`, 6 for `medical-racgp-standards`, 783 real Voyage tokens billed.
+- **Live paraphrase proof, the concrete "actually better, not just architecturally different" check**:
+  queried the finance collection with "Can I claim wear-and-tear on equipment I bought for my research
+  project?" — a real paraphrase of the `ato-rd-depreciating-assets` chunk sharing almost no vocabulary
+  with its source text ("decline in value of tangible assets... Division 40"). Pure TF-IDF buried the
+  correct chunk at **rank 9 of 10** (score 0.298, barely above the corpus floor). Hybrid (real Voyage
+  embedding + real pgvector cosine search + RRF) moved it to **rank 4 of 10** — a real, measured
+  improvement from a real API and a real database, not a mocked assertion.
+- `protean-engine.service` restarted with `groundingConfig` live; engine stayed up and serving.
+
+**This closes Grounded Knowledge v2 Phase Q.** Remaining: Phase R (anti-hallucination guardrail
+hardening — GUI-visible fabrication banner, deterministic confidence gate, honest refusal protocol),
+Phase S (honest stop-and-ask clarification protocol).

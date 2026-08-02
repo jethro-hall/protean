@@ -4,6 +4,7 @@ import { TURN_STOPPED_MESSAGE } from '../config/defaults.js';
 import type { ToolPolicy } from '../contracts/agentLoop.js';
 import type { ProteanMcpServerBinding, WiredTool } from '../contracts/connectors.js';
 import type { DomainPack } from '../contracts/domainPack.js';
+import type { GroundingConfig } from '../contracts/grounding.js';
 import type {
   ChatMessage,
   TokenUsage,
@@ -63,6 +64,7 @@ export interface TurnPipelineDeps {
   datasetsDir: string;
   domainsDir: string;
   runtimeConfigDir: string;
+  groundingConfig: GroundingConfig;
   mcpServers: ProteanMcpServerBinding[];
   wiredTools: WiredTool[];
   registryVersion: string;
@@ -122,6 +124,7 @@ export async function* runTurn(
     datasetsDir: deps.datasetsDir,
     domainsDir: deps.domainsDir,
     runtimeConfigDir: deps.runtimeConfigDir,
+    groundingConfig: deps.groundingConfig,
     mcpServers: deps.mcpServers,
     wiredTools: deps.wiredTools,
     grounded: grounding.grounded,

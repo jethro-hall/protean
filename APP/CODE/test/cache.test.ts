@@ -30,6 +30,7 @@ function turn(overrides: Partial<AssembledTurn> = {}): AssembledTurn {
     datasetsDir: '/tmp/datasets',
     domainsDir: '/tmp/domains',
     runtimeConfigDir: '/tmp/runtime-config',
+    groundingConfig: { pg: undefined, voyageApiKey: undefined, embeddingModel: 'test-embedding-model' },
     mcpServers: [],
     wiredTools: [],
     grounded: false,

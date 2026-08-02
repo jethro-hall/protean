@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { ToolPolicy } from '../contracts/agentLoop.js';
 import type { ProteanMcpServerBinding, WiredTool } from '../contracts/connectors.js';
 import type { DomainPack } from '../contracts/domainPack.js';
+import type { GroundingConfig } from '../contracts/grounding.js';
 import type {
   AssembledTurn,
   Attachment,
@@ -38,6 +39,7 @@ export interface AssembleInput {
   datasetsDir: string;
   domainsDir: string;
   runtimeConfigDir: string;
+  groundingConfig: GroundingConfig;
   mcpServers: ProteanMcpServerBinding[];
   wiredTools: WiredTool[];
   historyWindow?: number;
@@ -220,6 +222,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     datasetsDir,
     domainsDir,
     runtimeConfigDir,
+    groundingConfig,
     mcpServers,
     wiredTools,
     grounded,
@@ -262,6 +265,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     datasetsDir,
     domainsDir,
     runtimeConfigDir,
+    groundingConfig,
     mcpServers,
     wiredTools,
     grounded,

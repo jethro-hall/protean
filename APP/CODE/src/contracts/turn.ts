@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ToolPolicy } from './agentLoop.js';
 import type { ProteanMcpServerBinding, WiredTool } from './connectors.js';
+import type { GroundingConfig } from './grounding.js';
 
 /** Roles a chat message can carry across any boundary. */
 export const chatRoleSchema = z.enum(['user', 'assistant']);
@@ -109,6 +110,8 @@ export interface AssembledTurn {
   domainsDir: string;
   /** Runtime config root — required so the knowledgeBase MCP handler can see overlay-only collections (Phase P). */
   runtimeConfigDir: string;
+  /** Vector store/embedding connection config (Phase Q hybrid retrieval) — absent fields degrade to TF-IDF-only. */
+  groundingConfig: GroundingConfig;
   /** Pack tool ids after registry wiring (lineage evidence). */
   wiredTools: WiredTool[];
   /** Grounded-knowledge POC: true only when requested AND the pack has collections. */

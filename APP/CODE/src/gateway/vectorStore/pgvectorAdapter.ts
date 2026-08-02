@@ -10,14 +10,9 @@ import type {
   SimilarityHit,
   VectorStore,
 } from '../../contracts/vectorStore.js';
+import type { PgConnectionConfig } from '../../contracts/grounding.js';
 
-export interface PgvectorConfig {
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  database: string;
-}
+export type PgvectorConfig = PgConnectionConfig;
 
 function toVectorLiteral(embedding: readonly number[]): string {
   return `[${embedding.join(',')}]`;

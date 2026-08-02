@@ -1,5 +1,6 @@
 import type { ToolPolicy } from './agentLoop.js';
 import type { ProteanMcpServerBinding } from './connectors.js';
+import type { GroundingConfig } from './grounding.js';
 import type { ChatMessage, EffortLevel, TokenUsage } from './turn.js';
 
 /**
@@ -38,6 +39,8 @@ export interface GatewayRequest {
   knowledgeCollectionIds?: string[];
   /** Per-collection relevance multiplier (Phase 6 weighting) — absent id means weight 1. */
   knowledgeCollectionWeights?: Record<string, number>;
+  /** Vector store/embedding connection config (Phase Q hybrid retrieval) — absent = TF-IDF-only. */
+  groundingConfig?: GroundingConfig;
   /** Reasoning effort (Phase 6) — the Claude adapter maps this to Options.effort. */
   effort?: EffortLevel;
   /** Sampling temperature (Phase 6) — the custom-provider adapter only; the Claude adapter has no such vendor field. */

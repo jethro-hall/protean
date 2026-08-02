@@ -142,6 +142,7 @@ export function buildClaudeQueryOptions(request: GatewayRequest): Options {
       request.knowledgeCollectionIds,
       request.knowledgeCollectionWeights,
       request.runtimeConfigDir,
+      request.groundingConfig,
     );
   }
   return options;

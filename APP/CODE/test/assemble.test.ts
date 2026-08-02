@@ -48,6 +48,7 @@ const assembleBase = {
   datasetsDir: '/repo/APP/LLMBUILD_DATA/datasets',
   domainsDir: '/repo/APP/CODE/src/domains',
   runtimeConfigDir: '/repo/APP/LLMBUILD_DATA/runtime-config',
+  groundingConfig: { pg: undefined, voyageApiKey: undefined, embeddingModel: 'test-embedding-model' },
   grounded: false,
   knowledgeCollectionsUsed: [],
   knowledgeCollectionWeights: {},

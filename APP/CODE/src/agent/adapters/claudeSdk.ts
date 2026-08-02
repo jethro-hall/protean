@@ -28,6 +28,7 @@ export function createClaudeSdkAgentCore(gateway: LlmGateway, log: LayerLogger):
         datasetsDir: turn.datasetsDir,
         domainsDir: turn.domainsDir,
         runtimeConfigDir: turn.runtimeConfigDir,
+        groundingConfig: turn.groundingConfig,
         knowledgeCollectionIds: turn.knowledgeCollectionsUsed,
         knowledgeCollectionWeights: turn.knowledgeCollectionWeights,
         ...(turn.effort !== undefined ? { effort: turn.effort } : {}),

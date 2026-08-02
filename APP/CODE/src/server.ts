@@ -323,6 +323,7 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
       datasetsDir: deps.config.paths.datasetsDir,
       domainsDir: deps.config.paths.domainsDir,
       runtimeConfigDir: deps.config.paths.runtimeConfigDir,
+      groundingConfig: deps.config.grounding,
       mcpServers: toolset.mcpServers,
       wiredTools: toolset.wired,
       registryVersion: toolset.registryVersion,

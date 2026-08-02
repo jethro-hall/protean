@@ -99,6 +99,7 @@ async function main(): Promise<void> {
     datasetsDir: config.paths.datasetsDir,
     domainsDir: config.paths.domainsDir,
     runtimeConfigDir: config.paths.runtimeConfigDir,
+    groundingConfig: config.grounding,
     mcpServers: [],
     wiredTools: [],
     registryVersion: 'spike-substrate',

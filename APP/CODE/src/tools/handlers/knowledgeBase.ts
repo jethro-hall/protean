@@ -1,6 +1,8 @@
 import { loadKnowledgeCollections, loadKnowledgeCollectionsWithOverlay } from '../../config/knowledgeCollections.js';
-import type { KnowledgeChunk } from '../../contracts/knowledge.js';
-import { topChunks } from '../knowledge/retrieval.js';
+import type { KnowledgeChunk, ScoredChunk } from '../../contracts/knowledge.js';
+import type { EmbeddingGateway } from '../../gateway/embeddings/EmbeddingGateway.js';
+import type { VectorStore } from '../../contracts/vectorStore.js';
+import { hybridScoreChunks, topChunks } from '../knowledge/retrieval.js';
 
 export interface KnowledgeQueryHit {
   heading: string;
@@ -11,13 +13,24 @@ export interface KnowledgeQueryHit {
   score: number;
 }
 
+export interface HybridSearchServices {
+  vectorStore: VectorStore;
+  embeddingGateway: EmbeddingGateway;
+}
+
 /**
- * Tier-1 on-demand retrieval (Law 4: deterministic, no LLM). Called only when
- * the model decides the Tier-0 digest isn't enough — exact wording, a figure,
- * an edge case. Collections are the same curated corpus the digest was built
- * from, so nothing here can disagree with the digest's citations.
+ * Tier-1 on-demand retrieval (Law 4: deterministic, no LLM in the ranking
+ * itself). Called only when the model decides the Tier-0 digest isn't
+ * enough — exact wording, a figure, an edge case. Collections are the same
+ * curated corpus the digest was built from, so nothing here can disagree
+ * with the digest's citations.
+ *
+ * Hybrid (Phase Q): when `hybrid` services are provided, ranks via
+ * TF-IDF + vector similarity (Reciprocal Rank Fusion). Falls back to pure
+ * TF-IDF if the embedding call or vector store fails — never a hard turn
+ * failure (ADR-0003's "optional and degradable" ethos, extended to vectors).
  */
-export function queryKnowledgeBase(
+export async function queryKnowledgeBase(
   domainsDir: string,
   collectionIds: readonly string[],
   query: string,
@@ -26,7 +39,8 @@ export function queryKnowledgeBase(
   weights: Record<string, number> = {},
   /** When provided, overlay-only collections (Phase P, built via PDF ingestion) are also visible. */
   runtimeConfigDir?: string,
-): KnowledgeQueryHit[] {
+  hybrid?: HybridSearchServices,
+): Promise<KnowledgeQueryHit[]> {
   const collections =
     runtimeConfigDir !== undefined
       ? loadKnowledgeCollectionsWithOverlay(runtimeConfigDir, domainsDir, collectionIds)
@@ -40,7 +54,24 @@ export function queryKnowledgeBase(
     const collectionId = collectionIdByChunkId.get(chunk.id);
     return collectionId === undefined ? 1 : (weights[collectionId] ?? 1);
   };
-  return topChunks(query, chunks, limit, weightOf).map(({ chunk, score }) => ({
+
+  let scored: ScoredChunk[];
+  if (hybrid !== undefined) {
+    try {
+      scored = await hybridScoreChunks(query, chunks, {
+        vectorStore: hybrid.vectorStore,
+        embeddingGateway: hybrid.embeddingGateway,
+        collectionIds,
+        weightOf,
+      });
+    } catch {
+      scored = topChunks(query, chunks, chunks.length, weightOf);
+    }
+  } else {
+    scored = topChunks(query, chunks, chunks.length, weightOf);
+  }
+
+  return scored.slice(0, limit).map(({ chunk, score }) => ({
     heading: chunk.heading,
     text: chunk.text,
     sourceTitle: chunk.sourceTitle,

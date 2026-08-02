@@ -51,6 +51,7 @@ function makeDeps(agent: AgentCore): TurnPipelineDeps & { dataDir: string } {
     datasetsDir: join(dataDir, 'datasets'),
     domainsDir: join(dataDir, 'domains'),
     runtimeConfigDir: join(dataDir, 'runtime-config'),
+    groundingConfig: { pg: undefined, voyageApiKey: undefined, embeddingModel: 'test-embedding-model' },
     mcpServers: [],
     wiredTools: [],
     registryVersion: 'test-registry',

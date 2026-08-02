@@ -1,4 +1,6 @@
 import type { KnowledgeChunk, ScoredChunk } from '../../contracts/knowledge.js';
+import type { EmbeddingGateway } from '../../gateway/embeddings/EmbeddingGateway.js';
+import type { VectorStore } from '../../contracts/vectorStore.js';
 
 /**
  * Deterministic TF-IDF-style term-overlap retrieval (Law 4: deterministic before
@@ -58,4 +60,54 @@ export function topChunks(
   weightOf?: (chunk: KnowledgeChunk) => number,
 ): ScoredChunk[] {
   return scoreChunks(query, chunks, weightOf).slice(0, limit);
+}
+
+/** Standard constant from the published Reciprocal Rank Fusion literature — dampens any one rank position's influence. */
+const RRF_K = 60;
+
+export interface HybridScoreOptions {
+  vectorStore: VectorStore;
+  embeddingGateway: EmbeddingGateway;
+  collectionIds: readonly string[];
+  /** Per-collection relevance multiplier (Phase 6 weighting) — applied to the keyword ranking only; RRF then blends it in. */
+  weightOf?: (chunk: KnowledgeChunk) => number;
+}
+
+/**
+ * TF-IDF + vector similarity via Reciprocal Rank Fusion (Phase Q). Keyword
+ * scoring alone misses paraphrases; vector scoring alone is weak on exact
+ * terms/figures. RRF blends the two RANKINGS (not their raw, incompatible
+ * score scales) — the standard, well-published technique for exactly this
+ * problem, with no new tuning surface. Throws on failure (embedding call or
+ * vector store unreachable) — the caller (queryKnowledgeBase) catches this
+ * and degrades to pure TF-IDF, never a hard turn failure.
+ */
+export async function hybridScoreChunks(
+  query: string,
+  chunks: readonly KnowledgeChunk[],
+  options: HybridScoreOptions,
+): Promise<ScoredChunk[]> {
+  const keywordRanked = scoreChunks(query, chunks, options.weightOf);
+
+  const queryEmbedding = await options.embeddingGateway.embed({ texts: [query], inputType: 'query' });
+  const vector = queryEmbedding.embeddings[0];
+  if (vector === undefined) {
+    throw new Error('Embedding gateway returned no vector for the query.');
+  }
+  const vectorHits = await options.vectorStore.similaritySearch(vector, options.collectionIds, chunks.length);
+
+  const chunkById = new Map(chunks.map((chunk) => [chunk.id, chunk]));
+  const rrfScores = new Map<string, number>();
+  keywordRanked.forEach((entry, rank) => {
+    rrfScores.set(entry.chunk.id, (rrfScores.get(entry.chunk.id) ?? 0) + 1 / (RRF_K + rank + 1));
+  });
+  vectorHits.forEach((hit, rank) => {
+    // A hit for a chunk not in this turn's corpus (a stale/foreign embedding row) is skipped, not trusted blind.
+    if (!chunkById.has(hit.chunkId)) return;
+    rrfScores.set(hit.chunkId, (rrfScores.get(hit.chunkId) ?? 0) + 1 / (RRF_K + rank + 1));
+  });
+
+  return [...rrfScores.entries()]
+    .map(([chunkId, score]) => ({ chunk: chunkById.get(chunkId)!, score }))
+    .sort((a, b) => b.score - a.score);
 }

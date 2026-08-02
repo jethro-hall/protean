@@ -6,9 +6,21 @@ import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
 import type { McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import type { ProteanMcpServerBinding } from '../../contracts/connectors.js';
+import type { GroundingConfig } from '../../contracts/grounding.js';
 import { listAppointments } from '../../tools/handlers/calendar.js';
 import { listDatasets, summarizeCsv } from '../../tools/handlers/dataLake.js';
-import { queryKnowledgeBase } from '../../tools/handlers/knowledgeBase.js';
+import { queryKnowledgeBase, type HybridSearchServices } from '../../tools/handlers/knowledgeBase.js';
+import { createVoyageEmbeddingGateway } from '../embeddings/voyageAdapter.js';
+import { createPgvectorStore } from '../vectorStore/pgvectorAdapter.js';
+
+/** Real services if pgvector + an embedding key are configured; undefined = TF-IDF-only (ADR-0003 degrade). */
+function hybridServicesFrom(grounding: GroundingConfig | undefined): HybridSearchServices | undefined {
+  if (grounding?.pg === undefined || grounding.voyageApiKey === undefined) return undefined;
+  return {
+    vectorStore: createPgvectorStore(grounding.pg),
+    embeddingGateway: createVoyageEmbeddingGateway(grounding.voyageApiKey, grounding.embeddingModel),
+  };
+}
 
 function jsonResult(payload: unknown): { content: [{ type: 'text'; text: string }] } {
   return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
@@ -106,16 +118,19 @@ function buildKnowledgeBaseServer(
   collectionIds: readonly string[],
   weights: Record<string, number>,
   runtimeConfigDir: string | undefined,
+  groundingConfig: GroundingConfig | undefined,
 ): McpServerConfig {
+  // Constructed once per turn (not per tool call) -- cheap (no I/O until actually queried).
+  const hybrid = hybridServicesFrom(groundingConfig);
   return createSdkMcpServer({
     name: 'protean-knowledgebase',
     version: '0.1.0',
     alwaysLoad: true,
     instructions:
-      'Deterministic keyword retrieval over curated domain knowledge collections (Phase 6 ' +
-      'grounded-knowledge POC). The digest already in context is a compressed pointer — call ' +
-      'this for exact wording, thresholds, or anything the digest does not cover. Never invent ' +
-      'a citation; only report what this tool returns.',
+      'Deterministic keyword + semantic retrieval over curated domain knowledge collections ' +
+      '(Phase 6/Grounded Knowledge v2). The digest already in context is a compressed pointer — ' +
+      'call this for exact wording, thresholds, or anything the digest does not cover. Never ' +
+      'invent a citation; only report what this tool returns.',
     tools: [
       tool(
         'query_knowledge_base',
@@ -128,7 +143,15 @@ function buildKnowledgeBaseServer(
         async (args) => {
           try {
             return jsonResult({
-              hits: queryKnowledgeBase(domainsDir, collectionIds, args.query, args.limit ?? 5, weights, runtimeConfigDir),
+              hits: await queryKnowledgeBase(
+                domainsDir,
+                collectionIds,
+                args.query,
+                args.limit ?? 5,
+                weights,
+                runtimeConfigDir,
+                hybrid,
+              ),
             });
           } catch (cause) {
             return errorResult(cause instanceof Error ? cause.message : String(cause));
@@ -147,6 +170,7 @@ export function materializeMcpServers(
   knowledgeCollectionIds?: string[],
   knowledgeCollectionWeights?: Record<string, number>,
   runtimeConfigDir?: string,
+  groundingConfig?: GroundingConfig,
 ): Record<string, McpServerConfig> {
   const out: Record<string, McpServerConfig> = {};
   for (const binding of bindings) {
@@ -177,6 +201,7 @@ export function materializeMcpServers(
         knowledgeCollectionIds ?? [],
         knowledgeCollectionWeights ?? {},
         runtimeConfigDir,
+        groundingConfig,
       );
       continue;
     }

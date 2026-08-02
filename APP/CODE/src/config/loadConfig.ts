@@ -5,6 +5,7 @@ import {
   type ToolPolicy,
 } from '../contracts/agentLoop.js';
 import type { ModelTier } from '../contracts/turn.js';
+import type { GroundingConfig } from '../contracts/grounding.js';
 import {
   DEFAULT_AGENT_ALLOWED_TOOLS,
   DEFAULT_AGENT_AVAILABLE_TOOLS,
@@ -72,11 +73,7 @@ export interface ProteanConfig {
    * absent-able -- grounding always degrades to TF-IDF-only rather than failing
    * a turn (ADR-0003's "optional and degradable" ethos, extended to vectors).
    */
-  grounding: {
-    pg: { host: string; port: number; user: string; password: string; database: string } | undefined;
-    embeddingModel: string;
-    voyageApiKey: string | undefined;
-  };
+  grounding: GroundingConfig;
 }
 
 function intFromEnv(name: string, fallback: number): number {

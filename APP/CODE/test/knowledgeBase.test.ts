@@ -12,7 +12,9 @@ import {
 } from '../src/config/knowledgeCollections.js';
 import { saveKnowledgeCollectionOverlayEntry } from '../src/config/runtimeSettingsStore.js';
 import { knowledgeCollectionSchema, type KnowledgeCollection } from '../src/contracts/knowledge.js';
-import { queryKnowledgeBase } from '../src/tools/handlers/knowledgeBase.js';
+import { queryKnowledgeBase, type HybridSearchServices } from '../src/tools/handlers/knowledgeBase.js';
+import type { EmbeddingGateway } from '../src/gateway/embeddings/EmbeddingGateway.js';
+import type { VectorStore } from '../src/contracts/vectorStore.js';
 
 function tempRuntimeConfigDir(): string {
   return mkdtempSync(join(tmpdir(), 'protean-knowledge-overlay-test-'));
@@ -71,9 +73,9 @@ describe('listKnowledgeCollections (Phase 6 domain-pack editor)', () => {
 });
 
 describe('queryKnowledgeBase', () => {
-  it('returns relevant, cited hits for a real query against the finance collection', () => {
+  it('returns relevant, cited hits for a real query against the finance collection', async () => {
     const domainsDir = loadConfig().paths.domainsDir;
-    const hits = queryKnowledgeBase(
+    const hits = await queryKnowledgeBase(
       domainsDir,
       ['finance-ato-rd-tax-incentive'],
       'what is the notional deduction threshold for R&D',
@@ -83,9 +85,9 @@ describe('queryKnowledgeBase', () => {
     expect(hits[0]?.heading.toLowerCase()).toContain('threshold');
   });
 
-  it('returns nothing for a query with no term overlap', () => {
+  it('returns nothing for a query with no term overlap', async () => {
     const domainsDir = loadConfig().paths.domainsDir;
-    const hits = queryKnowledgeBase(domainsDir, ['finance-ato-rd-tax-incentive'], 'xyzzy plugh qwerty');
+    const hits = await queryKnowledgeBase(domainsDir, ['finance-ato-rd-tax-incentive'], 'xyzzy plugh qwerty');
     expect(hits).toEqual([]);
   });
 
@@ -99,7 +101,7 @@ describe('queryKnowledgeBase', () => {
     expect(medical?.id).toBe('medical-racgp-standards');
   });
 
-  it('queryKnowledgeBase can see an overlay-only collection (Phase P) when runtimeConfigDir is provided', () => {
+  it('queryKnowledgeBase can see an overlay-only collection (Phase P) when runtimeConfigDir is provided', async () => {
     const domainsDir = loadConfig().paths.domainsDir;
     const runtimeConfigDir = tempRuntimeConfigDir();
     saveKnowledgeCollectionOverlayEntry(
@@ -117,7 +119,7 @@ describe('queryKnowledgeBase', () => {
         ],
       }),
     );
-    const hits = queryKnowledgeBase(
+    const hits = await queryKnowledgeBase(
       domainsDir,
       ['phase-p-overlay-collection'],
       'zebra migration',
@@ -129,11 +131,88 @@ describe('queryKnowledgeBase', () => {
     expect(hits[0]?.heading).toBe('Overlay Heading');
   });
 
-  it('queryKnowledgeBase without runtimeConfigDir cannot see an overlay-only collection (fails loud, not silently empty results from a wrong assumption)', () => {
+  it('queryKnowledgeBase without runtimeConfigDir cannot see an overlay-only collection (fails loud, not silently empty results from a wrong assumption)', async () => {
     const domainsDir = loadConfig().paths.domainsDir;
     const runtimeConfigDir = tempRuntimeConfigDir();
     saveKnowledgeCollectionOverlayEntry(runtimeConfigDir, overlayCollection());
-    expect(() => queryKnowledgeBase(domainsDir, ['phase-p-overlay-collection'], 'anything')).toThrow(/not found/);
+    await expect(queryKnowledgeBase(domainsDir, ['phase-p-overlay-collection'], 'anything')).rejects.toThrow(
+      /not found/,
+    );
+  });
+});
+
+function fakeHybrid(overrides: {
+  vectorHits?: Array<{ chunkId: string; score: number }>;
+  embedFails?: boolean;
+  searchFails?: boolean;
+} = {}): HybridSearchServices {
+  const embeddingGateway: EmbeddingGateway = {
+    provider: 'fake',
+    async embed() {
+      if (overrides.embedFails === true) throw new Error('embedding provider unreachable');
+      return { embeddings: [[0.1, 0.2]], model: 'fake-model', totalTokens: 1 };
+    },
+  };
+  const vectorStore: VectorStore = {
+    async upsertChunkEmbedding() {},
+    async similaritySearch() {
+      if (overrides.searchFails === true) throw new Error('vector store unreachable');
+      return overrides.vectorHits ?? [];
+    },
+    async deleteCollectionEmbeddings() {},
+    async isReachable() {
+      return true;
+    },
+  };
+  return { vectorStore, embeddingGateway };
+}
+
+describe('queryKnowledgeBase hybrid path (Phase Q)', () => {
+  it('surfaces a chunk found only via vector similarity when hybrid services are provided', async () => {
+    const domainsDir = loadConfig().paths.domainsDir;
+    const collection = loadKnowledgeCollection(domainsDir, 'finance-ato-rd-tax-incentive');
+    const semanticOnlyChunk = collection.chunks[1];
+    if (semanticOnlyChunk === undefined) throw new Error('fixture needs at least 2 chunks');
+    const hits = await queryKnowledgeBase(
+      domainsDir,
+      ['finance-ato-rd-tax-incentive'],
+      'zzz unrelated keyword yyy',
+      5,
+      {},
+      undefined,
+      fakeHybrid({ vectorHits: [{ chunkId: semanticOnlyChunk.id, score: 0.9 }] }),
+    );
+    expect(hits.some((hit) => hit.heading === semanticOnlyChunk.heading)).toBe(true);
+  });
+
+  it('falls back to pure TF-IDF (never a hard turn failure) when the embedding gateway fails', async () => {
+    const domainsDir = loadConfig().paths.domainsDir;
+    const hits = await queryKnowledgeBase(
+      domainsDir,
+      ['finance-ato-rd-tax-incentive'],
+      'what is the notional deduction threshold for R&D',
+      5,
+      {},
+      undefined,
+      fakeHybrid({ embedFails: true }),
+    );
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0]?.heading.toLowerCase()).toContain('threshold');
+  });
+
+  it('falls back to pure TF-IDF when the vector store fails', async () => {
+    const domainsDir = loadConfig().paths.domainsDir;
+    const hits = await queryKnowledgeBase(
+      domainsDir,
+      ['finance-ato-rd-tax-incentive'],
+      'what is the notional deduction threshold for R&D',
+      5,
+      {},
+      undefined,
+      fakeHybrid({ searchFails: true }),
+    );
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0]?.heading.toLowerCase()).toContain('threshold');
   });
 });
 
