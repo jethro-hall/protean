@@ -398,3 +398,77 @@ export async function fetchKnowledgeCollections(): Promise<KnowledgeCollectionSu
   );
   return body.collections;
 }
+
+// ---------------------------------------------------------------------------
+// Grounded Knowledge v2 Phase P: build a knowledge collection from documents,
+// with mandatory human review of every LLM-authored field before anything
+// saves. Mirrors src/contracts/knowledge.ts / src/contracts/authoring.ts.
+// ---------------------------------------------------------------------------
+
+export interface KnowledgeChunkDraft {
+  id: string;
+  heading: string;
+  text: string;
+  sourceTitle: string;
+  sourceUrl: string;
+  fetchedAt: string;
+}
+
+export interface ChunkProposal {
+  chunkId: string;
+  heading: string;
+  summary: string;
+}
+
+export interface PackDraftProposal {
+  displayName: string;
+  systemPrompt: string;
+  vocabulary: Record<string, string>;
+}
+
+export interface KnowledgeAuthoringResult {
+  ok: boolean;
+  message: string;
+  log: string[];
+}
+
+export async function ingestPdf(fileName: string, base64Pdf: string): Promise<KnowledgeAuthoringResult & { chunks: KnowledgeChunkDraft[] }> {
+  const res = await settingsFetch('/api/settings/knowledge/ingest', {
+    method: 'POST',
+    body: JSON.stringify({ fileName, base64Pdf }),
+  });
+  return settingsJson(res, 'Failed to ingest PDF.');
+}
+
+export async function proposeChunkMetadata(
+  chunks: KnowledgeChunkDraft[],
+): Promise<KnowledgeAuthoringResult & { proposals: ChunkProposal[] }> {
+  const res = await settingsFetch('/api/settings/knowledge/propose', {
+    method: 'POST',
+    body: JSON.stringify({ chunks }),
+  });
+  return settingsJson(res, 'Failed to propose chunk metadata.');
+}
+
+export async function proposePackDraft(
+  documentTitle: string,
+  sections: Array<{ heading: string; summary: string }>,
+): Promise<KnowledgeAuthoringResult & { draft: PackDraftProposal | null }> {
+  const res = await settingsFetch('/api/settings/knowledge/propose-pack', {
+    method: 'POST',
+    body: JSON.stringify({ documentTitle, sections }),
+  });
+  return settingsJson(res, 'Failed to propose pack draft.');
+}
+
+export async function saveKnowledgeCollection(
+  id: string,
+  displayName: string,
+  chunks: KnowledgeChunkDraft[],
+): Promise<KnowledgeAuthoringResult> {
+  const res = await settingsFetch('/api/settings/knowledge/save-collection', {
+    method: 'POST',
+    body: JSON.stringify({ id, displayName, chunks }),
+  });
+  return settingsJson(res, 'Failed to save knowledge collection.');
+}

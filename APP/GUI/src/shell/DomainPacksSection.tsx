@@ -13,7 +13,9 @@ import {
   type DomainSummary,
   type KnowledgeCollectionSummary,
   type ModelTier,
+  type PackDraftProposal,
 } from '../lib/api';
+import { DocumentAuthoringFlow } from './DocumentAuthoringFlow';
 
 const TIERS: Array<{ id: ModelTier; label: string }> = [
   { id: 'fast', label: 'Fast' },
@@ -385,6 +387,7 @@ export function DomainPacksSection() {
   const [packs, setPacks] = useState<DomainSummary[] | 'loading' | 'unavailable'>('loading');
   const [editing, setEditing] = useState<DomainPackDetail | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [authoring, setAuthoring] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const reload = () => {
@@ -406,16 +409,33 @@ export function DomainPacksSection() {
     }
   };
 
-  const openNew = () => {
+  const openNew = (draft?: PackDraftProposal) => {
     setLoadError(null);
     setIsNew(true);
-    setEditing(NEW_DOMAIN_PACK_TEMPLATE);
+    setAuthoring(false);
+    setEditing(
+      draft === undefined
+        ? NEW_DOMAIN_PACK_TEMPLATE
+        : { ...NEW_DOMAIN_PACK_TEMPLATE, displayName: draft.displayName, systemPrompt: draft.systemPrompt, vocabulary: draft.vocabulary },
+    );
   };
 
   const closeEditor = (didSave: boolean) => {
     setEditing(null);
     if (didSave) reload();
   };
+
+  if (authoring) {
+    return (
+      <DocumentAuthoringFlow
+        onDraftPackReady={(draft) => openNew(draft)}
+        onDone={() => {
+          setAuthoring(false);
+          reload();
+        }}
+      />
+    );
+  }
 
   if (editing !== null) {
     return (
@@ -478,8 +498,11 @@ export function DomainPacksSection() {
       )}
 
       <div className="protean-settings-row">
-        <button type="button" className="btn-ghost" onClick={openNew}>
+        <button type="button" className="btn-ghost" onClick={() => openNew()}>
           + New pack
+        </button>
+        <button type="button" className="btn-ghost" onClick={() => setAuthoring(true)}>
+          + Build from documents
         </button>
       </div>
     </fieldset>

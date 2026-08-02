@@ -138,6 +138,11 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'Only "stdioMcp" (an external process) can be added this way \u2014 built-in tools require code in the engine itself. Edit the template fields to match your server.',
     example: '{"kind":"stdioMcp","serverId":"my-server","command":"npx",...}',
   },
+  domainPackBuildFromDocuments: {
+    what: 'Upload a text-native PDF and let the model propose a heading and one-sentence summary for each extracted section, strictly from that section’s own real text — never guessed or drawn from another section.',
+    why: 'This is the guardrail against hallucination: every proposal is shown next to its literal source excerpt for you to verify before anything saves. Scanned/image-only PDFs are rejected outright — no OCR guessing.',
+    example: 'Upload an HR policy PDF, review the proposed section headings against the real text, then save it as a knowledge collection a pack can reference.',
+  },
   domainPackId: {
     what: 'The pack\u2019s unique id \u2014 what the domain picker and API calls reference it by.',
     why: 'Locked after creation. If it matches a built-in pack (finance/medical/generic) your changes become a personal override of that pack, reversible with "Reset to default"; any other id creates a brand-new pack.',

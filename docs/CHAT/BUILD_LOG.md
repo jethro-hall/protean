@@ -2348,3 +2348,49 @@ needed, that UI already does it.
   showed it recognized the digest lacked the detail, called `query_knowledge_base`, and correctly
   answered "double time" — verbatim from the uploaded document's real text, not a guess. All test
   artifacts (pack, collection, embeddings) cleaned up afterward — no debris in the live service.
+
+## 2026-08-02 · Claude · Phase 6 · Grounded Knowledge v2 Phase P (GUI) — "Build from documents" review workspace
+
+The human-review guardrail from the backend entry now has a real screen. New `shell/
+DocumentAuthoringFlow.tsx`, wired as a new mode in the existing `DomainPacksSection.tsx` (Phase L)
+via a "+ Build from documents" button next to "+ New pack": upload a PDF → `ingestPdf()` →
+`proposeChunkMetadata()` renders every model-proposed heading/summary in an editable input
+**directly above its literal source excerpt** (the real extracted text, read-only) — the reviewer
+never has to trust a proposal without the source right there to check it against. Per-chunk
+include/exclude checkbox, editable heading/summary fields, `saveKnowledgeCollection()` only fires
+on explicit click. A second "Also propose a pack draft" step calls `proposePackDraft()` from the
+*reviewed* headings/summaries and, on acceptance, hands off to the existing Phase L pack editor
+(`openNew()` extended to accept an optional draft) pre-filled with displayName/systemPrompt/
+vocabulary — final pack review and save still goes through Phase L's own existing, unchanged save
+path, not a new one.
+
+**Real, verified-not-guessed layout bug caught during live testing, not left as "looks fine in the
+screenshot":** the fieldset legend and the immediately-following info banner rendered visually
+overlapping. Bounding-box measurements first showed *zero gap* (the boxes exactly touched, no
+overlap by the math) — the visual overlap was borderline sub-pixel text/line-height bleed from
+`.protean-settings-panel legend`'s very tight `line-height` having no breathing room before the next
+block. Fixed with one added `margin-bottom` on that shared legend rule — a small, proactive,
+app-wide fix (every other fieldset in Settings gets a touch more breathing room too, not just this
+new screen). A second, distinct issue — chunk review rows had labels and inputs running together
+on one line instead of stacking — was traced to using a plain `<div>` instead of the established
+`.protean-settings-advanced` stacking-container class already used everywhere else in Settings;
+fixed by applying the existing class rather than inventing new layout CSS.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean on `APP/GUI`.
+- **Live proof against the running engine, real Claude calls, no mocks**: uploaded a real generated
+  PDF (Work-from-Home policy + equipment stipend) through the actual Settings UI. Real proposed
+  headings/summaries appeared correctly paired with their real source excerpts ("Work-from-Home
+  Policy" / "Staff may work from home up to 3 days per week with manager approval." — verbatim
+  match to source). Confirmed via direct bounding-box measurement that the legend/banner overlap is
+  gone (banner top edge now sits a full `--s-3` gap below the legend, not touching). Save flow
+  previously confirmed working end-to-end (see the backend entry's capstone proof); this entry
+  covers the review screen itself. Test collection + its real pgvector embeddings cleaned up
+  afterward — no debris in the live service.
+
+**This closes Grounded Knowledge v2 Phase P.** Phases M–P (real Postgres+pgvector, embeddings,
+deterministic PDF ingestion, and LLM-assisted authoring with mandatory human review) form a complete,
+live-verified pipeline from raw PDF bytes to a grounded, correctly-answered question — the "no
+guesswork, absolute guardrails" core of the owner's original ask. Remaining: Phase Q (hybrid
+retrieval upgrade), Phase R (anti-hallucination guardrail hardening — GUI-visible fabrication
+banner, honest refusal), Phase S (honest stop-and-ask clarification protocol).
