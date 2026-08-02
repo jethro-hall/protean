@@ -23,6 +23,7 @@ import { chunkText } from './tools/ingestion/chunkText.js';
 import { proposeChunkMetadata } from './tools/authoring/proposeChunkMetadata.js';
 import { proposePackDraft } from './tools/authoring/proposePackDraft.js';
 import { verifyChunkFidelity } from './tools/authoring/verifyChunkFidelity.js';
+import { importDomainPackJson } from './tools/authoring/importDomainPackJson.js';
 import type { ExtractedPage } from './tools/ingestion/pdfExtract.js';
 import { knowledgeChunkSchema, knowledgeCollectionSchema } from './contracts/knowledge.js';
 import { createVoyageEmbeddingGateway } from './gateway/embeddings/voyageAdapter.js';
@@ -507,6 +508,58 @@ function handleGetDomainPack(deps: AppDeps, id: string, res: ServerResponse): vo
   }
 }
 
+const importDomainPackBodySchema = z.object({
+  fileName: z.string().min(1),
+  raw: z.string().min(1),
+});
+
+/**
+ * Deterministic domain-pack JSON import -- a DRAFT ONLY endpoint, same
+ * pattern as PDF ingest/propose (Phase O/P): nothing here saves anything.
+ * The GUI opens the returned draft in the existing pack editor for human
+ * review/edit, and only POST /api/settings/domains (handleSaveDomainPack)
+ * actually persists.
+ */
+function handleImportDomainPackJson(req: IncomingMessage, res: ServerResponse): void {
+  readJsonBody(req)
+    .then((body) => {
+      const parsed = importDomainPackBodySchema.safeParse(body);
+      if (!parsed.success) {
+        writeJson(res, 400, { error: `Invalid import request: ${parsed.error.message}` });
+        return;
+      }
+      let raw: unknown;
+      try {
+        raw = JSON.parse(parsed.data.raw);
+      } catch (cause) {
+        writeJson(res, 200, {
+          ok: false,
+          message: `"${parsed.data.fileName}" is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
+          pack: null,
+          mappedFields: [],
+          warnings: [],
+        });
+        return;
+      }
+      try {
+        const report = importDomainPackJson(raw);
+        const message = `Imported "${report.pack.displayName}" as a draft -- review every field below before saving. ${report.warnings.length} note(s) to check.`;
+        writeJson(res, 200, { ok: true, message, pack: report.pack, mappedFields: report.mappedFields, warnings: report.warnings });
+      } catch (cause) {
+        writeJson(res, 200, {
+          ok: false,
+          message: cause instanceof Error ? cause.message : String(cause),
+          pack: null,
+          mappedFields: [],
+          warnings: [],
+        });
+      }
+    })
+    .catch((cause: unknown) => {
+      writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+    });
+}
+
 async function handleSaveDomainPack(deps: AppDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
   const parsed = domainPackSchema.safeParse(await readJsonBody(req));
   if (!parsed.success) {
@@ -816,6 +869,10 @@ export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
         handleDeleteMcp(deps, connectorId, res);
         return;
       }
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/domains/import') {
+      handleImportDomainPackJson(req, res);
+      return;
     }
     if (req.method === 'POST' && url.pathname === '/api/settings/domains') {
       void handleSaveDomainPack(deps, req, res).catch((cause: unknown) => {

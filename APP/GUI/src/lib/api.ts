@@ -395,6 +395,27 @@ export async function saveDomainPack(pack: DomainPackDetail): Promise<DomainPack
   return body.pack;
 }
 
+export interface DomainPackImportResult {
+  ok: boolean;
+  message: string;
+  pack: DomainPackDetail | null;
+  mappedFields: string[];
+  warnings: string[];
+}
+
+/**
+ * Deterministic import of a domain-pack-shaped JSON file (Law 4 -- structural
+ * field mapping, no LLM involved). Draft only: nothing saves until the human
+ * reviews the returned pack in the editor and explicitly clicks Save.
+ */
+export async function importDomainPackJson(fileName: string, raw: string): Promise<DomainPackImportResult> {
+  const res = await settingsFetch('/api/settings/domains/import', {
+    method: 'POST',
+    body: JSON.stringify({ fileName, raw }),
+  });
+  return settingsJson(res, 'Failed to import domain pack JSON.');
+}
+
 /** Reset-to-default when a checked-in pack.json still exists for this id; a real delete otherwise. */
 export async function deleteDomainPackOverride(id: string): Promise<void> {
   const res = await settingsFetch(`/api/settings/domains/${encodeURIComponent(id)}`, { method: 'DELETE' });

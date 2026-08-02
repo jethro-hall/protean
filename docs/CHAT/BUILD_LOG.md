@@ -2689,3 +2689,54 @@ layer, the highest-leverage change since it cascades to every page automatically
 redesign of every individual React page would be a much larger effort; this pass elevates craft
 everywhere at once without that risk, and is the natural place to stop and show the owner before going
 further.
+
+## 2026-08-02 · Claude · Phase 6 · Domain-pack JSON import — deterministic field mapping, no LLM guessing
+
+Owner shared a real, externally-built domain-pack bundle (a "trusted-source research governance" pack:
+systemPrompt + a string-packed `outputTemplates` + a full JSON Schema `validationSchema`) and asked to
+be able to "straight import things like this." Inspection showed the file's own PDF handbook already
+states the `outputTemplates` string-packing was deliberately designed for "loaders that reject nested
+objects" — an exact match for Protean's own `domainPackSchema.outputTemplates: Record<string,string>`
+constraint. This meant a genuinely deterministic, code-only field mapping was possible (Law 4 — no LLM
+synthesis needed, unlike the PDF-authoring flow's genuinely unstructured source text).
+
+New `tools/authoring/importDomainPackJson.ts`: recognises the `packVersion`/`packType`/`title`/
+`description`/`systemPrompt`/`outputTemplates`/`validationSchema`/`artifacts` bundle shape. Maps
+`systemPrompt` directly (required — fails loud with a specific error if absent/empty, never fabricates
+a pack from unrelated data); `title`→`displayName`, `packType`→a slugified `id`, `packVersion`→`version`
+with sensible defaults when absent; `outputTemplates` maps directly (same `Record<string,string>` shape
+in both schemas); `validationSchema` (a JSON string or object) is parsed and preserved under
+`validation.outputSchema` — `domainPackSchema.validation` already types as `z.unknown()`, an exact
+existing slot for this kind of governance metadata, no schema change needed. Every field the importer
+doesn't recognise is reported as an explicit warning, never silently dropped (mirrors the same
+discipline as the chunk-fidelity check two phases ago). New route `POST /api/settings/domains/import`
+— a DRAFT-ONLY endpoint (same pattern as PDF ingest/propose): nothing saves until the human reviews the
+mapped fields in the existing pack editor and explicitly clicks Save. `DomainPacksSection.tsx` gained a
+"+ Import from JSON" control opening the returned draft directly in the pack editor (which already had
+working JSON-editor fields for `outputTemplates`/`validation` from a prior phase — no new editor UI
+needed) with the import warnings shown as a banner above it.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` + `vitest run` clean on `APP/CODE` — 296/296 tests, including 13 new
+  `importDomainPackJson.test.ts` cases (full-bundle mapping, direct `outputTemplates` passthrough,
+  `validationSchema` parsed as both a string and a pre-parsed object, unparseable-schema warning not
+  throw, recognised-but-unmapped field warnings, genuinely-unrecognised field warnings, missing/empty
+  systemPrompt throws, non-object input throws, sensible defaults when title/version are absent, and an
+  end-to-end check that the mapped output satisfies the real `domainPackSchema`).
+- `tsc --noEmit` + `eslint` clean on `APP/GUI`.
+- **Live proof, the owner's own real file, no mocks**: uploaded the actual
+  `llm_research_governance_domain_pack.json` (a 35 KB bundle with a full JSON Schema) through the live
+  GUI. The import banner correctly listed its 2 genuine notes (`description`/`artifacts` not mapped);
+  `id`/`displayName`/`version`/`systemPrompt` populated correctly; the editor's existing Output
+  templates and Validation fields showed the complete real nested JSON, still fully editable. Saved —
+  confirmed via `GET /api/domains` as a real, persisted fifth pack. Selected it and sent a real research
+  request ("Registered Nurse" in Queensland): the model correctly recognised it has no live web-browsing
+  tool, listed its *actual* available tools (Glob/Grep/Read) rather than pretending otherwise, reasoned
+  through the imported pack's own governance vocabulary in its own words (`record_status: "unverified"`,
+  "trusted-source standard"), and ended its turn with a genuine clarifying question through this
+  session's own Phase S protocol — the imported pack's "do not improvise, return a limitation note"
+  rule and Protean's own anti-hallucination/clarification infrastructure composed correctly together on
+  a real turn, not just in isolation.
+
+This pack is a real, useful deliverable (not a test fixture) and was left in place, unlike prior phases'
+throwaway test collections.

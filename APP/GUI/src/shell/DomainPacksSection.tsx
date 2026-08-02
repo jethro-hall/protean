@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { InfoHint } from '../components/InfoHint';
 import {
   deleteDomainPackOverride,
@@ -6,6 +6,7 @@ import {
   fetchDomains,
   fetchKnowledgeCollections,
   fetchMcpConnectors,
+  importDomainPackJson,
   saveDomainPack,
   NEW_DOMAIN_PACK_TEMPLATE,
   type CatalogConnectorEntry,
@@ -389,6 +390,9 @@ export function DomainPacksSection() {
   const [isNew, setIsNew] = useState(false);
   const [authoring, setAuthoring] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importWarnings, setImportWarnings] = useState<string[] | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   const reload = () => {
     fetchDomains()
@@ -400,6 +404,7 @@ export function DomainPacksSection() {
 
   const openEdit = async (id: string) => {
     setLoadError(null);
+    setImportWarnings(null);
     try {
       const detail = await fetchDomainPackDetail(id);
       setIsNew(false);
@@ -409,8 +414,33 @@ export function DomainPacksSection() {
     }
   };
 
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file === undefined) return;
+    setImportBusy(true);
+    setLoadError(null);
+    setImportWarnings(null);
+    try {
+      const raw = await file.text();
+      const result = await importDomainPackJson(file.name, raw);
+      if (!result.ok || result.pack === null) {
+        setLoadError(result.message);
+        return;
+      }
+      setIsNew(true);
+      setEditing(result.pack);
+      setImportWarnings(result.warnings);
+    } catch (cause) {
+      setLoadError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
   const openNew = (draft?: PackDraftProposal) => {
     setLoadError(null);
+    setImportWarnings(null);
     setIsNew(true);
     setAuthoring(false);
     setEditing(
@@ -422,6 +452,7 @@ export function DomainPacksSection() {
 
   const closeEditor = (didSave: boolean) => {
     setEditing(null);
+    setImportWarnings(null);
     if (didSave) reload();
   };
 
@@ -443,6 +474,26 @@ export function DomainPacksSection() {
         <legend>
           {isNew ? 'New domain pack' : `Editing ${editing.id}`} <InfoHint hintKey="domainPack" />
         </legend>
+        {importWarnings !== null && importWarnings.length > 0 && (
+          <div className="banner error" role="alert">
+            <div>
+              <p>
+                <strong>Imported as a draft — {importWarnings.length} note(s) to check before saving:</strong>{' '}
+                <InfoHint hintKey="domainPackImport" />
+              </p>
+              <ul>
+                {importWarnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+        {importWarnings !== null && importWarnings.length === 0 && (
+          <p className="banner success" role="status">
+            Imported cleanly — every field mapped, nothing to review.
+          </p>
+        )}
         <PackEditor
           key={editing.id || 'new'}
           initial={editing}
@@ -504,6 +555,22 @@ export function DomainPacksSection() {
         <button type="button" className="btn-ghost" onClick={() => setAuthoring(true)}>
           + Build from documents
         </button>
+        <button
+          type="button"
+          className="btn-ghost"
+          disabled={importBusy}
+          onClick={() => importFileInputRef.current?.click()}
+        >
+          {importBusy ? 'Importing…' : '+ Import from JSON'}
+        </button>
+        <InfoHint hintKey="domainPackImport" />
+        <input
+          ref={importFileInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(event) => void handleImportFile(event)}
+        />
       </div>
     </fieldset>
   );

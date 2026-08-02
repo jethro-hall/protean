@@ -158,6 +158,11 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'This is the guardrail against hallucination: every proposal is shown next to its literal source excerpt for you to verify before anything saves. Scanned/image-only PDFs are rejected outright — no OCR guessing.',
     example: 'Upload an HR policy PDF, review the proposed section headings against the real text, then save it as a knowledge collection a pack can reference.',
   },
+  domainPackImport: {
+    what: 'Upload a domain-pack-shaped JSON file (systemPrompt, plus optionally title/packVersion/outputTemplates/validationSchema) and have its fields deterministically mapped onto a new pack draft — no LLM involved, this is a straight structural mapping.',
+    why: 'Fields that map cleanly (systemPrompt, title, outputTemplates, a validationSchema) are filled in automatically; anything the importer doesn’t recognise is listed as a note rather than silently dropped, and nothing saves until you review the draft in the editor and click Save.',
+    example: 'A pack bundle exported from another tool with systemPrompt + outputTemplates + validationSchema fields — the schema itself is preserved under validation.outputSchema for reference.',
+  },
   domainPackId: {
     what: 'The pack\u2019s unique id \u2014 what the domain picker and API calls reference it by.',
     why: 'Locked after creation. If it matches a built-in pack (finance/medical/generic) your changes become a personal override of that pack, reversible with "Reset to default"; any other id creates a brand-new pack.',
