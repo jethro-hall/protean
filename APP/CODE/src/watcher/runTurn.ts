@@ -240,9 +240,14 @@ export async function* runTurn(
     null;
   const persistArtefacts = cached === undefined; // cache hits re-emit but never re-save
 
+  // Phase S: same deterministic tag parse, for a turn that ends in a genuine question.
+  let clarificationCounter = 0;
+  let currentClarification: { id: string; text: string } | null = null;
+  let clarificationQuestion: string | null = null; // last complete clarification, for lineage
+
   function* mapParserEvents(parserEvents: ArtefactParserEvent[]): Generator<TurnEvent> {
     for (const parserEvent of parserEvents) {
-      if (timings.ttftMs === undefined && parserEvent.kind !== 'end') {
+      if (timings.ttftMs === undefined && parserEvent.kind !== 'end' && parserEvent.kind !== 'clarification-end') {
         timings.ttftMs = roundMs(performance.now() - t0);
       }
       if (parserEvent.kind === 'chat') {
@@ -266,35 +271,58 @@ export async function* runTurn(
           currentArtefact.content += parserEvent.text;
           yield { type: 'artefact-delta', artefactId: currentArtefact.id, text: parserEvent.text };
         }
-      } else if (currentArtefact !== null) {
-        let savedPath: string | null = null;
-        if (persistArtefacts && deps.artefactsDir !== undefined) {
-          savedPath = saveArtefact(
-            deps.artefactsDir,
-            assembled.sessionId,
-            currentArtefact.id,
-            currentArtefact.artefactType,
-            currentArtefact.content,
-          );
-          log.info(
-            'watcher.artefact.saved',
-            `Artefact "${currentArtefact.title}" (${currentArtefact.artefactType}, ${currentArtefact.content.length} chars, ${parserEvent.complete ? 'complete' : 'INCOMPLETE stream'}) saved`,
-            { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { savedPath } },
-          );
-        } else if (persistArtefacts) {
-          log.warn(
-            'watcher.artefact.unsaved',
-            'Artefact finished but no artefactsDir configured — not persisted',
-            { turnId: assembled.turnId },
-          );
+      } else if (parserEvent.kind === 'end') {
+        if (currentArtefact !== null) {
+          let savedPath: string | null = null;
+          if (persistArtefacts && deps.artefactsDir !== undefined) {
+            savedPath = saveArtefact(
+              deps.artefactsDir,
+              assembled.sessionId,
+              currentArtefact.id,
+              currentArtefact.artefactType,
+              currentArtefact.content,
+            );
+            log.info(
+              'watcher.artefact.saved',
+              `Artefact "${currentArtefact.title}" (${currentArtefact.artefactType}, ${currentArtefact.content.length} chars, ${parserEvent.complete ? 'complete' : 'INCOMPLETE stream'}) saved`,
+              { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { savedPath } },
+            );
+          } else if (persistArtefacts) {
+            log.warn(
+              'watcher.artefact.unsaved',
+              'Artefact finished but no artefactsDir configured — not persisted',
+              { turnId: assembled.turnId },
+            );
+          }
+          yield {
+            type: 'artefact-end',
+            artefactId: currentArtefact.id,
+            complete: parserEvent.complete,
+            savedPath,
+          };
+          currentArtefact = null;
         }
+      } else if (parserEvent.kind === 'clarification-start') {
+        clarificationCounter += 1;
+        currentClarification = { id: `${assembled.turnId}-c${clarificationCounter}`, text: '' };
+        yield { type: 'clarification-start', clarificationId: currentClarification.id };
+      } else if (parserEvent.kind === 'clarification-delta') {
+        if (currentClarification !== null) {
+          currentClarification.text += parserEvent.text;
+          yield {
+            type: 'clarification-delta',
+            clarificationId: currentClarification.id,
+            text: parserEvent.text,
+          };
+        }
+      } else if (parserEvent.kind === 'clarification-end' && currentClarification !== null) {
+        clarificationQuestion = currentClarification.text.trim() !== '' ? currentClarification.text : null;
         yield {
-          type: 'artefact-end',
-          artefactId: currentArtefact.id,
+          type: 'clarification-end',
+          clarificationId: currentClarification.id,
           complete: parserEvent.complete,
-          savedPath,
         };
-        currentArtefact = null;
+        currentClarification = null;
       }
     }
   }
@@ -404,6 +432,7 @@ export async function* runTurn(
     assembledMessages: assembled.messages,
     rewrite,
     thinking: thinking !== '' ? thinking : null,
+    clarificationQuestion,
     tier: assembled.tier,
     model,
     cacheKey,

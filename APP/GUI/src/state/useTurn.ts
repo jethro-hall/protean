@@ -93,6 +93,29 @@ export function useSendTurn(): (input: string, attachments?: Attachment[]) => vo
             });
           } else if (event.type === 'activity-end') {
             dispatch({ type: 'activityEnd', conversationId, messageId, activityId: event.activityId });
+          } else if (event.type === 'clarification-start') {
+            dispatch({
+              type: 'clarificationStart',
+              conversationId,
+              messageId,
+              clarificationId: event.clarificationId,
+            });
+          } else if (event.type === 'clarification-delta') {
+            dispatch({
+              type: 'clarificationDelta',
+              conversationId,
+              messageId,
+              clarificationId: event.clarificationId,
+              text: event.text,
+            });
+          } else if (event.type === 'clarification-end') {
+            dispatch({
+              type: 'clarificationEnd',
+              conversationId,
+              messageId,
+              clarificationId: event.clarificationId,
+              complete: event.complete,
+            });
           } else if (event.type === 'artefact-start') {
             dispatch({
               type: 'artefactStart',

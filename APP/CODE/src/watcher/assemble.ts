@@ -13,6 +13,7 @@ import type {
 import {
   ARTEFACT_PROTOCOL_PROMPT,
   CITATION_HONESTY_PROTOCOL_PROMPT,
+  CLARIFICATION_PROTOCOL_PROMPT,
   DEFAULT_HISTORY_WINDOW_MESSAGES,
   GROUNDED_REFUSAL_PROTOCOL_PROMPT,
   NARRATION_PROTOCOL_PROMPT,
@@ -245,6 +246,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     ARTEFACT_PROTOCOL_PROMPT,
     NARRATION_PROTOCOL_PROMPT,
     CITATION_HONESTY_PROTOCOL_PROMPT,
+    CLARIFICATION_PROTOCOL_PROMPT,
     ...(grounded ? [GROUNDED_REFUSAL_PROTOCOL_PROMPT] : []),
     renderWiredToolsPrompt(wiredTools),
     ...(knowledgeDigest !== '' ? [knowledgeDigest] : []),

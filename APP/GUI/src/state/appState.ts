@@ -36,7 +36,19 @@ export interface Activity {
 export type MessageSegment =
   | { kind: 'text'; text: string }
   | { kind: 'activity'; activityId: string }
-  | { kind: 'artefact'; artefactId: string; title: string; artefactType: ArtefactType };
+  | { kind: 'artefact'; artefactId: string; title: string; artefactType: ArtefactType }
+  | { kind: 'clarification'; clarificationId: string };
+
+/**
+ * A turn ending in a genuine blocking question (Phase S) — the model choosing to end
+ * its turn early with one real question, not a literal mid-generation pause (no vendor
+ * API supports that). `status` is honest streaming truth, same as Artefact below.
+ */
+export interface Clarification {
+  id: string;
+  text: string;
+  status: 'streaming' | 'complete' | 'incomplete';
+}
 
 export interface Artefact {
   id: string;
@@ -62,6 +74,8 @@ export interface ChatMessage {
   segments?: MessageSegment[];
   /** User hit Stop mid-turn — content/steps are honestly partial, not an error. */
   stopped?: boolean;
+  /** This turn's clarifying question(s), when it ended in one (Phase S). */
+  clarifications?: Clarification[];
 }
 
 export type ConversationStatus = 'idle' | 'waiting' | 'streaming' | 'error';
@@ -151,6 +165,21 @@ export type Action =
       savedPath: string | null;
     }
   | { type: 'selectArtefact'; conversationId: string; artefactId: string }
+  | { type: 'clarificationStart'; conversationId: string; messageId: string; clarificationId: string }
+  | {
+      type: 'clarificationDelta';
+      conversationId: string;
+      messageId: string;
+      clarificationId: string;
+      text: string;
+    }
+  | {
+      type: 'clarificationEnd';
+      conversationId: string;
+      messageId: string;
+      clarificationId: string;
+      complete: boolean;
+    }
   | { type: 'turnError'; conversationId: string; messageId: string; message: string }
   | { type: 'assistantStopped'; conversationId: string; messageId: string }
   | { type: 'setTier'; tier: ModelTier }
@@ -378,6 +407,42 @@ export function reducer(state: AppState, action: Action): AppState {
         })),
         previewOpen: true,
       };
+    case 'clarificationStart':
+      return updateConversation(state, action.conversationId, (conversation) =>
+        updateMessage(conversation, action.messageId, (message) => ({
+          ...message,
+          clarifications: [
+            ...(message.clarifications ?? []),
+            { id: action.clarificationId, text: '', status: 'streaming' as const },
+          ],
+          segments: [
+            ...(message.segments ?? []),
+            { kind: 'clarification', clarificationId: action.clarificationId },
+          ],
+        })),
+      );
+    case 'clarificationDelta':
+      return updateConversation(state, action.conversationId, (conversation) =>
+        updateMessage(conversation, action.messageId, (message) => ({
+          ...message,
+          clarifications: (message.clarifications ?? []).map((clarification) =>
+            clarification.id === action.clarificationId
+              ? { ...clarification, text: clarification.text + action.text }
+              : clarification,
+          ),
+        })),
+      );
+    case 'clarificationEnd':
+      return updateConversation(state, action.conversationId, (conversation) =>
+        updateMessage(conversation, action.messageId, (message) => ({
+          ...message,
+          clarifications: (message.clarifications ?? []).map((clarification) =>
+            clarification.id === action.clarificationId
+              ? { ...clarification, status: action.complete ? 'complete' : 'incomplete' }
+              : clarification,
+          ),
+        })),
+      );
     case 'turnError':
       return updateConversation(state, action.conversationId, (conversation) => ({
         ...conversation,

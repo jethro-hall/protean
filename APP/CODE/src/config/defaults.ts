@@ -157,6 +157,26 @@ export const GROUNDED_REFUSAL_PROTOCOL_PROMPT =
   'option. Do not blend an unsourced guess into an answer that reads as grounded; assume nothing ' +
   'and only state what you can actually back.';
 
+/**
+ * Clarification wire protocol (Phase S) — an ENGINE protocol constant, same tag-based
+ * pattern as ARTEFACT_PROTOCOL_PROMPT (watcher/artefacts.ts parses it deterministically,
+ * Law 4). No vendor API can literally pause and resume one generation call, so this is
+ * honestly what it is: the model choosing to END its turn early with one real question,
+ * not a mid-generation pause — the GUI gives it a distinct, unmissable treatment instead
+ * of pretending it's a normal completed answer.
+ */
+export const CLARIFICATION_PROTOCOL_PROMPT =
+  'Assume nothing. If answering correctly genuinely depends on information you do not have — ' +
+  'and a wrong assumption would produce a materially wrong or misleading answer — stop and ask, ' +
+  'the way a careful analyst would rather than guessing. Do not partially answer and then guess ' +
+  'the rest, and do not ask a vague open-ended question when you actually have a specific one in ' +
+  'mind. Ask ONE specific, answerable question, wrapped EXACTLY as: ' +
+  '<protean:clarification>your one question, in plain language</protean:clarification>, and make ' +
+  'it the LAST thing in your response — end your turn there instead of continuing past it. Reserve ' +
+  'this for a genuine blocking ambiguity (e.g. two source documents give conflicting figures for ' +
+  'the same fact, or a request could mean two materially different things) — not for routine ' +
+  'questions you could reasonably infer or that do not change the substance of the answer.';
+
 /** Upload limits: text attachments only for now; caps keep prompts inside the token budget. */
 export const MAX_ATTACHMENT_BYTES = 512 * 1024;
 export const MAX_ATTACHMENTS_PER_TURN = 5;

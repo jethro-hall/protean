@@ -62,6 +62,13 @@ export type TurnStreamEvent =
   | { type: 'artefact-start'; artefactId: string; artefactType: ArtefactType; title: string }
   | { type: 'artefact-delta'; artefactId: string; text: string }
   | { type: 'artefact-end'; artefactId: string; complete: boolean; savedPath: string | null }
+  /**
+   * A turn ending in a genuine blocking question (Phase S) — the model choosing to end
+   * its turn early, not a literal mid-generation pause (no vendor API supports that).
+   */
+  | { type: 'clarification-start'; clarificationId: string }
+  | { type: 'clarification-delta'; clarificationId: string; text: string }
+  | { type: 'clarification-end'; clarificationId: string; complete: boolean }
   | ({ type: 'done' } & TurnDone)
   | { type: 'error'; turnId: string; message: string };
 

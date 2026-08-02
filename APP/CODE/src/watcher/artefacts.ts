@@ -2,15 +2,22 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * Artefact stream protocol (Phase 3). The model is instructed (protocol
- * constant, config/defaults.ts) to wrap artefacts in
- * `<protean:artefact type="..." title="...">…</protean:artefact>`.
- * This parser splits the token stream DETERMINISTICALLY (Law 4) into chat text
- * and artefact content, surviving tags split across chunk boundaries.
+ * Turn-segment stream protocol (Phase 3 artefacts + Phase S clarifications). The
+ * model is instructed (protocol constants, config/defaults.ts) to wrap artefacts in
+ * `<protean:artefact type="..." title="...">…</protean:artefact>` and a genuine
+ * blocking clarifying question in `<protean:clarification>…</protean:clarification>`.
+ * This parser splits the token stream DETERMINISTICALLY (Law 4) into chat text and
+ * these tagged segments, surviving tags split across chunk boundaries. The two tag
+ * families share one parser (not two independent ones) because they consume the
+ * same underlying stream position — running two parsers over the same buffer would
+ * race on which one claims a given span of text.
  */
 
 export const ARTEFACT_OPEN_PREFIX = '<protean:artefact';
 export const ARTEFACT_CLOSE_TAG = '</protean:artefact>';
+
+export const CLARIFICATION_OPEN_TAG = '<protean:clarification>';
+export const CLARIFICATION_CLOSE_TAG = '</protean:clarification>';
 
 export const ARTEFACT_TYPES = ['html', 'markdown', 'code', 'text'] as const;
 export type ArtefactType = (typeof ARTEFACT_TYPES)[number];
@@ -26,7 +33,10 @@ export type ArtefactParserEvent =
   | { kind: 'chat'; text: string }
   | { kind: 'start'; artefactType: ArtefactType; title: string }
   | { kind: 'delta'; text: string }
-  | { kind: 'end'; complete: boolean };
+  | { kind: 'end'; complete: boolean }
+  | { kind: 'clarification-start' }
+  | { kind: 'clarification-delta'; text: string }
+  | { kind: 'clarification-end'; complete: boolean };
 
 export interface ArtefactParser {
   push(chunk: string): ArtefactParserEvent[];
@@ -52,22 +62,48 @@ function parseOpenTag(tag: string): { artefactType: ArtefactType; title: string 
   return { artefactType, title: titleMatch?.[1] ?? 'Untitled artefact' };
 }
 
+/** Earliest of the two open-tag families in `buffer`, if either is present. */
+function findEarliestOpen(buffer: string): { kind: 'artefact' | 'clarification'; at: number } | null {
+  const artefactAt = buffer.indexOf(ARTEFACT_OPEN_PREFIX);
+  const clarificationAt = buffer.indexOf(CLARIFICATION_OPEN_TAG);
+  if (artefactAt === -1 && clarificationAt === -1) return null;
+  if (artefactAt === -1) return { kind: 'clarification', at: clarificationAt };
+  if (clarificationAt === -1) return { kind: 'artefact', at: artefactAt };
+  return artefactAt <= clarificationAt
+    ? { kind: 'artefact', at: artefactAt }
+    : { kind: 'clarification', at: clarificationAt };
+}
+
+type ParserState = 'idle' | 'artefact' | 'clarification';
+
 export function createArtefactParser(): ArtefactParser {
   let buffer = '';
-  let insideArtefact = false;
+  let state: ParserState = 'idle';
 
   const drain = (): ArtefactParserEvent[] => {
     const events: ArtefactParserEvent[] = [];
     for (;;) {
-      if (!insideArtefact) {
-        const openAt = buffer.indexOf(ARTEFACT_OPEN_PREFIX);
-        if (openAt === -1) {
-          const hold = partialSuffixLength(buffer, ARTEFACT_OPEN_PREFIX);
+      if (state === 'idle') {
+        const found = findEarliestOpen(buffer);
+        if (found === null) {
+          const hold = Math.max(
+            partialSuffixLength(buffer, ARTEFACT_OPEN_PREFIX),
+            partialSuffixLength(buffer, CLARIFICATION_OPEN_TAG),
+          );
           const emit = buffer.slice(0, buffer.length - hold);
           if (emit !== '') events.push({ kind: 'chat', text: emit });
           buffer = buffer.slice(buffer.length - hold);
           return events;
         }
+        if (found.kind === 'clarification') {
+          const before = buffer.slice(0, found.at);
+          if (before !== '') events.push({ kind: 'chat', text: before });
+          events.push({ kind: 'clarification-start' });
+          buffer = buffer.slice(found.at + CLARIFICATION_OPEN_TAG.length);
+          state = 'clarification';
+          continue;
+        }
+        const openAt = found.at;
         const tagEnd = buffer.indexOf('>', openAt);
         if (tagEnd === -1) {
           // open tag not complete yet — emit chat before it, hold the rest
@@ -80,8 +116,8 @@ export function createArtefactParser(): ArtefactParser {
         if (before !== '') events.push({ kind: 'chat', text: before });
         events.push({ kind: 'start', ...parseOpenTag(buffer.slice(openAt, tagEnd + 1)) });
         buffer = buffer.slice(tagEnd + 1);
-        insideArtefact = true;
-      } else {
+        state = 'artefact';
+      } else if (state === 'artefact') {
         const closeAt = buffer.indexOf(ARTEFACT_CLOSE_TAG);
         if (closeAt === -1) {
           const hold = partialSuffixLength(buffer, ARTEFACT_CLOSE_TAG);
@@ -94,7 +130,21 @@ export function createArtefactParser(): ArtefactParser {
         if (content !== '') events.push({ kind: 'delta', text: content });
         events.push({ kind: 'end', complete: true });
         buffer = buffer.slice(closeAt + ARTEFACT_CLOSE_TAG.length);
-        insideArtefact = false;
+        state = 'idle';
+      } else {
+        const closeAt = buffer.indexOf(CLARIFICATION_CLOSE_TAG);
+        if (closeAt === -1) {
+          const hold = partialSuffixLength(buffer, CLARIFICATION_CLOSE_TAG);
+          const emit = buffer.slice(0, buffer.length - hold);
+          if (emit !== '') events.push({ kind: 'clarification-delta', text: emit });
+          buffer = buffer.slice(buffer.length - hold);
+          return events;
+        }
+        const content = buffer.slice(0, closeAt);
+        if (content !== '') events.push({ kind: 'clarification-delta', text: content });
+        events.push({ kind: 'clarification-end', complete: true });
+        buffer = buffer.slice(closeAt + CLARIFICATION_CLOSE_TAG.length);
+        state = 'idle';
       }
     }
   };
@@ -107,14 +157,15 @@ export function createArtefactParser(): ArtefactParser {
     flush() {
       const events: ArtefactParserEvent[] = [];
       if (buffer !== '') {
-        events.push(insideArtefact ? { kind: 'delta', text: buffer } : { kind: 'chat', text: buffer });
+        if (state === 'artefact') events.push({ kind: 'delta', text: buffer });
+        else if (state === 'clarification') events.push({ kind: 'clarification-delta', text: buffer });
+        else events.push({ kind: 'chat', text: buffer });
         buffer = '';
       }
-      if (insideArtefact) {
-        // stream ended mid-artefact — honest incomplete end, never faked as done
-        events.push({ kind: 'end', complete: false });
-        insideArtefact = false;
-      }
+      // stream ended mid-segment — honest incomplete end, never faked as done
+      if (state === 'artefact') events.push({ kind: 'end', complete: false });
+      else if (state === 'clarification') events.push({ kind: 'clarification-end', complete: false });
+      state = 'idle';
       return events;
     },
   };

@@ -168,6 +168,13 @@ export type TurnEvent =
   | { type: 'artefact-start'; artefactId: string; artefactType: string; title: string }
   | { type: 'artefact-delta'; artefactId: string; text: string }
   | { type: 'artefact-end'; artefactId: string; complete: boolean; savedPath: string | null }
+  /**
+   * A turn ending in a genuine blocking question (Phase S) — the model choosing to end
+   * its turn early, not a literal mid-generation pause (no vendor API supports that).
+   */
+  | { type: 'clarification-start'; clarificationId: string }
+  | { type: 'clarification-delta'; clarificationId: string; text: string }
+  | { type: 'clarification-end'; clarificationId: string; complete: boolean }
   | {
       type: 'done';
       turnId: string;
@@ -195,6 +202,8 @@ export interface TurnLineage {
   rewrite: string | null;
   /** The model's streamed reasoning, when it chose to think (adaptive thinking). */
   thinking: string | null;
+  /** The turn's clarifying question, when it ended in one (Phase S) — null otherwise. */
+  clarificationQuestion?: string | null;
   tier: ModelTier;
   model: string;
   cacheKey: string;

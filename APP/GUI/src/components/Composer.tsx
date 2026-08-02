@@ -38,11 +38,27 @@ export function Composer() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const focusedForMessageId = useRef<string | null>(null);
   const sendTurn = useSendTurn();
   const stopTurn = useStopTurn();
   const state = useAppState();
   const dispatch = useAppDispatch();
-  const busy = ['waiting', 'streaming'].includes(activeConversation(state).status);
+  const conversation = activeConversation(state);
+  const busy = ['waiting', 'streaming'].includes(conversation.status);
+
+  // Phase S: a turn that ends in a genuine clarifying question gets the composer's
+  // attention automatically — the reply is just the next normal turn, so this is the
+  // one honest nudge (focus, not a blocking modal or fake "waiting" state machine).
+  useEffect(() => {
+    const last = conversation.messages.at(-1);
+    if (last === undefined || last.role !== 'assistant' || last.streaming === true) return;
+    const lastClarification = (last.clarifications ?? []).at(-1);
+    if (lastClarification?.status !== 'complete') return;
+    if (focusedForMessageId.current === last.id) return;
+    focusedForMessageId.current = last.id;
+    textareaRef.current?.focus();
+  }, [conversation.messages]);
 
   const reloadProviders = (): void => {
     fetchProviders()
@@ -145,6 +161,7 @@ export function Composer() {
         <div className="field">
           <textarea
             id="composer-input"
+            ref={textareaRef}
             rows={1}
             value={draft}
             placeholder="Ask anything — the active domain pack shapes the answer…"

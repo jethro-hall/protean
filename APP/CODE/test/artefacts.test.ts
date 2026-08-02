@@ -90,6 +90,69 @@ describe('artefact stream parser', () => {
   });
 });
 
+describe('clarification stream parser (Phase S)', () => {
+  const CLAR_OPEN = '<protean:clarification>';
+  const CLAR_CLOSE = '</protean:clarification>';
+
+  function collectClarification(events: ArtefactParserEvent[]): string {
+    return events
+      .filter((event) => event.kind === 'clarification-delta')
+      .map((event) => (event as { text: string }).text)
+      .join('');
+  }
+
+  it('splits chat, clarification, and trailing chat in one chunk', () => {
+    const parser = createArtefactParser();
+    const events = [
+      ...parser.push(`Before I answer: ${CLAR_OPEN}Which fiscal year do you mean?${CLAR_CLOSE}`),
+      ...parser.flush(),
+    ];
+    expect(collectText(events, 'chat')).toBe('Before I answer: ');
+    expect(collectClarification(events)).toBe('Which fiscal year do you mean?');
+    expect(events.some((e) => e.kind === 'clarification-start')).toBe(true);
+    expect(events.find((e) => e.kind === 'clarification-end')).toEqual({
+      kind: 'clarification-end',
+      complete: true,
+    });
+  });
+
+  it('survives the clarification tag split across arbitrary chunk boundaries', () => {
+    const full = `Hold on — ${CLAR_OPEN}Which entity is this for?${CLAR_CLOSE}`;
+    for (const chunkSize of [1, 2, 3, 5, 7, 11]) {
+      const parser = createArtefactParser();
+      const events: ArtefactParserEvent[] = [];
+      for (let i = 0; i < full.length; i += chunkSize) {
+        events.push(...parser.push(full.slice(i, i + chunkSize)));
+      }
+      events.push(...parser.flush());
+      expect(collectText(events, 'chat'), `chunkSize=${chunkSize}`).toBe('Hold on — ');
+      expect(collectClarification(events), `chunkSize=${chunkSize}`).toBe('Which entity is this for?');
+    }
+  });
+
+  it('marks a stream that dies mid-clarification as incomplete — never fakes completion', () => {
+    const parser = createArtefactParser();
+    const events = [...parser.push(`${CLAR_OPEN}Which fiscal`), ...parser.flush()];
+    expect(events.find((e) => e.kind === 'clarification-end')).toEqual({
+      kind: 'clarification-end',
+      complete: false,
+    });
+    expect(collectClarification(events)).toBe('Which fiscal');
+  });
+
+  it('a clarification after a completed artefact in the same turn is parsed correctly (shared parser, no cross-talk)', () => {
+    const parser = createArtefactParser();
+    const events = [
+      ...parser.push(`${OPEN}<h1>Draft</h1>${CLOSE} ${CLAR_OPEN}Should I finalise this?${CLAR_CLOSE}`),
+      ...parser.flush(),
+    ];
+    expect(events.filter((e) => e.kind === 'start')).toHaveLength(1);
+    expect(events.filter((e) => e.kind === 'clarification-start')).toHaveLength(1);
+    expect(collectText(events, 'delta')).toBe('<h1>Draft</h1>');
+    expect(collectClarification(events)).toBe('Should I finalise this?');
+  });
+});
+
 describe('saveArtefact', () => {
   it('writes under a sanitised session dir with the right extension', () => {
     const dir = mkdtempSync(join(tmpdir(), 'protean-artefacts-'));

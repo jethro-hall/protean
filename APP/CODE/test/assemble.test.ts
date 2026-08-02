@@ -299,6 +299,12 @@ describe('assembleTurn', () => {
     expect(assembled.knowledgeCollectionsUsed).toEqual(['finance-ato-rd-tax-incentive']);
   });
 
+  it('injects the clarification protocol unconditionally (Phase S)', () => {
+    const assembled = assembleTurn({ ...assembleBase, history: [] });
+    expect(assembled.systemPromptDynamic).toContain('<protean:clarification>');
+    expect(assembled.systemPromptDynamic).toContain('genuine blocking ambiguity');
+  });
+
   it('injects the grounded-refusal protocol only when the turn is grounded (Phase R)', () => {
     const groundedTurn = assembleTurn({ ...assembleBase, history: [], grounded: true });
     expect(groundedTurn.systemPromptDynamic).toContain("don't have enough grounded source material");

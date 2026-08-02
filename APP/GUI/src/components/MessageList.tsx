@@ -43,6 +43,38 @@ function ArtefactChip({
   );
 }
 
+function ClarificationBox({
+  segment,
+  message,
+}: {
+  segment: Extract<MessageSegment, { kind: 'clarification' }>;
+  message: ChatMessage;
+}) {
+  const clarification = (message.clarifications ?? []).find(
+    (candidate) => candidate.id === segment.clarificationId,
+  );
+  if (clarification === undefined) return null;
+  return (
+    <div className="clarification-box" role="status">
+      <span className="clarification-mark" aria-hidden>
+        ?
+      </span>
+      <div>
+        <p className="clarification-text">
+          {clarification.text}
+          {clarification.status === 'streaming' && <span className="cursor" aria-hidden />}
+        </p>
+        {clarification.status === 'complete' && (
+          <p className="clarification-hint">Waiting for your answer — reply below to continue.</p>
+        )}
+        {clarification.status === 'incomplete' && (
+          <p className="clarification-hint">[stream ended before the question finished]</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SegmentFlow({
   message,
   conversation,
@@ -90,6 +122,9 @@ function SegmentFlow({
               )}
             </p>
           );
+        }
+        if (segment.kind === 'clarification') {
+          return <ClarificationBox key={segment.clarificationId} segment={segment} message={message} />;
         }
         return (
           <ArtefactChip

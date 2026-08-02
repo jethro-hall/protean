@@ -379,3 +379,58 @@ describe('runTurn groundingConfidence (Phase R — deterministic confidence gate
     expect(done.groundingConfidence).toBeUndefined();
   });
 });
+
+describe('runTurn clarification protocol (Phase S — honest stop-and-ask)', () => {
+  it('streams clarification-start/delta/end for a turn that ends in a genuine question, and records it in lineage', async () => {
+    const clarifyingAgent = fakeAgent(async function* () {
+      yield { type: 'text' as const, text: 'I need one thing before I continue: ' };
+      yield {
+        type: 'text' as const,
+        text: '<protean:clarification>Which fiscal year should I use?</protean:clarification>',
+      };
+      yield {
+        type: 'done' as const,
+        model: 'test-model',
+        usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheCreationTokens: 0 },
+        costUsd: 0,
+        providerDurationMs: 1,
+      };
+    });
+    const deps = makeDeps(clarifyingAgent);
+    const events = await collect(runTurn(request, deps));
+
+    const text = events
+      .filter((e): e is Extract<TurnEvent, { type: 'text' }> => e.type === 'text')
+      .map((e) => e.text)
+      .join('');
+    expect(text).toBe('I need one thing before I continue: ');
+
+    const start = events.find((e) => e.type === 'clarification-start');
+    if (start?.type !== 'clarification-start') throw new Error('no clarification-start');
+    const delta = events.find((e) => e.type === 'clarification-delta');
+    if (delta?.type !== 'clarification-delta') throw new Error('no clarification-delta');
+    expect(delta.text).toBe('Which fiscal year should I use?');
+    const end = events.find((e) => e.type === 'clarification-end');
+    if (end?.type !== 'clarification-end') throw new Error('no clarification-end');
+    expect(end.complete).toBe(true);
+    expect(end.clarificationId).toBe(start.clarificationId);
+
+    const lineageFile = readdirSync(deps.promptHistoryDir)[0];
+    if (lineageFile === undefined) throw new Error('no lineage file');
+    const row = JSON.parse(readFileSync(join(deps.promptHistoryDir, lineageFile), 'utf8').trim()) as {
+      clarificationQuestion?: string | null;
+    };
+    expect(row.clarificationQuestion).toBe('Which fiscal year should I use?');
+  });
+
+  it('records a null clarificationQuestion in lineage for an ordinary completed answer', async () => {
+    const deps = makeDeps(successAgent);
+    await collect(runTurn(request, deps));
+    const lineageFile = readdirSync(deps.promptHistoryDir)[0];
+    if (lineageFile === undefined) throw new Error('no lineage file');
+    const row = JSON.parse(readFileSync(join(deps.promptHistoryDir, lineageFile), 'utf8').trim()) as {
+      clarificationQuestion?: string | null;
+    };
+    expect(row.clarificationQuestion).toBeNull();
+  });
+});

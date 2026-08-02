@@ -107,13 +107,16 @@ stdio MCP (Odoo / GhostDL / email) catalogued as `stdioMcp` seam but not enabled
 **Goal:** eval coverage, cost telemetry dashboard, graceful provider failover (designed, logged —
 not a workaround), accessibility pass.
 
-**Triage addendum (2026-08-01, owner-directed):** Grounded Knowledge v2 — real document ingestion,
-embeddings, hybrid (TF-IDF + vector) retrieval via the pgvector seam ADR-0002 already named, and
-anti-hallucination guardrail hardening (GUI-visible fabrication banner, honest "can't answer
-confidently" refusal). This wasn't previously in this phase or the backlog below — explicitly
-triaged into **current phase** per the owner's direct request, not silently absorbed. Plan on file
-at `docs/CHAT/BUILD_LOG.md` (lettered phases M–S). No new ADR required — pgvector (ADR-0002) and
-hosted-embeddings-over-local-GPU (ADR-0003's documented degrade path) are both already covered.
+**Triage addendum (2026-08-01, owner-directed) — ✅ done 2026-08-02:** Grounded Knowledge v2 — real
+document ingestion, embeddings, hybrid (TF-IDF + vector) retrieval via the pgvector seam ADR-0002
+already named, and anti-hallucination guardrail hardening (GUI-visible fabrication banner, honest
+"can't answer confidently" refusal, honest stop-and-ask clarification protocol). This wasn't
+previously in this phase or the backlog below — explicitly triaged into **current phase** per the
+owner's direct request, not silently absorbed. All seven lettered phases (M–S) complete and
+live-verified against the real running engine, real Postgres+pgvector, real Voyage embeddings, and
+real Claude model calls — evidence in `docs/CHAT/BUILD_LOG.md`. No new ADR required — pgvector
+(ADR-0002) and hosted-embeddings-over-local-GPU (ADR-0003's documented degrade path) were both
+already covered.
 
 ---
 

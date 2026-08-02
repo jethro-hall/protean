@@ -2513,3 +2513,68 @@ the model self-reporting):
 
 **This closes Grounded Knowledge v2 Phase R.** Remaining: Phase S (honest stop-and-ask clarification
 protocol) — the last phase of the 7-phase Grounded Knowledge v2 plan.
+
+## 2026-08-02 · Claude · Phase 6 · Grounded Knowledge v2 Phase S — honest stop-and-ask clarification protocol
+
+The last phase of the plan, and the most honesty-sensitive: no vendor API (Anthropic included) can
+literally pause and resume one generation call, so this is built as what Cursor/Claude Code actually
+do — the model **ending its own turn early** with one real question, plus a GUI treatment that makes
+that moment unmissable. Never claimed or implemented as a literal mid-stream pause.
+
+New `CLARIFICATION_PROTOCOL_PROMPT` (`config/defaults.ts`), injected unconditionally in `assemble.ts`
+alongside the other engine protocols: instructs the model to ask ONE specific question — wrapped
+exactly as `<protean:clarification>…</protean:clarification>`, as the LAST thing in its response —
+only for a genuine blocking ambiguity, explicitly not for routine questions it could reasonably infer.
+
+The detection is deterministic, not model-self-reported (Law 4): `watcher/artefacts.ts`'s existing
+tag-stream parser (Phase 3, previously artefact-only) was extended to a 3-state machine (`idle` /
+`artefact` / `clarification`) that recognises EITHER tag family from the same buffer — a single parser,
+not two independent ones racing over the same stream position. `ArtefactParserEvent` gained
+`clarification-start`/`clarification-delta`/`clarification-end` (mirroring the artefact triplet exactly,
+including "stream died mid-tag → honestly `complete: false`, never faked as done"). `runTurn.ts` tracks
+the accumulated question text, emits the three matching `TurnEvent`s, and records the completed question
+in lineage (`clarificationQuestion`, Law 6) — `null` for an ordinary turn, so a future reader can grep
+lineage for every turn that ever stopped to ask.
+
+GUI: new `Clarification` state (mirrors `Artefact`'s honest streaming/complete/incomplete status) and a
+`clarification` `MessageSegment` kind so a clarifying question renders inline, in stream order, not
+appended afterward. `MessageList.tsx`'s new `.clarification-box` gives it a distinct, unmissable
+treatment (blue accent, "?" mark, "Waiting for your answer" hint) instead of rendering it as an ordinary
+paragraph. `Composer.tsx` auto-focuses the message box the moment a turn ends in a completed
+clarification — the one honest nudge; the reply is simply the next normal turn, so no new state machine
+or blocking modal was needed, matching the existing one-way turn model already proven sufficient this
+session (Stop is architecturally a different, terminal operation).
+
+**Proof:**
+- `tsc --noEmit` + `eslint` + `vitest run` clean on `APP/CODE` — 276/276 tests, including new
+  `artefacts.test.ts` cases (clarification + trailing chat, tag split across arbitrary chunk
+  boundaries, honest incomplete-on-mid-tag-death, and a clarification correctly parsed after a
+  completed artefact in the same turn — proving the shared parser doesn't cross-talk between the two
+  tag families), an `assemble.test.ts` case confirming unconditional injection, and two `runTurn.test.ts`
+  integration cases (a fake agent emitting a real clarification tag → correct event triplet + lineage;
+  an ordinary turn → `clarificationQuestion: null` in lineage).
+- `tsc --noEmit` + `eslint` clean on `APP/GUI`.
+- **Live proof against the real running engine, real Claude model, no mocks — the plan's own suggested
+  test**: asked the finance pack a deliberately ambiguous authoring question ("two source documents
+  give conflicting figures for the same fact — $20,000 vs $18,000 for the R&D threshold, update our
+  records to the correct value"). The model did NOT guess or ask a lazy vague question — it genuinely
+  investigated first (`Glob`/`Grep`/`Read` on the real checked-in JSON, `summarize_csv` on the real R&D
+  ledger dataset), found the current record already correct, reasoned through FACT vs. ESTIMATE labels
+  exactly per the existing citation/narration protocols, and only THEN ended its turn with one specific,
+  well-formed clarifying question about which of the two undocumented source files actually carries the
+  later revision — precisely the "genuine blocking ambiguity, not a routine question" bar the prompt
+  sets. The raw SSE stream showed a clean `clarification-start` → four `clarification-delta` chunks →
+  `clarification-end (complete: true)`, with no tag markup leaking into the visible chat text. A second
+  run through the actual browser UI confirmed the full GUI path live: the blue `.clarification-box`
+  rendered with the real question and "Waiting for your answer" hint, and the composer's message
+  textarea was confirmed auto-focused (`document.activeElement` check) the moment the turn completed —
+  and, independently, the Phase R fabrication banner also correctly fired on this same fresh (not
+  cached) response, showing the two guardrail phases working together correctly on one real turn
+  (screenshot captured).
+
+**This closes Grounded Knowledge v2 Phase S — and the full 7-phase Grounded Knowledge v2 plan
+(Phases M–S).** Real Postgres+pgvector infra, hosted embeddings, deterministic PDF ingestion with
+mandatory human review, hybrid TF-IDF+vector retrieval, a GUI-visible fabrication banner plus
+deterministic confidence gate plus honest-refusal protocol, and now an honest stop-and-ask clarification
+protocol — all live-verified against the real running engine and real model calls, no mocks in any
+capstone proof, throughout.
