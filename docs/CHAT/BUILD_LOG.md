@@ -2224,3 +2224,58 @@ O/P/Q first calls `embed()` for real, so there's no dead call site sitting unuse
   overlap — TF-IDF alone would score this pair near zero). Cosine similarity search correctly
   ranked the finance chunk at 0.627 against the medical chunk's 0.055 — real semantic matching,
   measured, not claimed. Test rows cleaned up immediately after — no debris in the live database.
+
+## 2026-08-02 · Claude · Phase 6 · Grounded Knowledge v2 Phase O — deterministic PDF ingestion pipeline
+
+Owner-confirmed decision from before this round started: deterministic parser (code, not the model),
+never OCR-by-LLM, scanned/image-only PDFs explicitly rejected. Checked `pdf-parse`'s real npm
+versions/API before writing anything — the classic v1 wrapper API doesn't exist in the current
+package; v2 is a class-based `PDFParse({data}).getText()` returning `{pages, text, total}`, verified
+directly against the installed `pdf-parse@2.4.5` type declarations, not memory.
+
+**Two real findings from hand-testing against actual generated PDFs, before any code shipped, that
+would otherwise have been silent correctness bugs:**
+1. `getText()`'s output is tied to render geometry — an unwrapped long line at a large font size
+   past the page's visible width gets silently clipped mid-string, not wrapped. Not a real-world
+   concern (real documents wrap text), but it meant the test fixtures needed realistic line lengths,
+   not naive single-Tj paragraphs.
+2. **The bigger one**: `getText()` emits a single `\n` between lines regardless of vertical gap size
+   — verified empirically (a heading with a large gap before it and two body lines with a small gap
+   between them all produced exactly one `\n`, never a blank line). The chunker's first draft split
+   on `/\n\s*\n+/` (blank-line paragraph breaks) — which real pdf-parse output never contains — so it
+   would have silently treated every extracted page as one giant paragraph. Caught by direct testing
+   against a real PDF before writing any unit tests, fixed to split on single `\n` (line-based, not
+   blank-line-based) before it ever shipped.
+
+**Backend:** new `tools/ingestion/pdfExtract.ts` (`extractPdfText()` — pure wrapper, explicit
+`MIN_CHARS_PER_PAGE_AVERAGE = 50` guard, returns `{ok:false, reason}` for a scanned PDF or a
+non-PDF buffer rather than throwing or silently producing empty chunks) and
+`tools/ingestion/chunkText.ts` (`chunkText()` — groups lines under a preceding short/non-sentence
+line treated as a heading, target-size flushing at `TARGET_CHUNK_CHARS`, stable content-hashed
+chunk ids so re-ingesting the same document is idempotent, each chunk's `sourceUrl` carries a
+`#page=N` anchor). Every produced chunk satisfies the **existing, unchanged**
+`knowledgeChunkSchema` — nothing downstream needs to know a chunk came from a PDF. New route
+`POST /api/settings/knowledge/ingest` (base64 upload, same convention as the existing zip-attachment
+path), returning the same `{ok, message, log}` shape as `ProviderAdminResult` (so Phase P's GUI can
+reuse the existing `AdminResultPanel`) plus the draft chunks — **nothing is saved to a pack,
+embedded, or written to pgvector here**, matching the owner's "no guesswork, mandatory review"
+requirement. New `MAX_PDF_BYTES`/`MAX_PDF_PAGES` caps in `config/defaults.ts`.
+
+**Test fixtures:** no PDF-generation dependency added — a small hand-rolled PDF builder
+(`test/helpers/buildTestPdf.ts`) constructs minimal-but-valid multi-page PDFs directly (pdfjs
+tolerates the simplified xref table), reused across `pdfExtract.test.ts`, `chunkText.test.ts`, and
+the new `server.test.ts` route tests — no binary fixture files checked in, fully deterministic.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean; Vitest 222/222 (was 207) — 15 new cases across
+  `pdfExtract.test.ts` (real extraction, scanned-PDF rejection with the exact threshold in the
+  message, non-PDF-buffer handling, substantial-content acceptance), `chunkText.test.ts` (heading
+  grouping, schema conformance, extractive-heading fallback, target-size flushing, id determinism
+  across repeated calls, page-anchor sourceUrl, empty-input handling), and 4 new `server.test.ts`
+  route-level cases.
+- **Live proof against the running engine** (curl, real HTTP, no mocks): uploaded a real generated
+  text-native PDF through `/api/settings/knowledge/ingest` — got back a real extracted chunk
+  ("R&D Eligibility" heading, both body lines, correct page anchor, correct char count in the
+  message). Uploaded a real generated scanned-like PDF (valid structure, zero extractable text) —
+  got back `ok:false` with the exact scanned-PDF rejection message, HTTP 200 not an error status
+  (a content-level rejection, not a malformed request).

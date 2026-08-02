@@ -152,6 +152,10 @@ export const MAX_ATTACHMENTS_PER_TURN = 5;
  */
 export const MAX_ZIP_BYTES = 2 * 1024 * 1024;
 
+/** Domain-pack document ingestion (Phase O) — base64-encoded size, before decode. */
+export const MAX_PDF_BYTES = 15 * 1024 * 1024;
+export const MAX_PDF_PAGES = 200;
+
 /** Surfaced when the client aborts mid-turn (Stop) — not a provider failure. */
 export const TURN_STOPPED_MESSAGE = 'Turn stopped by user';
 

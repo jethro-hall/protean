@@ -11,6 +11,7 @@ import { createMemoryCacheStore } from '../src/watcher/cache.js';
 import { createMemorySessionStore } from '../src/watcher/sessionStore.js';
 import { saveProvider } from '../src/config/runtimeSettingsStore.js';
 import { startServer, type AppDeps } from '../src/server.js';
+import { buildScannedLikePdf, buildTestPdf } from './helpers/buildTestPdf.js';
 
 const fakeAgent: AgentCore = {
   name: 'fake',
@@ -293,6 +294,73 @@ describe('engine HTTP surface', () => {
       expect(res.status).toBe(422);
       const body = (await res.json()) as { error: string };
       expect(body.error).toContain('does-not-exist');
+    });
+  });
+
+  describe('POST /api/settings/knowledge/ingest (Phase O)', () => {
+    it('extracts draft chunks from a real text-native PDF and never saves anything', async () => {
+      const pdf = buildTestPdf([
+        [
+          { text: 'Eligibility', fontSize: 14 },
+          { text: 'Entities must incur real notional deductions to qualify for the offset.' },
+        ],
+      ]);
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/ingest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: 'test.pdf', base64Pdf: pdf.toString('base64') }),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        ok: boolean;
+        message: string;
+        chunks: Array<{ heading: string; sourceUrl: string }>;
+      };
+      expect(body.ok).toBe(true);
+      expect(body.chunks.length).toBeGreaterThan(0);
+      expect(body.chunks[0]?.heading).toBe('Eligibility');
+      expect(body.chunks[0]?.sourceUrl).toBe('test.pdf#page=1');
+      expect(body.message).toContain('draft chunk');
+    });
+
+    it('rejects a scanned/image-only PDF with ok:false and a specific reason, HTTP 200 not an error status', async () => {
+      const pdf = buildScannedLikePdf(1);
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/ingest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: 'scanned.pdf', base64Pdf: pdf.toString('base64') }),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { ok: boolean; message: string; chunks: unknown[] };
+      expect(body.ok).toBe(false);
+      expect(body.message).toContain('scanned/image PDF');
+      expect(body.chunks).toEqual([]);
+    });
+
+    it('rejects a request missing base64Pdf with a 400 and a specific error, not a bare "error"', async () => {
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/ingest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: 'test.pdf' }),
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain('Invalid ingest request');
+    });
+
+    it('a garbage/invalid-base64 payload decodes to non-PDF bytes and gets a specific parse-failure reason, never a 500', async () => {
+      // Node's Buffer.from(str, 'base64') never throws -- it silently decodes whatever
+      // valid characters it finds. The resulting bytes aren't a real PDF, so extractPdfText's
+      // own parse-failure path is what actually catches this, not base64 validation.
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/ingest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: 'test.pdf', base64Pdf: 'not valid base64 !!! ###' }),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { ok: boolean; message: string };
+      expect(body.ok).toBe(false);
+      expect(body.message).toContain('Could not parse this file as a PDF');
     });
   });
 });

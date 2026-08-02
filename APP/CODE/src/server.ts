@@ -9,6 +9,8 @@ import {
   GROUNDING_TOOL_ID,
   MAX_ATTACHMENTS_PER_TURN,
   MAX_ATTACHMENT_BYTES,
+  MAX_PDF_BYTES,
+  MAX_PDF_PAGES,
   MAX_ZIP_BYTES,
   resolveEffectiveAgentMaxTurns,
   SSE_HEADERS,
@@ -16,6 +18,8 @@ import {
 import { loadDomainPackWithOverlay, listDomainPacksWithOverlay } from './config/domainPacks.js';
 import { domainPackSchema } from './contracts/domainPack.js';
 import { listKnowledgeCollections } from './config/knowledgeCollections.js';
+import { extractPdfText } from './tools/ingestion/pdfExtract.js';
+import { chunkText } from './tools/ingestion/chunkText.js';
 import { loadConnectorCatalog, loadConnectorCatalogWithOverlay } from './config/loadConnectors.js';
 import { loadConfig, requireModel, type ProteanConfig } from './config/loadConfig.js';
 import { resolveToolset } from './tools/registry.js';
@@ -516,6 +520,60 @@ function handleListKnowledgeCollections(deps: AppDeps, res: ServerResponse): voi
   writeJson(res, 200, { collections: listKnowledgeCollections(deps.config.paths.domainsDir) });
 }
 
+// ---------------------------------------------------------------------------
+// Grounded Knowledge v2 Phase O: deterministic PDF ingestion. Extracts +
+// chunks a PDF into DRAFT KnowledgeChunk[] -- nothing is saved to a pack,
+// embedded, or written to pgvector here. Same result shape as
+// ProviderAdminResult ({ok, message, log}) so the GUI can reuse
+// AdminResultPanel, plus the draft chunks themselves.
+// ---------------------------------------------------------------------------
+
+const ingestKnowledgeBodySchema = z.object({
+  fileName: z.string().min(1),
+  base64Pdf: z.string().min(1),
+});
+
+async function handleIngestKnowledge(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = ingestKnowledgeBodySchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid ingest request: ${parsed.error.message}` });
+    return;
+  }
+  const { fileName, base64Pdf } = parsed.data;
+  if (base64Pdf.length > MAX_PDF_BYTES) {
+    writeJson(res, 400, {
+      error: `"${fileName}" is ${(base64Pdf.length / 1024 / 1024).toFixed(1)} MB encoded -- the limit is ${MAX_PDF_BYTES / 1024 / 1024} MB.`,
+    });
+    return;
+  }
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(base64Pdf, 'base64');
+  } catch {
+    writeJson(res, 400, { error: `"${fileName}": base64Pdf is not valid base64.` });
+    return;
+  }
+
+  const extracted = await extractPdfText(buffer);
+  if (!extracted.ok) {
+    writeJson(res, 200, { ok: false, message: extracted.reason, chunks: [], log: [extracted.reason] });
+    return;
+  }
+  if (extracted.result.pages.length > MAX_PDF_PAGES) {
+    const message = `"${fileName}" has ${extracted.result.pages.length} pages -- the limit is ${MAX_PDF_PAGES}.`;
+    writeJson(res, 200, { ok: false, message, chunks: [], log: [message] });
+    return;
+  }
+
+  const chunks = chunkText(extracted.result.pages, {
+    sourceTitle: fileName,
+    sourceFileRef: fileName,
+    fetchedAt: new Date().toISOString().slice(0, 10),
+  });
+  const message = `Extracted ${chunks.length} draft chunk(s) from ${extracted.result.pages.length} page(s), ${extracted.result.totalChars} characters total. Review before saving -- nothing is written to a pack yet.`;
+  writeJson(res, 200, { ok: true, message, chunks, log: [message] });
+}
+
 export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
   const log = deps.logger.child('server');
   const server = createServer((req, res) => {
@@ -611,6 +669,12 @@ export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
     }
     if (req.method === 'GET' && url.pathname === '/api/settings/knowledge-collections') {
       handleListKnowledgeCollections(deps, res);
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/knowledge/ingest') {
+      void handleIngestKnowledge(req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
       return;
     }
     writeJson(res, 404, { error: `No route for ${req.method} ${url.pathname}` });
