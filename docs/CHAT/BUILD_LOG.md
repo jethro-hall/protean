@@ -2645,3 +2645,47 @@ a failed check is shown honestly, never silently skipped, never blocks the revie
 This is the kind of gap the owner's "LLM oversight" request was specifically meant to catch — found via
 real testing rather than left latent, fixed at the root (the deterministic chunker, not papered over), and
 now has a permanent second line of defense (the completeness check) plus a regression test.
+
+## 2026-08-02 · Claude · Phase 6 · GUI visual polish — deepened elevation, live-verified over VNC (ADR-0006)
+
+Owner directed a full visual polish pass ("professionalise the CSS... bring it to life... every page
+every function"), watched live via the same VNC session already in use for browser QA this session.
+Investigation (not guesswork — direct comparison of the live app against `design/protean-style-guide.html`)
+found the design system's component classes were already correctly wired to the elevation tokens
+throughout — this was never a wiring gap — but the token *values* were too faint to read as real depth
+(`--shadow-sm` was a 6%-opacity 2px blur; `--surface` #FFFFFF sat only a few luminance points off
+`--bg` #F7F9FC). Net effect: cards, the composer, the settings modal, and the worklog all rendered
+nearly flush with the page.
+
+Full ADR-0006 records the decision (required per `DESIGN.md` §6 — changing a scale token's value).
+Summary: deepened the elevation ramp to a two-layer near+far shadow technique (reusing existing alpha
+primitives, zero new Layer 1 literals), deepened `--c-paper` slightly for surface separation, added
+elevation to the previously-flat `.topbar`/`.rail`, and fixed a real concrete bug found in the same
+pass — `.empty .ei` sized a bare `✎` text glyph in a 40px box with no font-size and no background,
+rendering as a tiny off-weight character floating in space rather than an icon; now a properly-sized
+glyph inside a soft circular badge, matching `.avatar`/`.clarification-mark`'s existing treatment.
+Also polished this session's own newer components (`.grounding-badge`, `.clarification-box`,
+`.clarification-mark` from Phases Q/R/S) to the same standard, since they were added ad hoc without
+the shadow/gradient language the rest of the system already carries.
+
+Changes applied to `design/protean-design-system.css` FIRST (the canonical spec per `DESIGN.md` §1),
+then re-promoted into `src/theme/{tokens,components,app}.css` (ADR-0005's promoted runtime copy) —
+both copies verified in sync, no drift introduced.
+
+**Proof:**
+- Governance verification gate (`DESIGN.md` §6): zero leaked hex/rgba literals outside Layer 1
+  (grep-verified across every changed file), every new/changed `var()` reference confirmed to resolve
+  against `tokens.css`.
+- `tsc --noEmit` + `eslint` clean on `APP/GUI` (CSS-only change; confirms nothing else was touched).
+- **Live proof, real running GUI, no mocks — verified over the same VNC session the owner was
+  watching**: reloaded and screenshotted the empty state (icon now a proper centred badge, not a
+  stray glyph), an active chat thread (worklog card and message bubble now visibly lifted off the
+  page), and the Settings modal (now reads as a genuinely floating card against the scrim, not flush
+  with the background) — before/after comparison shows a real, visible difference, not a cosmetic
+  no-op.
+
+Remaining, explicitly not done in this pass (scope was the system-level token/base/shared-component
+layer, the highest-leverage change since it cascades to every page automatically): a full per-component
+redesign of every individual React page would be a much larger effort; this pass elevates craft
+everywhere at once without that risk, and is the natural place to stop and show the owner before going
+further.

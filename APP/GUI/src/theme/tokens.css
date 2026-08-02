@@ -38,7 +38,7 @@
 
   /* ---- brand & neutrals: the "pascal / executive" ramp ---- */
   --c-white:      #FFFFFF;
-  --c-paper:      #F7F9FC;   /* app canvas */
+  --c-paper:      #F2F5F9;   /* app canvas -- deepened slightly (ADR-0006) so surfaces separate from it without relying on shadow alone */
   --c-ink-900:    #1E2A3A;   /* primary text / deepest ink */
   --c-ink-500:    #5B6B7F;   /* muted text */
   --c-line-200:   #E3E9F0;   /* hairline borders */
@@ -181,12 +181,14 @@
   /* ---- radii ---- */
   --r-sm: 7px;  --r: 10px;  --r-lg: 14px;  --r-pill: 99px;
 
-  /* ---- elevation ---- */
-  --shadow-sm: 0 1px 2px var(--c-ink-a06);
-  --shadow:    0 1px 2px var(--c-ink-a05), 0 8px 24px var(--c-ink-a06);
-  --shadow-pop:0 16px 40px var(--c-ink-a18);
-  --shadow-lift:0 20px 60px var(--c-ink-a28);
-  --shadow-tip:0 12px 30px var(--c-ink-a28);
+  /* ---- elevation (ADR-0006: deepened -- the original ramp was too faint to read
+     as real depth; each step now pairs a tight near-shadow with a soft far-shadow,
+     the standard two-layer technique for elevation that actually looks lifted) ---- */
+  --shadow-sm:  0 1px 3px var(--c-ink-a14), 0 1px 2px var(--c-ink-a06);
+  --shadow:     0 2px 6px var(--c-ink-a06), 0 14px 32px var(--c-ink-a14);
+  --shadow-pop: 0 8px 16px var(--c-ink-a14), 0 24px 48px var(--c-ink-a18);
+  --shadow-lift:0 12px 24px var(--c-ink-a18), 0 32px 72px var(--c-ink-a28);
+  --shadow-tip: 0 12px 30px var(--c-ink-a28);
 
   /* ---- z-index ladder (documented so nothing fights) ----
      10 scrim(base) · 15 mobile scrim · 20 rail/preview · 30 topbar ·

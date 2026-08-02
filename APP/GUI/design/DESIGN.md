@@ -128,6 +128,15 @@ offer? That's a gap — add a token per §6, don't inline a literal.
 
 ## 8. Changelog
 
+- **2026-08-02** — v0.2 (ADR-0006). Owner-directed visual polish pass, verified live over VNC.
+  Deepened the elevation ramp (`--shadow-sm`/`--shadow`/`--shadow-pop`/`--shadow-lift`) to a
+  two-layer near+far technique — the tokens were already wired everywhere correctly, just too faint
+  to read as real depth. Deepened `--c-paper` (app canvas) slightly for surface separation without
+  relying on shadow alone. Added elevation to `.topbar`/`.rail` (previously bordered but flat).
+  Fixed `.empty .ei` (empty-state icon rendered as an unsized, off-center bare glyph — now a proper
+  56px soft-badge icon). Polished `.grounding-badge`/`.clarification-box`/`.clarification-mark`
+  (Phase Q/R/S additions) to match. Verified: 0 leaked literals, all referenced tokens resolve,
+  applied to `design/` first and re-promoted into `src/theme/` per §1 (no drift introduced).
 - **2026-07-27** — v0.1. Extracted the design system from the shell prototype into a 6-layer
   `protean-design-system.css`; added the C6 worklog component (the "show your working" feed) and its
   reserved-purple reasoning contract; built the living style guide. Added primitives `--c-ink-a18`,
