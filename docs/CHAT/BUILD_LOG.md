@@ -2578,3 +2578,70 @@ mandatory human review, hybrid TF-IDF+vector retrieval, a GUI-visible fabricatio
 deterministic confidence gate plus honest-refusal protocol, and now an honest stop-and-ask clarification
 protocol — all live-verified against the real running engine and real model calls, no mocks in any
 capstone proof, throughout.
+
+## 2026-08-02 · Claude · Phase 6 · Live browser QA of Phases M–S: one real bug found and fixed, one owner-directed feature added
+
+Owner requested a full live browser test with them watching (VNC on the existing `agents.rideai.com.au:5901`
+tigervnc setup, a visible Chromium driven live via CDP rather than headless screenshots), then a rescore.
+Nine scripted tests (basic chat, Stop, grounded exact-keyword Q&A, hybrid-retrieval paraphrase, honest
+decline, clarification protocol, PDF authoring, saved-collection embedding, artefact building) all passed
+live against the real running engine. The owner then asked to watch a real before/after: add a document to
+the knowledge base and see answers change. That test surfaced a genuine, previously-undetected defect.
+
+**Bug found and fixed — `tools/ingestion/chunkText.ts` could silently drop most of a document's content.**
+`looksLikeHeading()`'s heuristic ("short line + no terminal punctuation = heading") misclassifies interior
+lines of a real wrapped sentence as headings, since pdf-parse emits one raw line per rendered line and only
+a sentence's LAST line ends in `.!?`. Each misclassified "heading" line overwrote the previous one before
+any body text accumulated under it, silently discarding everything but the final line of a multi-line
+paragraph — confirmed live on a real uploaded PDF (a fabricated GST-pilot memo with an invented
+`$82,340`/`GST-PILOT-2026-07` reference, deliberately impossible to be in the model's general training
+knowledge, precisely so any correct citation would prove the source was actually read). First fix attempt
+(fold consecutive heading-candidate lines into a combined heading rather than overwriting) only half-solved
+it: the recovered text landed in `chunk.heading`, but the GUI's "source excerpt" and the Phase P LLM
+heading-proposal step both only ever read `chunk.text` — so the very next pipeline step (LLM-proposed
+headings) silently discarded it again by overwriting `heading` wholesale. Real fix: `flush()` now always
+folds the accumulated heading into `text` too, never leaving recovered content living only in a field that
+can be overwritten downstream. New regression test in `chunkText.test.ts` reproduces the exact live-found
+line sequence and asserts the figures land in `chunk.text` specifically, not just heading+text combined.
+
+**New owner-directed feature — LLM oversight/completeness check.** Per explicit owner direction ("I
+discussed in detail that I wanted an LLM to oversee this... check content, make sure the juice is worth
+the squeeze... dependable, consistent and perfect"): a second, independent LLM call now runs automatically
+right after every PDF ingest, before a human reviews anything, comparing the deterministic chunker's
+output against the raw extracted source text and flagging any fact/figure/name that appears in the source
+but not in any chunk (or vice versa — content in a chunk not traceable to the source). New
+`tools/authoring/verifyChunkFidelity.ts` (mirrors the existing `proposeChunkMetadata.ts` pattern exactly:
+same JSON-response contract, same `extractJsonObject` fence-stripping, same "throw a specific error, never
+return garbage" discipline), new `chunkFidelityReportSchema` in `contracts/authoring.ts`, new route
+`POST /api/settings/knowledge/verify-fidelity`. This is a CHECK, not a source of truth (Law 4) — it never
+edits a chunk, only surfaces a `.banner.success`/`.banner.error` verdict in `DocumentAuthoringFlow.tsx`
+before the human review list, with `missingFacts`/`suspiciousAdditions` listed concretely. Best-effort:
+a failed check is shown honestly, never silently skipped, never blocks the review screen (Law 1).
+
+**Proof:**
+- `tsc --noEmit` + `eslint` + `vitest run` clean on `APP/CODE` — 283/283 tests, including a new
+  `verifyChunkFidelity.test.ts` (6 cases mirroring `proposeChunkMetadata.test.ts`'s coverage: clean
+  verdict, issues surfaced, code-fence stripping, invalid-JSON error, gateway-error propagation, empty-input
+  short-circuit) and the new `chunkText.test.ts` regression case.
+- `tsc --noEmit` + `eslint` clean on `APP/GUI`.
+- **Live proof, real running engine, real Claude calls, no mocks — the full defect-to-fix-to-verified
+  cycle happened live while the owner watched over VNC**: uploaded the fabricated GST-pilot PDF before the
+  fix — confirmed via direct API call that `$82,340`/`GST-PILOT-2026-07` were absent from every chunk's
+  `text`. Applied the first (incomplete) fix, re-uploaded, watched the new completeness-check banner
+  correctly report "passed" — then traced through the actual pipeline code and found the LLM
+  heading-proposal step would still discard the recovered content, applied the real fix, re-verified via
+  direct API that `chunk.text` now contains the figures, then redid the full authoring flow live in the
+  browser (upload → completeness check passes → propose clean headings → verify figures still present →
+  save → real Voyage embedding) → edited the finance pack's knowledge collections via the GUI pack editor
+  to attach the new collection → asked the exact same question that failed before. **Before**: "I have no
+  knowledge of this program at all" (correctly, since it's fictional). **After**: `[FACT] Turnover deferral
+  threshold: $82,340 cumulative turnover. [FACT] Form required: Form NT-4...` with `query_knowledge_base`
+  actually called and `Source: gst-pilot-memo.pdf` cited — proof the answer changed because the model
+  genuinely read the newly-added source, not general knowledge (screenshot captured, tail token cost $0.02).
+- All test artifacts cleaned up afterward: `knowledge-collections.json` and `domain-packs.json` runtime
+  overlays reset to `[]`, `gst-pilot-memo` pgvector rows deleted, confirmed via `psql` back to exactly the
+  original 16 production rows (10 finance + 6 medical) and the original two checked-in collections.
+
+This is the kind of gap the owner's "LLM oversight" request was specifically meant to catch — found via
+real testing rather than left latent, fixed at the root (the deterministic chunker, not papered over), and
+now has a permanent second line of defense (the completeness check) plus a regression test.

@@ -22,6 +22,8 @@ import { extractPdfText } from './tools/ingestion/pdfExtract.js';
 import { chunkText } from './tools/ingestion/chunkText.js';
 import { proposeChunkMetadata } from './tools/authoring/proposeChunkMetadata.js';
 import { proposePackDraft } from './tools/authoring/proposePackDraft.js';
+import { verifyChunkFidelity } from './tools/authoring/verifyChunkFidelity.js';
+import type { ExtractedPage } from './tools/ingestion/pdfExtract.js';
 import { knowledgeChunkSchema, knowledgeCollectionSchema } from './contracts/knowledge.js';
 import { createVoyageEmbeddingGateway } from './gateway/embeddings/voyageAdapter.js';
 import { createPgvectorStore } from './gateway/vectorStore/pgvectorAdapter.js';
@@ -582,7 +584,10 @@ async function handleIngestKnowledge(req: IncomingMessage, res: ServerResponse):
     fetchedAt: new Date().toISOString().slice(0, 10),
   });
   const message = `Extracted ${chunks.length} draft chunk(s) from ${extracted.result.pages.length} page(s), ${extracted.result.totalChars} characters total. Review before saving -- nothing is written to a pack yet.`;
-  writeJson(res, 200, { ok: true, message, chunks, log: [message] });
+  // Raw pages are returned too (not just chunks) so the GUI can run the LLM
+  // fidelity check (verify-fidelity) against the actual source text, not a
+  // re-derived approximation of it.
+  writeJson(res, 200, { ok: true, message, chunks, pages: extracted.result.pages, log: [message] });
 }
 
 // ---------------------------------------------------------------------------
@@ -616,6 +621,46 @@ async function handleProposeChunkMetadata(deps: AppDeps, req: IncomingMessage, r
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     writeJson(res, 200, { ok: false, message, proposals: [], log: [message] });
+  }
+}
+
+const extractedPageSchema = z.object({ pageNumber: z.number().int().positive(), text: z.string() });
+
+const verifyFidelityBodySchema = z.object({
+  pages: z.array(extractedPageSchema).min(1),
+  chunks: z.array(knowledgeChunkSchema).min(1),
+});
+
+/**
+ * LLM oversight check (owner-directed): runs automatically right after ingest,
+ * before a human reviews anything, comparing the deterministic chunker's
+ * output against the raw source text it was built from. Best-effort -- a
+ * failed check is reported honestly (never silently skipped, never blocks
+ * review), matching every other degrade-gracefully path in this pipeline.
+ */
+async function handleVerifyChunkFidelity(deps: AppDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = verifyFidelityBodySchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid verify-fidelity request: ${parsed.error.message}` });
+    return;
+  }
+  try {
+    const model = resolveAuthoringModel(deps.config);
+    const report = await verifyChunkFidelity(
+      deps.gateway,
+      model,
+      parsed.data.pages as ExtractedPage[],
+      parsed.data.chunks,
+      deps.logger.child('authoring'),
+    );
+    const message =
+      report.verdict === 'clean'
+        ? 'Completeness check found no gaps -- every chunk traces back to the source text.'
+        : `Completeness check found ${report.missingFacts.length} possible omission(s) and ${report.suspiciousAdditions.length} possible addition(s) -- review before saving.`;
+    writeJson(res, 200, { ok: true, message, report, log: [message] });
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    writeJson(res, 200, { ok: false, message, report: null, log: [message] });
   }
 }
 
@@ -804,6 +849,12 @@ export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
     }
     if (req.method === 'POST' && url.pathname === '/api/settings/knowledge/propose') {
       void handleProposeChunkMetadata(deps, req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/knowledge/verify-fidelity') {
+      void handleVerifyChunkFidelity(deps, req, res).catch((cause: unknown) => {
         writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
       });
       return;

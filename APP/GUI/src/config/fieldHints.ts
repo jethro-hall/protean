@@ -63,6 +63,11 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'A correct figure with a fabricated citation is still a fabrication (Law 6) \u2014 this is not the model self-reporting, it is a post-hoc scan of its own output against its own tool-call record, shown exactly as found.',
     example: 'Flagged phrase: "according to our database" \u2014 no query_knowledge_base call ran this turn.',
   },
+  chunkFidelityCheck: {
+    what: 'A second, independent LLM call that compares the deterministic chunker’s output against the raw extracted source text and flags anything that looks missing or added.',
+    why: 'A heuristic chunker can misjudge where one section ends and another begins, and content caught in that misjudgement can go missing silently — a real gap found and fixed during testing. This check runs automatically before you review anything, so a content-loss bug is flagged instead of hidden.',
+    example: 'Missing: "$82,340 cumulative turnover" appears in the source but not in any chunk.',
+  },
   groundingConfidenceBadge: {
     what: 'This grounded turn called the knowledge-base tool but got back thin (\u201clow\u201d) or zero (\u201cnone\u201d) evidence, relative to how many results it asked for.',
     why: 'Code-computed from the real tool-call results, never the model\u2019s own opinion of its confidence \u2014 a signal that the answer may be leaning on general knowledge rather than the curated source material.',

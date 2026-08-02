@@ -71,4 +71,34 @@ describe('chunkText', () => {
     const pages: ExtractedPage[] = [{ pageNumber: 1, text: '' }];
     expect(chunkText(pages, options)).toEqual([]);
   });
+
+  it('regression: never silently drops a run of wrapped sentence lines that lack terminal punctuation (live-caught 2026-08-02)', () => {
+    // pdf-parse emits one raw line per rendered line -- a real multi-line
+    // sentence's interior lines routinely lack a trailing [.!?], so a naive
+    // "no terminal punctuation => heading" check misclassifies every wrapped
+    // line except the last as a heading, and each overwrites the previous
+    // one before any body text accumulates under it -- silently discarding
+    // everything but the final line. Reproduces the exact live-found case.
+    const pages: ExtractedPage[] = [
+      {
+        pageNumber: 1,
+        text: [
+          'Rapid GST Onboarding Pilot (Reference: GST-PILOT-2026-07)',
+          'Under this pilot, eligible new sole traders may defer standard',
+          'GST registration until reaching $82,340 cumulative turnover,',
+          'instead of the usual $75,000 threshold, provided they lodge',
+          'Form NT-4 within 14 days of exceeding $75,000 turnover.',
+        ].join('\n'),
+      },
+    ];
+    const chunks = chunkText(pages, options);
+    // Must land in `text` specifically, not just `heading` -- `text` is the
+    // one field the GUI shows as "source excerpt", the LLM proposal step
+    // reads as its source, and what survives to final storage; `heading` can
+    // be wholesale overwritten by a later LLM-proposed heading and lost.
+    const allChunkText = chunks.map((c) => c.text).join(' ');
+    expect(allChunkText).toContain('82,340');
+    expect(allChunkText).toContain('GST-PILOT-2026-07');
+    expect(allChunkText).toContain('Form NT-4');
+  });
 });

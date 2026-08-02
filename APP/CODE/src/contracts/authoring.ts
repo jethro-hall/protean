@@ -17,6 +17,19 @@ export const chunkProposalBatchSchema = z.object({
   proposals: z.array(chunkProposalSchema),
 });
 
+/**
+ * LLM oversight/completeness check (owner-directed): compares the deterministic
+ * chunker's output against the raw extracted source text and flags anything a
+ * heuristic chunker may have silently dropped or corrupted. A CHECK, not a
+ * source of truth (Law 4) -- it never edits chunks, only flags for human review.
+ */
+export const chunkFidelityReportSchema = z.object({
+  verdict: z.enum(['clean', 'issues-found']),
+  missingFacts: z.array(z.string()).default([]),
+  suspiciousAdditions: z.array(z.string()).default([]),
+});
+export type ChunkFidelityReport = z.infer<typeof chunkFidelityReportSchema>;
+
 export const packDraftProposalSchema = z.object({
   displayName: z.string().min(1),
   systemPrompt: z.string().min(1),

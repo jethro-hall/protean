@@ -6,6 +6,8 @@ import {
   proposeChunkMetadata,
   proposePackDraft,
   saveKnowledgeCollection,
+  verifyChunkFidelity,
+  type ChunkFidelityReport,
   type ChunkProposal,
   type KnowledgeChunkDraft,
   type PackDraftProposal,
@@ -50,9 +52,11 @@ export function DocumentAuthoringFlow({
   const [fileName, setFileName] = useState<string | null>(null);
   const [reviews, setReviews] = useState<ChunkReview[]>([]);
   const [busy, setBusy] = useState<
-    'uploading' | 'proposing-chunks' | 'proposing-pack' | 'saving' | null
+    'uploading' | 'checking-fidelity' | 'proposing-chunks' | 'proposing-pack' | 'saving' | null
   >(null);
   const [result, setResult] = useState<ProviderAdminResult | null>(null);
+  const [fidelityReport, setFidelityReport] = useState<ChunkFidelityReport | null>(null);
+  const [fidelityError, setFidelityError] = useState<string | null>(null);
   const [collectionId, setCollectionId] = useState('');
   const [collectionDisplayName, setCollectionDisplayName] = useState('');
   const [packDraft, setPackDraft] = useState<PackDraftProposal | null>(null);
@@ -63,9 +67,13 @@ export function DocumentAuthoringFlow({
     if (file === undefined) return;
     setBusy('uploading');
     setResult(null);
+    setFidelityReport(null);
+    setFidelityError(null);
+    let ingestOutcome: Awaited<ReturnType<typeof ingestPdf>> | null = null;
     try {
       const base64 = await fileToBase64(file);
       const outcome = await ingestPdf(file.name, base64);
+      ingestOutcome = outcome;
       if (!outcome.ok) {
         setResult({ ok: false, message: outcome.message, log: outcome.log });
         return;
@@ -85,6 +93,25 @@ export function DocumentAuthoringFlow({
       setResult({ ok: true, message: outcome.message, log: outcome.log });
     } catch (cause) {
       setResult({ ok: false, message: cause instanceof Error ? cause.message : String(cause), log: [] });
+    } finally {
+      setBusy(null);
+    }
+    if (ingestOutcome === null || !ingestOutcome.ok) return;
+
+    // LLM oversight check (owner-directed) -- runs automatically, before the
+    // human reviews anything, comparing the deterministic chunks against the
+    // real source text. Best-effort: a failed check is shown, never silent,
+    // but never blocks the review screen either (Law 1: degrade, don't hide).
+    setBusy('checking-fidelity');
+    try {
+      const outcome = await verifyChunkFidelity(ingestOutcome.pages, ingestOutcome.chunks);
+      if (outcome.ok && outcome.report !== null) {
+        setFidelityReport(outcome.report);
+      } else {
+        setFidelityError(outcome.message);
+      }
+    } catch (cause) {
+      setFidelityError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusy(null);
     }
@@ -179,6 +206,54 @@ export function DocumentAuthoringFlow({
       )}
 
       {result !== null && <AdminResultPanel result={result} />}
+
+      {busy === 'checking-fidelity' && (
+        <p className="banner info" role="status">
+          Running a completeness check — comparing the extracted chunks against the real source text…
+        </p>
+      )}
+      {fidelityError !== null && (
+        <p className="banner error" role="alert">
+          Completeness check failed: {fidelityError}. Review the chunks below extra carefully before
+          saving — this check did not run.
+        </p>
+      )}
+      {fidelityReport !== null && fidelityReport.verdict === 'clean' && (
+        <p className="banner success" role="status">
+          Completeness check passed — every chunk traces back to the source text, nothing appears
+          missing or added. <InfoHint hintKey="chunkFidelityCheck" />
+        </p>
+      )}
+      {fidelityReport !== null && fidelityReport.verdict === 'issues-found' && (
+        <div className="banner error" role="alert">
+          <div>
+            <p>
+              <strong>Completeness check found possible issues</strong> — review these against the
+              source excerpts below before saving. <InfoHint hintKey="chunkFidelityCheck" />
+            </p>
+            {fidelityReport.missingFacts.length > 0 && (
+              <>
+                <p className="detail">Possibly missing from the chunks (present in the source):</p>
+                <ul>
+                  {fidelityReport.missingFacts.map((fact) => (
+                    <li key={fact}>{fact}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {fidelityReport.suspiciousAdditions.length > 0 && (
+              <>
+                <p className="detail">In the chunks but not found in the source:</p>
+                <ul>
+                  {fidelityReport.suspiciousAdditions.map((addition) => (
+                    <li key={addition}>{addition}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {reviews.length > 0 && (
         <>

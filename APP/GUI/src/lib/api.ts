@@ -443,12 +443,38 @@ export interface KnowledgeAuthoringResult {
   log: string[];
 }
 
-export async function ingestPdf(fileName: string, base64Pdf: string): Promise<KnowledgeAuthoringResult & { chunks: KnowledgeChunkDraft[] }> {
+export interface ExtractedPageDraft {
+  pageNumber: number;
+  text: string;
+}
+
+/** LLM oversight/completeness check result (owner-directed) -- a CHECK, never a source of truth. */
+export interface ChunkFidelityReport {
+  verdict: 'clean' | 'issues-found';
+  missingFacts: string[];
+  suspiciousAdditions: string[];
+}
+
+export async function ingestPdf(
+  fileName: string,
+  base64Pdf: string,
+): Promise<KnowledgeAuthoringResult & { chunks: KnowledgeChunkDraft[]; pages: ExtractedPageDraft[] }> {
   const res = await settingsFetch('/api/settings/knowledge/ingest', {
     method: 'POST',
     body: JSON.stringify({ fileName, base64Pdf }),
   });
   return settingsJson(res, 'Failed to ingest PDF.');
+}
+
+export async function verifyChunkFidelity(
+  pages: ExtractedPageDraft[],
+  chunks: KnowledgeChunkDraft[],
+): Promise<KnowledgeAuthoringResult & { report: ChunkFidelityReport | null }> {
+  const res = await settingsFetch('/api/settings/knowledge/verify-fidelity', {
+    method: 'POST',
+    body: JSON.stringify({ pages, chunks }),
+  });
+  return settingsJson(res, 'Failed to run the completeness check.');
 }
 
 export async function proposeChunkMetadata(

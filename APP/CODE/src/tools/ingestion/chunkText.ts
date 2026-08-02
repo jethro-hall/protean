@@ -69,9 +69,20 @@ export function chunkText(pages: readonly ExtractedPage[], options: ChunkTextOpt
   let chunkIndex = 0;
 
   const flush = (): void => {
-    if (bufferTexts.length === 0) return;
-    const text = bufferTexts.join('\n\n');
-    const heading = currentHeading ?? firstSentence(text);
+    if (bufferTexts.length === 0 && currentHeading === null) return;
+    const bodyText = bufferTexts.join('\n\n');
+    // The heading is always folded into `text` too, never left ONLY in the
+    // heading field: `text` is the one field guaranteed to reach human
+    // review (the GUI's "source excerpt"), the LLM proposal step's own input,
+    // and final storage -- `heading` can be wholesale overwritten by a later
+    // LLM-proposed heading, so content that lived only there would vanish
+    // the moment that happens (live-caught: exactly this, 2026-08-02).
+    const text = [currentHeading, bodyText].filter((part) => part !== null && part !== '').join('\n');
+    if (text === '') {
+      currentHeading = null;
+      return;
+    }
+    const heading = currentHeading ?? firstSentence(bodyText);
     chunkIndex += 1;
     chunks.push({
       id: chunkId(options.sourceTitle, chunkIndex, text),
@@ -86,8 +97,23 @@ export function chunkText(pages: readonly ExtractedPage[], options: ChunkTextOpt
 
   for (const paragraph of paragraphs) {
     if (looksLikeHeading(paragraph.text)) {
-      flush();
-      currentHeading = paragraph.text;
+      if (bufferTexts.length > 0) {
+        // real body content has already accumulated under the current heading --
+        // flush it as its own chunk before starting a new one.
+        flush();
+        currentHeading = paragraph.text;
+      } else if (currentHeading !== null) {
+        // No body text has accumulated yet under the current heading, so this
+        // heading-looking line cannot be told apart from a wrapped sentence
+        // fragment that just happens to lack terminal punctuation (pdf-parse
+        // emits one line per rendered line, and a real multi-line sentence's
+        // interior lines routinely end mid-phrase). NEVER silently discard
+        // text on a guess -- fold it into the running heading instead of
+        // overwriting and losing it (Law 1/Law 4: no guessing, no data loss).
+        currentHeading = `${currentHeading} ${paragraph.text}`;
+      } else {
+        currentHeading = paragraph.text;
+      }
       bufferStartPage = paragraph.pageNumber;
       continue;
     }
