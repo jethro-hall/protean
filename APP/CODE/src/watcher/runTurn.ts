@@ -23,7 +23,7 @@ import { assembleTurn, resolveEffectiveTier, resolveGrounding, resolveTurnTokenB
 import { budgetMessages } from './budget.js';
 import { computeCacheKey, type CacheStore } from './cache.js';
 import { findUnverifiedProvenanceClaims } from './citationGuard.js';
-import { loadKnowledgeCollections } from '../config/knowledgeCollections.js';
+import { loadKnowledgeCollectionsWithOverlay } from '../config/knowledgeCollections.js';
 import { recordLineage, recordTelemetry } from './record.js';
 import { rewriteTurnInput, shouldRewriteTurn } from './rewrite.js';
 import type { SessionStore } from './sessionStore.js';
@@ -62,6 +62,7 @@ export interface TurnPipelineDeps {
   workspaceDir: string;
   datasetsDir: string;
   domainsDir: string;
+  runtimeConfigDir: string;
   mcpServers: ProteanMcpServerBinding[];
   wiredTools: WiredTool[];
   registryVersion: string;
@@ -97,7 +98,11 @@ export async function* runTurn(
   const grounding = resolveGrounding(request, pack);
   let knowledgeDigest = '';
   if (grounding.grounded && grounding.collectionIds.length > 0) {
-    const collections = loadKnowledgeCollections(deps.domainsDir, grounding.collectionIds);
+    const collections = loadKnowledgeCollectionsWithOverlay(
+      deps.runtimeConfigDir,
+      deps.domainsDir,
+      grounding.collectionIds,
+    );
     // Weight affects digest ORDER only (never truncation) -- higher-weight
     // collections read first, deterministic tie-break on unweighted (=1) ids.
     const orderedByWeight = [...collections].sort(
@@ -116,6 +121,7 @@ export async function* runTurn(
     workspaceDir: deps.workspaceDir,
     datasetsDir: deps.datasetsDir,
     domainsDir: deps.domainsDir,
+    runtimeConfigDir: deps.runtimeConfigDir,
     mcpServers: deps.mcpServers,
     wiredTools: deps.wiredTools,
     grounded: grounding.grounded,

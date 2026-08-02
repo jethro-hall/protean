@@ -105,6 +105,7 @@ function buildKnowledgeBaseServer(
   domainsDir: string,
   collectionIds: readonly string[],
   weights: Record<string, number>,
+  runtimeConfigDir: string | undefined,
 ): McpServerConfig {
   return createSdkMcpServer({
     name: 'protean-knowledgebase',
@@ -127,7 +128,7 @@ function buildKnowledgeBaseServer(
         async (args) => {
           try {
             return jsonResult({
-              hits: queryKnowledgeBase(domainsDir, collectionIds, args.query, args.limit ?? 5, weights),
+              hits: queryKnowledgeBase(domainsDir, collectionIds, args.query, args.limit ?? 5, weights, runtimeConfigDir),
             });
           } catch (cause) {
             return errorResult(cause instanceof Error ? cause.message : String(cause));
@@ -145,6 +146,7 @@ export function materializeMcpServers(
   domainsDir?: string,
   knowledgeCollectionIds?: string[],
   knowledgeCollectionWeights?: Record<string, number>,
+  runtimeConfigDir?: string,
 ): Record<string, McpServerConfig> {
   const out: Record<string, McpServerConfig> = {};
   for (const binding of bindings) {
@@ -174,6 +176,7 @@ export function materializeMcpServers(
         domainsDir,
         knowledgeCollectionIds ?? [],
         knowledgeCollectionWeights ?? {},
+        runtimeConfigDir,
       );
       continue;
     }

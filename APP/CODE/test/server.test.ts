@@ -36,9 +36,51 @@ const fakeAgent: AgentCore = {
   },
 };
 
+// Authoring routes (Phase P) call deps.gateway directly (no agent loop), so this
+// fake pattern-matches by system prompt to serve those calls realistically while
+// preserving the existing guarantee that ordinary chat turns never reach it
+// (those go through fakeAgent instead) -- any other call still errors loudly.
 const fakeGateway: LlmGateway = {
   provider: 'fake',
-  async *streamTurn() {
+  async *streamTurn(request) {
+    const systemPrompt = typeof request.systemPrompt === 'string' ? request.systemPrompt : '';
+    if (systemPrompt.includes('propose a concise heading')) {
+      const userText = request.messages[0]?.content ?? '';
+      const chunkIdMatch = /chunkId: ([^)]+)\)/.exec(userText);
+      const chunkId = chunkIdMatch?.[1] ?? 'unknown';
+      yield {
+        type: 'text' as const,
+        text: JSON.stringify({
+          proposals: [{ chunkId, heading: 'Fake Proposed Heading', summary: 'Fake proposed summary.' }],
+        }),
+      };
+      yield {
+        type: 'done' as const,
+        model: 'test-model',
+        usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheCreationTokens: 0 },
+        costUsd: 0,
+        providerDurationMs: 1,
+      };
+      return;
+    }
+    if (systemPrompt.includes('propose a domain-pack draft')) {
+      yield {
+        type: 'text' as const,
+        text: JSON.stringify({
+          displayName: 'Fake Draft Pack',
+          systemPrompt: 'You are a fake draft assistant.',
+          vocabulary: { Fake: 'A fake term' },
+        }),
+      };
+      yield {
+        type: 'done' as const,
+        model: 'test-model',
+        usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheCreationTokens: 0 },
+        costUsd: 0,
+        providerDurationMs: 1,
+      };
+      return;
+    }
     yield { type: 'error' as const, message: 'gateway should not be called in these tests' };
   },
 };
@@ -63,7 +105,13 @@ beforeAll(async () => {
         artefactsDir: join(dataDir, 'artefacts'),
         uploadsDir: join(dataDir, 'uploads'),
         runtimeConfigDir: join(dataDir, 'runtime-config'),
+        embeddingTelemetryDir: join(dataDir, 'embedding-telemetry'),
       },
+      // Hermetic test suite: no real network/DB calls. Phase N/M's own dedicated
+      // test files (voyageAdapter.test.ts, pgvectorAdapter.test.ts) cover the
+      // real integration paths; live proof of the full save-collection pipeline
+      // is done via a separate script against the real running engine.
+      grounding: { pg: undefined, voyageApiKey: undefined, embeddingModel: 'test-embedding-model' },
     },
     logger: createLogger('error', () => {}),
     cache: createMemoryCacheStore(60, 10),
@@ -361,6 +409,111 @@ describe('engine HTTP surface', () => {
       const body = (await res.json()) as { ok: boolean; message: string };
       expect(body.ok).toBe(false);
       expect(body.message).toContain('Could not parse this file as a PDF');
+    });
+  });
+
+  describe('POST /api/settings/knowledge/propose (Phase P)', () => {
+    it('proposes heading/summary metadata paired with each real chunkId', async () => {
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/propose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chunks: [
+            {
+              id: 'chunk-a',
+              heading: 'Extractive heading',
+              text: 'Some source text.',
+              sourceTitle: 'Doc',
+              sourceUrl: 'doc.pdf#page=1',
+              fetchedAt: '2026-08-02',
+            },
+          ],
+        }),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        ok: boolean;
+        proposals: Array<{ chunkId: string; heading: string; summary: string }>;
+      };
+      expect(body.ok).toBe(true);
+      expect(body.proposals).toEqual([
+        { chunkId: 'chunk-a', heading: 'Fake Proposed Heading', summary: 'Fake proposed summary.' },
+      ]);
+    });
+
+    it('rejects an empty chunks array with a 400', async () => {
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/propose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chunks: [] }),
+      });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('POST /api/settings/knowledge/propose-pack (Phase P)', () => {
+    it('proposes a validated pack draft from reviewed sections', async () => {
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/propose-pack`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentTitle: 'Test Doc',
+          sections: [{ heading: 'A Section', summary: 'A summary.' }],
+        }),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        ok: boolean;
+        draft: { displayName: string; systemPrompt: string; vocabulary: Record<string, string> };
+      };
+      expect(body.ok).toBe(true);
+      expect(body.draft.displayName).toBe('Fake Draft Pack');
+      expect(body.draft.vocabulary).toEqual({ Fake: 'A fake term' });
+    });
+  });
+
+  describe('POST /api/settings/knowledge/save-collection (Phase P)', () => {
+    it('saves a collection to the overlay, immediately visible via the knowledge-collections list', async () => {
+      const collectionId = `save-test-${Date.now()}`;
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/save-collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: collectionId,
+          displayName: 'Save Test Collection',
+          chunks: [
+            {
+              id: 'save-test-chunk',
+              heading: 'Heading',
+              text: 'Body text.',
+              sourceTitle: 'Doc',
+              sourceUrl: 'doc.pdf#page=1',
+              fetchedAt: '2026-08-02',
+            },
+          ],
+        }),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { ok: boolean; message: string; log: string[] };
+      expect(body.ok).toBe(true);
+      expect(body.message).toContain(collectionId);
+      // No Postgres/Voyage configured in this hermetic test server -- honest, visible degrade.
+      expect(body.log.some((line) => line.includes('No Postgres/VOYAGE_API_KEY configured'))).toBe(true);
+
+      const listRes = await fetch(`${baseUrl}/api/settings/knowledge-collections`);
+      const listBody = (await listRes.json()) as { collections: Array<{ id: string }> };
+      expect(listBody.collections.map((c) => c.id)).toContain(collectionId);
+    });
+
+    it('rejects an invalid collection with a specific 400 error', async () => {
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/save-collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: 'x' }),
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain('Invalid knowledge collection');
     });
   });
 });

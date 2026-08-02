@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { knowledgeCollectionSchema, type KnowledgeCollection } from '../contracts/knowledge.js';
+import { readKnowledgeCollectionOverlay } from './runtimeSettingsStore.js';
 
 /**
  * Loader for grounded-knowledge collections (Phase 6 POC). Collections are
@@ -57,4 +58,45 @@ export function listKnowledgeCollections(
     if (parsed.success) out.push({ id: parsed.data.id, displayName: parsed.data.displayName });
   }
   return out.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+// ---------------------------------------------------------------------------
+// Overlay-aware variants (Phase P): collections built via PDF ingestion +
+// human review live in LLMBUILD_DATA/runtime-config/knowledge-collections.json
+// (config/runtimeSettingsStore.ts), merged with the checked-in files here --
+// overlay checked FIRST, same reasoning as loadDomainPackWithOverlay: a
+// brand-new collection has no checked-in file to fall back to.
+// ---------------------------------------------------------------------------
+
+export function loadKnowledgeCollectionWithOverlay(
+  runtimeConfigDir: string,
+  domainsDir: string,
+  collectionId: string,
+): KnowledgeCollection {
+  const overlayEntry = readKnowledgeCollectionOverlay(runtimeConfigDir).find((entry) => entry.id === collectionId);
+  if (overlayEntry !== undefined) return overlayEntry.collection;
+  return loadKnowledgeCollection(domainsDir, collectionId);
+}
+
+export function loadKnowledgeCollectionsWithOverlay(
+  runtimeConfigDir: string,
+  domainsDir: string,
+  collectionIds: readonly string[],
+): KnowledgeCollection[] {
+  return collectionIds.map((id) => loadKnowledgeCollectionWithOverlay(runtimeConfigDir, domainsDir, id));
+}
+
+/** Checked-in + overlay-only collection ids/names, deduped (overlay wins on a shared id). */
+export function listKnowledgeCollectionsWithOverlay(
+  runtimeConfigDir: string,
+  domainsDir: string,
+): Array<{ id: string; displayName: string }> {
+  const checkedIn = listKnowledgeCollections(domainsDir);
+  const overlay = readKnowledgeCollectionOverlay(runtimeConfigDir).map((entry) => ({
+    id: entry.collection.id,
+    displayName: entry.collection.displayName,
+  }));
+  const byId = new Map(checkedIn.map((entry) => [entry.id, entry]));
+  for (const entry of overlay) byId.set(entry.id, entry);
+  return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
 }

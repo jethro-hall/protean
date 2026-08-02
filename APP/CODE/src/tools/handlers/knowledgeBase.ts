@@ -1,4 +1,4 @@
-import { loadKnowledgeCollections } from '../../config/knowledgeCollections.js';
+import { loadKnowledgeCollections, loadKnowledgeCollectionsWithOverlay } from '../../config/knowledgeCollections.js';
 import type { KnowledgeChunk } from '../../contracts/knowledge.js';
 import { topChunks } from '../knowledge/retrieval.js';
 
@@ -24,8 +24,13 @@ export function queryKnowledgeBase(
   limit = 5,
   /** Per-collection relevance multiplier (Phase 6 weighting) — absent id means weight 1. */
   weights: Record<string, number> = {},
+  /** When provided, overlay-only collections (Phase P, built via PDF ingestion) are also visible. */
+  runtimeConfigDir?: string,
 ): KnowledgeQueryHit[] {
-  const collections = loadKnowledgeCollections(domainsDir, collectionIds);
+  const collections =
+    runtimeConfigDir !== undefined
+      ? loadKnowledgeCollectionsWithOverlay(runtimeConfigDir, domainsDir, collectionIds)
+      : loadKnowledgeCollections(domainsDir, collectionIds);
   const collectionIdByChunkId = new Map<string, string>();
   const chunks = collections.flatMap((collection) => {
     for (const chunk of collection.chunks) collectionIdByChunkId.set(chunk.id, collection.id);

@@ -37,6 +37,7 @@ export interface AssembleInput {
   workspaceDir: string;
   datasetsDir: string;
   domainsDir: string;
+  runtimeConfigDir: string;
   mcpServers: ProteanMcpServerBinding[];
   wiredTools: WiredTool[];
   historyWindow?: number;
@@ -218,6 +219,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     workspaceDir,
     datasetsDir,
     domainsDir,
+    runtimeConfigDir,
     mcpServers,
     wiredTools,
     grounded,
@@ -259,6 +261,7 @@ export function assembleTurn(input: AssembleInput): AssembledTurn {
     workspaceDir,
     datasetsDir,
     domainsDir,
+    runtimeConfigDir,
     mcpServers,
     wiredTools,
     grounded,

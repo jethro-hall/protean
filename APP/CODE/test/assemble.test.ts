@@ -47,6 +47,7 @@ const assembleBase = {
   workspaceDir: '/repo',
   datasetsDir: '/repo/APP/LLMBUILD_DATA/datasets',
   domainsDir: '/repo/APP/CODE/src/domains',
+  runtimeConfigDir: '/repo/APP/LLMBUILD_DATA/runtime-config',
   grounded: false,
   knowledgeCollectionsUsed: [],
   knowledgeCollectionWeights: {},

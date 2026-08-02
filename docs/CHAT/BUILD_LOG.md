@@ -2279,3 +2279,72 @@ the new `server.test.ts` route tests — no binary fixture files checked in, ful
   message). Uploaded a real generated scanned-like PDF (valid structure, zero extractable text) —
   got back `ok:false` with the exact scanned-PDF rejection message, HTTP 200 not an error status
   (a content-level rejection, not a malformed request).
+
+## 2026-08-02 · Claude · Phase 6 · Grounded Knowledge v2 Phase P (backend) — LLM-assisted authoring, mandatory human review
+
+The guardrail that matters most in this whole round: "uses an LLM to build the profile" only stays
+safe if the LLM never becomes the source of a fact. Every proposal route here is chunk-scoped
+(the model sees exactly one chunk's own text and is told never to draw on another chunk or general
+knowledge), returns paired with its source chunkId, and **nothing saves anywhere** until an explicit
+`save-collection` call with the human-approved final chunks.
+
+**New `tools/authoring/` module**, calling the **existing** `LlmGateway`/Claude adapter directly
+(`deps.gateway`, same one-shot pattern already proven in `watcher/rewrite.ts` — no new LLM plumbing):
+- `proposeChunkMetadata.ts` — one call per batch of draft chunks (not per-chunk, for cost/latency),
+  each chunk clearly delimited by id in the prompt, strict "use ONLY this chunk's text" instruction,
+  model asked for JSON only. Response is zod-validated (`chunkProposalBatchSchema`) and
+  cross-checked against the real input chunk ids — a proposal referencing an unknown chunkId is
+  discarded with a warning, not trusted; a chunk that got no proposal keeps its extractive heading
+  and is warned about, not silently dropped.
+- `proposePackDraft.ts` — a second, separate call taking only already-reviewed headings/summaries
+  (not raw chunk text, not raw first-draft output) as input, proposing a pack's displayName/
+  systemPrompt/vocabulary — same "propose from what's given, don't invent" framing.
+- `jsonFromModel.ts` — shared helper stripping a markdown code fence the model sometimes wraps JSON
+  in despite being told not to.
+
+**Knowledge collections gain the same overlay pattern as domain packs (Phase K)**, since approved
+chunks need somewhere real to persist: `runtimeSettingsStore.ts` gains
+`{read,save,delete}KnowledgeCollectionOverlayEntry` (`LLMBUILD_DATA/runtime-config/
+knowledge-collections.json`); `config/knowledgeCollections.ts` gains overlay-aware
+`load/listKnowledgeCollection(s)WithOverlay`, overlay checked first (brand-new collection, no
+checked-in file, same reasoning as the domain-pack overlay).
+
+**Threaded `runtimeConfigDir` through the live turn path** so a newly-saved collection is actually
+usable in a real conversation, not just visible in the settings list — the same shape of thread
+Phase K did for `knowledgeCollectionWeights`: `AssembledTurn`/`GatewayRequest` gain the field,
+`runTurn.ts`'s digest-building call and `claudeMcp.ts`'s `queryKnowledgeBase` call both switch to
+the overlay-aware loader. Without this, a PDF-built collection would have been visible in Settings
+but silently inert in actual chat — exactly the "fake control" this codebase's own conventions
+forbid, caught and fixed before it shipped, not after.
+
+**New routes**, `server.ts`: `POST /api/settings/knowledge/propose`, `POST /api/settings/knowledge/
+propose-pack`, `POST /api/settings/knowledge/save-collection` (the only one that persists anything
+— unconditionally saves the collection to the overlay so keyword search works immediately, then
+best-effort embeds via Phase N + stores via Phase M's `VectorStore`, reporting embedding failure or
+missing config honestly in the response log rather than silently skipping it). `GET /api/settings/
+knowledge-collections` switched to the overlay-aware lister so a new collection shows up in the
+existing Phase L pack editor's checkbox list immediately — no separate "wire into a pack" step
+needed, that UI already does it.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean; Vitest 248/248 (was 222) — 26 new cases: `proposeChunkMetadata`/
+  `proposePackDraft` against a mocked gateway (valid response, code-fence stripping, unknown-chunkId
+  discarding with a warning, missing-proposal warning without failing, invalid-JSON and
+  gateway-error handling, empty-input short-circuit with zero gateway calls), the knowledge-collection
+  overlay store round-trip, `loadKnowledgeCollectionWithOverlay`/`listKnowledgeCollectionsWithOverlay`
+  (fallback/overlay-only/dedup), and 6 new `server.test.ts` route cases for propose/propose-pack/
+  save-collection. The shared test server's fake gateway was extended to pattern-match by system
+  prompt (serving realistic authoring responses) while still erroring for anything else, preserving
+  every existing test's guarantee that ordinary chat turns never reach the raw gateway.
+- **Full live capstone proof against the real running engine, no mocks, closing the loop from raw
+  PDF bytes to an answered question**: uploaded a real generated PDF (an HR overtime/leave policy)
+  → real Claude call proposed accurate headings/summaries strictly matching the source text (no
+  fabricated facts — "time-and-a-half," "double-time," "20 days" all correctly reflected) → a
+  second real Claude call proposed a full pack draft (display name, system prompt, a 7-term
+  vocabulary) from the reviewed sections → saved the approved collection, which really embedded 2
+  chunks with `voyage-4` and really wrote them to `knowledge_chunk_embeddings` (confirmed via direct
+  `psql`) → created a domain pack referencing the new collection → sent a real grounded chat turn
+  asking a question **only answerable from the uploaded PDF**. The model's own visible reasoning
+  showed it recognized the digest lacked the detail, called `query_knowledge_base`, and correctly
+  answered "double time" — verbatim from the uploaded document's real text, not a guess. All test
+  artifacts (pack, collection, embeddings) cleaned up afterward — no debris in the live service.

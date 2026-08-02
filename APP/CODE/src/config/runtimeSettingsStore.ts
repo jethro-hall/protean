@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { ProviderAdminConfig, ProviderType } from '../gateway/providerAdmin/types.js';
 import { stdioMcpConnectorSchema } from '../contracts/connectors.js';
 import type { DomainPack } from '../contracts/domainPack.js';
+import type { KnowledgeCollection } from '../contracts/knowledge.js';
 
 /**
  * File-backed store for user-added LLM providers (Phase 6 settings UI) --
@@ -264,5 +265,69 @@ export function deleteDomainPackOverlayEntry(runtimeConfigDir: string, id: strin
   const next = entries.filter((e) => e.id !== id);
   if (next.length === entries.length) return false;
   writeDomainPackOverlay(runtimeConfigDir, next);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Knowledge collection overlay: collections built via PDF ingestion + human
+// review (Phase P). Same overlay convention as domain packs above -- merged
+// with the checked-in domains/*/knowledge/*.json files at load time, never
+// mutating them; a collection id with no checked-in file lives purely here.
+// ---------------------------------------------------------------------------
+
+export interface KnowledgeCollectionOverlayEntry {
+  id: string;
+  collection: KnowledgeCollection;
+  createdAt: string;
+}
+
+function knowledgeCollectionOverlayFile(runtimeConfigDir: string): string {
+  return join(runtimeConfigDir, 'knowledge-collections.json');
+}
+
+export function readKnowledgeCollectionOverlay(runtimeConfigDir: string): KnowledgeCollectionOverlayEntry[] {
+  const path = knowledgeCollectionOverlayFile(runtimeConfigDir);
+  if (!existsSync(path)) return [];
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    return Array.isArray(parsed) ? (parsed as KnowledgeCollectionOverlayEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeKnowledgeCollectionOverlay(
+  runtimeConfigDir: string,
+  entries: KnowledgeCollectionOverlayEntry[],
+): void {
+  mkdirSync(runtimeConfigDir, { recursive: true });
+  writeFileSync(knowledgeCollectionOverlayFile(runtimeConfigDir), JSON.stringify(entries, null, 2), 'utf8');
+}
+
+export function saveKnowledgeCollectionOverlayEntry(
+  runtimeConfigDir: string,
+  collection: KnowledgeCollection,
+): KnowledgeCollectionOverlayEntry {
+  const entries = readKnowledgeCollectionOverlay(runtimeConfigDir);
+  const existingIndex = entries.findIndex((e) => e.id === collection.id);
+  const record: KnowledgeCollectionOverlayEntry = {
+    id: collection.id,
+    collection,
+    createdAt: existingIndex >= 0 ? entries[existingIndex]!.createdAt : new Date().toISOString(),
+  };
+  if (existingIndex >= 0) {
+    entries[existingIndex] = record;
+  } else {
+    entries.push(record);
+  }
+  writeKnowledgeCollectionOverlay(runtimeConfigDir, entries);
+  return record;
+}
+
+export function deleteKnowledgeCollectionOverlayEntry(runtimeConfigDir: string, id: string): boolean {
+  const entries = readKnowledgeCollectionOverlay(runtimeConfigDir);
+  const next = entries.filter((e) => e.id !== id);
+  if (next.length === entries.length) return false;
+  writeKnowledgeCollectionOverlay(runtimeConfigDir, next);
   return true;
 }

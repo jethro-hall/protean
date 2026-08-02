@@ -3,13 +3,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { domainPackSchema, type DomainPack } from '../src/contracts/domainPack.js';
+import { knowledgeCollectionSchema, type KnowledgeCollection } from '../src/contracts/knowledge.js';
 import {
   deleteDomainPackOverlayEntry,
+  deleteKnowledgeCollectionOverlayEntry,
   deleteProvider,
   getProviderConfig,
   listProviders,
   readDomainPackOverlay,
+  readKnowledgeCollectionOverlay,
   saveDomainPackOverlayEntry,
+  saveKnowledgeCollectionOverlayEntry,
   saveProvider,
 } from '../src/config/runtimeSettingsStore.js';
 
@@ -115,5 +119,53 @@ describe('domain pack overlay (Phase 6 domain-pack CRUD)', () => {
     expect(deleteDomainPackOverlayEntry(dir, 'testpack')).toBe(true);
     expect(readDomainPackOverlay(dir)).toEqual([]);
     expect(deleteDomainPackOverlayEntry(dir, 'testpack')).toBe(false);
+  });
+});
+
+function testCollection(overrides: Partial<KnowledgeCollection> = {}): KnowledgeCollection {
+  return knowledgeCollectionSchema.parse({
+    id: 'test-collection',
+    displayName: 'Test Collection',
+    chunks: [
+      {
+        id: 'chunk-1',
+        heading: 'Heading',
+        text: 'Body text.',
+        sourceTitle: 'Doc',
+        sourceUrl: 'doc.pdf#page=1',
+        fetchedAt: '2026-08-01',
+      },
+    ],
+    ...overrides,
+  });
+}
+
+describe('knowledge collection overlay (Phase P PDF-built collections)', () => {
+  it('starts empty', () => {
+    expect(readKnowledgeCollectionOverlay(tempDir())).toEqual([]);
+  });
+
+  it('saves a collection keyed by its own id and round-trips it back', () => {
+    const dir = tempDir();
+    const record = saveKnowledgeCollectionOverlayEntry(dir, testCollection());
+    expect(record.id).toBe('test-collection');
+    expect(readKnowledgeCollectionOverlay(dir)).toEqual([record]);
+  });
+
+  it('updates an existing overlay entry in place, preserving createdAt', () => {
+    const dir = tempDir();
+    const first = saveKnowledgeCollectionOverlayEntry(dir, testCollection({ displayName: 'V1' }));
+    const second = saveKnowledgeCollectionOverlayEntry(dir, testCollection({ displayName: 'V2' }));
+    expect(second.createdAt).toBe(first.createdAt);
+    expect(readKnowledgeCollectionOverlay(dir)).toHaveLength(1);
+    expect(readKnowledgeCollectionOverlay(dir)[0]?.collection.displayName).toBe('V2');
+  });
+
+  it('deletes an overlay entry by id and reports whether anything was removed', () => {
+    const dir = tempDir();
+    saveKnowledgeCollectionOverlayEntry(dir, testCollection());
+    expect(deleteKnowledgeCollectionOverlayEntry(dir, 'test-collection')).toBe(true);
+    expect(readKnowledgeCollectionOverlay(dir)).toEqual([]);
+    expect(deleteKnowledgeCollectionOverlayEntry(dir, 'test-collection')).toBe(false);
   });
 });

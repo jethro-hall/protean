@@ -32,6 +32,8 @@ export interface GatewayRequest {
   datasetsDir?: string;
   /** Domains root — required by the knowledgeBase MCP handler (Phase 6 POC). */
   domainsDir?: string;
+  /** Runtime config root — so the knowledgeBase MCP handler can see overlay-only collections (Phase P). */
+  runtimeConfigDir?: string;
   /** Knowledge collection ids the knowledgeBase MCP handler may query this turn. */
   knowledgeCollectionIds?: string[];
   /** Per-collection relevance multiplier (Phase 6 weighting) — absent id means weight 1. */

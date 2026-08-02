@@ -17,9 +17,15 @@ import {
 } from './config/defaults.js';
 import { loadDomainPackWithOverlay, listDomainPacksWithOverlay } from './config/domainPacks.js';
 import { domainPackSchema } from './contracts/domainPack.js';
-import { listKnowledgeCollections } from './config/knowledgeCollections.js';
+import { listKnowledgeCollectionsWithOverlay } from './config/knowledgeCollections.js';
 import { extractPdfText } from './tools/ingestion/pdfExtract.js';
 import { chunkText } from './tools/ingestion/chunkText.js';
+import { proposeChunkMetadata } from './tools/authoring/proposeChunkMetadata.js';
+import { proposePackDraft } from './tools/authoring/proposePackDraft.js';
+import { knowledgeChunkSchema, knowledgeCollectionSchema } from './contracts/knowledge.js';
+import { createVoyageEmbeddingGateway } from './gateway/embeddings/voyageAdapter.js';
+import { createPgvectorStore } from './gateway/vectorStore/pgvectorAdapter.js';
+import { recordEmbeddingTelemetry } from './watcher/record.js';
 import { loadConnectorCatalog, loadConnectorCatalogWithOverlay } from './config/loadConnectors.js';
 import { loadConfig, requireModel, type ProteanConfig } from './config/loadConfig.js';
 import { resolveToolset } from './tools/registry.js';
@@ -50,6 +56,7 @@ import {
   readMcpOverlay,
   saveMcpOverlayEntry,
   saveDomainPackOverlayEntry,
+  saveKnowledgeCollectionOverlayEntry,
   saveProvider,
 } from './config/runtimeSettingsStore.js';
 import { listProviderModels, testProviderConnection } from './gateway/providerAdmin/dispatch.js';
@@ -315,6 +322,7 @@ export async function handleTurn(deps: AppDeps, req: IncomingMessage, res: Serve
       workspaceDir: deps.config.paths.repoRoot,
       datasetsDir: deps.config.paths.datasetsDir,
       domainsDir: deps.config.paths.domainsDir,
+      runtimeConfigDir: deps.config.paths.runtimeConfigDir,
       mcpServers: toolset.mcpServers,
       wiredTools: toolset.wired,
       registryVersion: toolset.registryVersion,
@@ -515,9 +523,11 @@ function handleDeleteDomainPack(deps: AppDeps, id: string, res: ServerResponse):
   writeJson(res, 200, { ok: true });
 }
 
-/** Every known knowledge collection id (Phase 6 domain-pack editor's weighting UI). */
+/** Every known knowledge collection id, checked-in + overlay (Phase 6 domain-pack editor's weighting UI, Phase P PDF-built collections). */
 function handleListKnowledgeCollections(deps: AppDeps, res: ServerResponse): void {
-  writeJson(res, 200, { collections: listKnowledgeCollections(deps.config.paths.domainsDir) });
+  writeJson(res, 200, {
+    collections: listKnowledgeCollectionsWithOverlay(deps.config.paths.runtimeConfigDir, deps.config.paths.domainsDir),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -572,6 +582,120 @@ async function handleIngestKnowledge(req: IncomingMessage, res: ServerResponse):
   });
   const message = `Extracted ${chunks.length} draft chunk(s) from ${extracted.result.pages.length} page(s), ${extracted.result.totalChars} characters total. Review before saving -- nothing is written to a pack yet.`;
   writeJson(res, 200, { ok: true, message, chunks, log: [message] });
+}
+
+// ---------------------------------------------------------------------------
+// Grounded Knowledge v2 Phase P: LLM-assisted authoring, mandatory human
+// review. Every route here returns DRAFT proposals only -- nothing saves
+// until POST /api/settings/knowledge/save-collection is called explicitly
+// with the human-approved final chunks.
+// ---------------------------------------------------------------------------
+
+/** Prefer the fast tier for authoring proposals (well-scoped, low-creativity task); fall back to strong. */
+function resolveAuthoringModel(config: ProteanConfig): string {
+  if (config.models.fast !== undefined) return requireModel(config, 'fast');
+  return requireModel(config, 'strong');
+}
+
+const proposeChunksBodySchema = z.object({
+  chunks: z.array(knowledgeChunkSchema).min(1),
+});
+
+async function handleProposeChunkMetadata(deps: AppDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = proposeChunksBodySchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid propose request: ${parsed.error.message}` });
+    return;
+  }
+  try {
+    const model = resolveAuthoringModel(deps.config);
+    const result = await proposeChunkMetadata(deps.gateway, model, parsed.data.chunks, deps.logger.child('authoring'));
+    const message = `Proposed metadata for ${result.proposals.length} of ${parsed.data.chunks.length} chunk(s). Review each against its source before saving.`;
+    writeJson(res, 200, { ok: true, message, proposals: result.proposals, log: [message, ...result.warnings] });
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    writeJson(res, 200, { ok: false, message, proposals: [], log: [message] });
+  }
+}
+
+const proposePackBodySchema = z.object({
+  documentTitle: z.string().min(1),
+  sections: z.array(z.object({ heading: z.string().min(1), summary: z.string().min(1) })).min(1),
+});
+
+async function handleProposePackDraft(deps: AppDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = proposePackBodySchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid propose-pack request: ${parsed.error.message}` });
+    return;
+  }
+  try {
+    const model = resolveAuthoringModel(deps.config);
+    const draft = await proposePackDraft(deps.gateway, model, parsed.data);
+    const message = 'Pack draft proposed from the reviewed section headings/summaries -- review before saving.';
+    writeJson(res, 200, { ok: true, message, draft, log: [message] });
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    writeJson(res, 200, { ok: false, message, draft: null, log: [message] });
+  }
+}
+
+const saveKnowledgeCollectionBodySchema = knowledgeCollectionSchema;
+
+/**
+ * The one route that actually persists anything from this whole pipeline --
+ * everything before this point (ingest/propose/propose-pack) returns drafts
+ * only. Saves the collection unconditionally (so keyword/TF-IDF search works
+ * immediately); embedding generation is best-effort and reported honestly if
+ * it fails or isn't configured, never silently skipped.
+ */
+async function handleSaveKnowledgeCollection(deps: AppDeps, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = saveKnowledgeCollectionBodySchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid knowledge collection: ${parsed.error.message}` });
+    return;
+  }
+  const collection = parsed.data;
+  saveKnowledgeCollectionOverlayEntry(deps.config.paths.runtimeConfigDir, collection);
+
+  const log: string[] = [`Saved collection "${collection.id}" with ${collection.chunks.length} chunk(s) -- keyword search available immediately.`];
+  const { pg, voyageApiKey, embeddingModel } = deps.config.grounding;
+  if (pg === undefined || voyageApiKey === undefined) {
+    log.push('No Postgres/VOYAGE_API_KEY configured -- saved without embeddings; keyword search still works, semantic search will not until configured.');
+  } else {
+    try {
+      const embeddingGateway = createVoyageEmbeddingGateway(voyageApiKey, embeddingModel);
+      const vectorStore = createPgvectorStore(pg);
+      const embedded = await embeddingGateway.embed({
+        texts: collection.chunks.map((chunk) => chunk.text),
+        inputType: 'document',
+      });
+      for (let i = 0; i < collection.chunks.length; i++) {
+        const chunk = collection.chunks[i]!;
+        const embedding = embedded.embeddings[i];
+        if (embedding === undefined) continue;
+        await vectorStore.upsertChunkEmbedding({
+          chunkId: chunk.id,
+          collectionId: collection.id,
+          embedding,
+          model: embedded.model,
+        });
+      }
+      recordEmbeddingTelemetry(deps.config.paths.embeddingTelemetryDir, {
+        ts: new Date().toISOString(),
+        provider: embeddingGateway.provider,
+        model: embedded.model,
+        collectionId: collection.id,
+        textCount: collection.chunks.length,
+        totalTokens: embedded.totalTokens,
+      });
+      log.push(`Embedded ${collection.chunks.length} chunk(s) with ${embedded.model} -- semantic search available immediately.`);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      log.push(`Collection saved, but embeddings could not be generated (${message}) -- keyword search still works.`);
+    }
+  }
+  writeJson(res, 200, { ok: true, message: log[0], log });
 }
 
 export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
@@ -673,6 +797,24 @@ export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
     }
     if (req.method === 'POST' && url.pathname === '/api/settings/knowledge/ingest') {
       void handleIngestKnowledge(req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/knowledge/propose') {
+      void handleProposeChunkMetadata(deps, req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/knowledge/propose-pack') {
+      void handleProposePackDraft(deps, req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/knowledge/save-collection') {
+      void handleSaveKnowledgeCollection(deps, req, res).catch((cause: unknown) => {
         writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
       });
       return;

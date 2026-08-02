@@ -98,6 +98,7 @@ async function main(): Promise<void> {
     workspaceDir: config.paths.repoRoot,
     datasetsDir: config.paths.datasetsDir,
     domainsDir: config.paths.domainsDir,
+    runtimeConfigDir: config.paths.runtimeConfigDir,
     mcpServers: [],
     wiredTools: [],
     registryVersion: 'spike-substrate',

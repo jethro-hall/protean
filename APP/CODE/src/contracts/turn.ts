@@ -107,6 +107,8 @@ export interface AssembledTurn {
   datasetsDir: string;
   /** Domains root — required by the knowledgeBase MCP handler (Phase 6 POC). */
   domainsDir: string;
+  /** Runtime config root — required so the knowledgeBase MCP handler can see overlay-only collections (Phase P). */
+  runtimeConfigDir: string;
   /** Pack tool ids after registry wiring (lineage evidence). */
   wiredTools: WiredTool[];
   /** Grounded-knowledge POC: true only when requested AND the pack has collections. */

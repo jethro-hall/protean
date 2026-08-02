@@ -1,7 +1,7 @@
 import type { LogLevel } from '../config/loadConfig.js';
 
 /** The layer a log event originates from (ARCHITECTURE §6). */
-export type LogLayer = 'server' | 'watcher' | 'agent' | 'gateway' | 'gui' | 'config' | 'spike';
+export type LogLayer = 'server' | 'watcher' | 'agent' | 'gateway' | 'gui' | 'config' | 'spike' | 'authoring';
 
 /**
  * One structured log event: machine-parseable JSONL, with an explanatory human

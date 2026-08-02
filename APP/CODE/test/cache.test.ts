@@ -29,6 +29,7 @@ function turn(overrides: Partial<AssembledTurn> = {}): AssembledTurn {
     workspaceDir: '/tmp',
     datasetsDir: '/tmp/datasets',
     domainsDir: '/tmp/domains',
+    runtimeConfigDir: '/tmp/runtime-config',
     mcpServers: [],
     wiredTools: [],
     grounded: false,
