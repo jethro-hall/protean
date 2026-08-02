@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest';
 import type { AgentCore, AgentEvent } from '../src/agent/AgentCore.js';
 import { NO_TOOLS_POLICY } from '../src/contracts/agentLoop.js';
 import { domainPackSchema } from '../src/contracts/domainPack.js';
+import type { RetrievalTelemetryEntry } from '../src/contracts/knowledge.js';
 import type { TurnEvent, TurnRequest } from '../src/contracts/turn.js';
+import { loadConfig } from '../src/config/loadConfig.js';
 import { createLogger } from '../src/logging/logger.js';
 import { createMemoryCacheStore } from '../src/watcher/cache.js';
 import { runTurn, type TurnPipelineDeps } from '../src/watcher/runTurn.js';
@@ -23,6 +25,36 @@ const request: TurnRequest = { sessionId: 's1', domainId: 'testpack', input: 'pi
 function fakeAgent(events: () => AsyncIterable<AgentEvent>): AgentCore {
   return { name: 'fake', runTurn: events };
 }
+
+/** Simulates what gateway/adapters/claudeMcp.ts's tool handler does for real: pushes
+ * evidence into the AssembledTurn's own retrievalTelemetry array as the turn runs. */
+function fakeAgentWithRetrieval(
+  telemetryToPush: RetrievalTelemetryEntry[],
+  events: () => AsyncIterable<AgentEvent>,
+): AgentCore {
+  return {
+    name: 'fake',
+    async *runTurn(turn) {
+      turn.retrievalTelemetry?.push(...telemetryToPush);
+      yield* events();
+    },
+  };
+}
+
+const groundedPack = domainPackSchema.parse({
+  id: 'grounded-testpack',
+  displayName: 'Grounded test pack',
+  version: '0.0.1',
+  systemPrompt: 'You are a test assistant.',
+  knowledgeCollections: ['finance-ato-rd-tax-incentive'],
+});
+
+const groundedRequest: TurnRequest = {
+  sessionId: 's1',
+  domainId: 'grounded-testpack',
+  input: 'what is the notional deduction threshold',
+  grounded: true,
+};
 
 async function collect(iterable: AsyncIterable<TurnEvent>): Promise<TurnEvent[]> {
   const events: TurnEvent[] = [];
@@ -258,5 +290,92 @@ describe('runTurn pipeline', () => {
     const retryDone = retry.at(-1);
     if (retryDone?.type !== 'done') throw new Error('expected done');
     expect(retryDone.cacheHit).toBe(false);
+  });
+});
+
+describe('runTurn groundingConfidence (Phase R — deterministic confidence gate)', () => {
+  function makeGroundedDeps(agent: AgentCore): TurnPipelineDeps & { dataDir: string } {
+    const base = makeDeps(agent);
+    return { ...base, pack: groundedPack, domainsDir: loadConfig().paths.domainsDir };
+  }
+
+  it('surfaces groundingConfidence "low" on the done event and in lineage when retrieval comes back thin', async () => {
+    const agent = fakeAgentWithRetrieval(
+      [{ query: 'threshold', hitCount: 1, requestedLimit: 5, topScore: 0.03 }],
+      async function* () {
+        yield { type: 'text' as const, text: 'The threshold is $20,000.' };
+        yield {
+          type: 'done' as const,
+          model: 'test-model',
+          usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheCreationTokens: 0 },
+          costUsd: 0,
+          providerDurationMs: 1,
+        };
+      },
+    );
+    const deps = makeGroundedDeps(agent);
+    const events = await collect(runTurn(groundedRequest, deps));
+    const done = events.at(-1);
+    if (done?.type !== 'done') throw new Error('expected done');
+    expect(done.groundingConfidence).toBe('low');
+
+    const lineageFile = readdirSync(deps.promptHistoryDir)[0];
+    if (lineageFile === undefined) throw new Error('no lineage file');
+    const row = JSON.parse(readFileSync(join(deps.promptHistoryDir, lineageFile), 'utf8').trim()) as {
+      groundingConfidence?: string;
+      retrievalTelemetry?: RetrievalTelemetryEntry[];
+    };
+    expect(row.groundingConfidence).toBe('low');
+    expect(row.retrievalTelemetry).toHaveLength(1);
+  });
+
+  it('surfaces groundingConfidence "none" when retrieval returns zero hits', async () => {
+    const agent = fakeAgentWithRetrieval(
+      [{ query: 'xyzzy', hitCount: 0, requestedLimit: 5, topScore: null }],
+      async function* () {
+        yield { type: 'text' as const, text: 'I could not find that.' };
+        yield {
+          type: 'done' as const,
+          model: 'test-model',
+          usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheCreationTokens: 0 },
+          costUsd: 0,
+          providerDurationMs: 1,
+        };
+      },
+    );
+    const deps = makeGroundedDeps(agent);
+    const events = await collect(runTurn(groundedRequest, deps));
+    const done = events.at(-1);
+    if (done?.type !== 'done') throw new Error('expected done');
+    expect(done.groundingConfidence).toBe('none');
+  });
+
+  it('omits groundingConfidence when retrieval returns solid evidence', async () => {
+    const agent = fakeAgentWithRetrieval(
+      [{ query: 'threshold', hitCount: 5, requestedLimit: 5, topScore: 1.7 }],
+      async function* () {
+        yield { type: 'text' as const, text: 'The threshold is $20,000.' };
+        yield {
+          type: 'done' as const,
+          model: 'test-model',
+          usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheCreationTokens: 0 },
+          costUsd: 0,
+          providerDurationMs: 1,
+        };
+      },
+    );
+    const deps = makeGroundedDeps(agent);
+    const events = await collect(runTurn(groundedRequest, deps));
+    const done = events.at(-1);
+    if (done?.type !== 'done') throw new Error('expected done');
+    expect(done.groundingConfidence).toBeUndefined();
+  });
+
+  it('omits groundingConfidence when the tool was never called (digest alone answered it)', async () => {
+    const deps = makeGroundedDeps(successAgent);
+    const events = await collect(runTurn(groundedRequest, deps));
+    const done = events.at(-1);
+    if (done?.type !== 'done') throw new Error('expected done');
+    expect(done.groundingConfidence).toBeUndefined();
   });
 });

@@ -5,6 +5,7 @@ import type { ToolPolicy } from '../contracts/agentLoop.js';
 import type { ProteanMcpServerBinding, WiredTool } from '../contracts/connectors.js';
 import type { DomainPack } from '../contracts/domainPack.js';
 import type { GroundingConfig } from '../contracts/grounding.js';
+import type { RetrievalTelemetryEntry } from '../contracts/knowledge.js';
 import type {
   ChatMessage,
   TokenUsage,
@@ -24,6 +25,7 @@ import { assembleTurn, resolveEffectiveTier, resolveGrounding, resolveTurnTokenB
 import { budgetMessages } from './budget.js';
 import { computeCacheKey, type CacheStore } from './cache.js';
 import { findUnverifiedProvenanceClaims } from './citationGuard.js';
+import { computeGroundingConfidence } from './groundingConfidence.js';
 import { loadKnowledgeCollectionsWithOverlay } from '../config/knowledgeCollections.js';
 import { recordLineage, recordTelemetry } from './record.js';
 import { rewriteTurnInput, shouldRewriteTurn } from './rewrite.js';
@@ -135,6 +137,8 @@ export async function* runTurn(
   if (deps.abortSignal !== undefined) {
     assembled.abortSignal = deps.abortSignal;
   }
+  const retrievalTelemetry: RetrievalTelemetryEntry[] = [];
+  assembled.retrievalTelemetry = retrievalTelemetry;
   const assembleMs = roundMs(performance.now() - t0);
   // what actually entered the context (input + attachment blocks) — this is what history records
   const userContent = assembled.messages.at(-1)?.content ?? assembled.input;
@@ -381,6 +385,15 @@ export async function* runTurn(
     );
   }
 
+  const groundingConfidence = computeGroundingConfidence(assembled.grounded, retrievalTelemetry);
+  if (groundingConfidence !== undefined) {
+    log.warn(
+      'watcher.grounding_confidence_low',
+      `Grounded turn's on-demand retrieval came back thin/empty (confidence: ${groundingConfidence})`,
+      { turnId: assembled.turnId, sessionId: assembled.sessionId, data: { groundingConfidence, retrievalTelemetry } },
+    );
+  }
+
   recordLineage(deps.promptHistoryDir, {
     turnId: assembled.turnId,
     sessionId: assembled.sessionId,
@@ -405,6 +418,8 @@ export async function* runTurn(
     grounded: assembled.grounded,
     knowledgeCollectionsUsed: assembled.knowledgeCollectionsUsed,
     ...(unverifiedCitationClaims.length > 0 ? { unverifiedCitationClaims } : {}),
+    ...(groundingConfidence !== undefined ? { groundingConfidence } : {}),
+    ...(retrievalTelemetry.length > 0 ? { retrievalTelemetry } : {}),
   });
   recordTelemetry(deps.tokenTelemetryDir, {
     ts: startedAt,
@@ -443,5 +458,7 @@ export async function* runTurn(
     usage,
     costUsd,
     timings,
+    ...(unverifiedCitationClaims.length > 0 ? { unverifiedCitationClaims } : {}),
+    ...(groundingConfidence !== undefined ? { groundingConfidence } : {}),
   };
 }

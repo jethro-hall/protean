@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { ToolPolicy } from './agentLoop.js';
 import type { ProteanMcpServerBinding, WiredTool } from './connectors.js';
 import type { GroundingConfig } from './grounding.js';
+import type { RetrievalTelemetryEntry } from './knowledge.js';
 
 /** Roles a chat message can carry across any boundary. */
 export const chatRoleSchema = z.enum(['user', 'assistant']);
@@ -128,6 +129,13 @@ export interface AssembledTurn {
   maxTokens?: number;
   /** Runtime cancel — not part of the cache key; seize the model when aborted. */
   abortSignal?: AbortSignal;
+  /**
+   * Phase R evidence collector — not part of the cache key. runTurn.ts creates
+   * an empty array, attaches it here the same way abortSignal is attached, and
+   * the knowledgeBase MCP tool handler pushes into it as it runs, so runTurn.ts
+   * can read real retrieval evidence back out after the turn completes.
+   */
+  retrievalTelemetry?: RetrievalTelemetryEntry[];
 }
 
 export interface TokenUsage {
@@ -168,6 +176,10 @@ export type TurnEvent =
       usage: TokenUsage | null;
       costUsd: number | null;
       timings: TurnTimings;
+      /** Citation-honesty audit (Law 6) — phrases claiming a lookup with no tool call to back it. */
+      unverifiedCitationClaims?: string[];
+      /** Deterministic, code-computed grounding-confidence gate (Phase R) — absent means no concern. */
+      groundingConfidence?: 'low' | 'none';
     }
   | { type: 'error'; turnId: string; message: string };
 
@@ -201,4 +213,8 @@ export interface TurnLineage {
   knowledgeCollectionsUsed?: string[];
   /** Citation-honesty audit (Law 6): phrases claiming a lookup with no tool call to back it. */
   unverifiedCitationClaims?: string[];
+  /** Deterministic grounding-confidence gate (Phase R) — see watcher/groundingConfidence.ts. */
+  groundingConfidence?: 'low' | 'none';
+  /** Raw evidence behind groundingConfidence (Law 6 full lineage). */
+  retrievalTelemetry?: RetrievalTelemetryEntry[];
 }

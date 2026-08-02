@@ -7,6 +7,7 @@ import type { McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 import type { ProteanMcpServerBinding } from '../../contracts/connectors.js';
 import type { GroundingConfig } from '../../contracts/grounding.js';
+import type { RetrievalTelemetryEntry } from '../../contracts/knowledge.js';
 import { listAppointments } from '../../tools/handlers/calendar.js';
 import { listDatasets, summarizeCsv } from '../../tools/handlers/dataLake.js';
 import { queryKnowledgeBase, type HybridSearchServices } from '../../tools/handlers/knowledgeBase.js';
@@ -119,6 +120,7 @@ function buildKnowledgeBaseServer(
   weights: Record<string, number>,
   runtimeConfigDir: string | undefined,
   groundingConfig: GroundingConfig | undefined,
+  retrievalTelemetry: RetrievalTelemetryEntry[] | undefined,
 ): McpServerConfig {
   // Constructed once per turn (not per tool call) -- cheap (no I/O until actually queried).
   const hybrid = hybridServicesFrom(groundingConfig);
@@ -142,17 +144,24 @@ function buildKnowledgeBaseServer(
         },
         async (args) => {
           try {
-            return jsonResult({
-              hits: await queryKnowledgeBase(
-                domainsDir,
-                collectionIds,
-                args.query,
-                args.limit ?? 5,
-                weights,
-                runtimeConfigDir,
-                hybrid,
-              ),
+            const requestedLimit = args.limit ?? 5;
+            const hits = await queryKnowledgeBase(
+              domainsDir,
+              collectionIds,
+              args.query,
+              requestedLimit,
+              weights,
+              runtimeConfigDir,
+              hybrid,
+            );
+            // Phase R evidence (Law 6) -- code-computed, read back by runTurn.ts after the turn.
+            retrievalTelemetry?.push({
+              query: args.query,
+              hitCount: hits.length,
+              requestedLimit,
+              topScore: hits[0]?.score ?? null,
             });
+            return jsonResult({ hits });
           } catch (cause) {
             return errorResult(cause instanceof Error ? cause.message : String(cause));
           }
@@ -171,6 +180,7 @@ export function materializeMcpServers(
   knowledgeCollectionWeights?: Record<string, number>,
   runtimeConfigDir?: string,
   groundingConfig?: GroundingConfig,
+  retrievalTelemetry?: RetrievalTelemetryEntry[],
 ): Record<string, McpServerConfig> {
   const out: Record<string, McpServerConfig> = {};
   for (const binding of bindings) {
@@ -202,6 +212,7 @@ export function materializeMcpServers(
         knowledgeCollectionWeights ?? {},
         runtimeConfigDir,
         groundingConfig,
+        retrievalTelemetry,
       );
       continue;
     }

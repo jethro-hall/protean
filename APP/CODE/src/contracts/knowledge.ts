@@ -31,3 +31,17 @@ export interface ScoredChunk {
   chunk: KnowledgeChunk;
   score: number;
 }
+
+/**
+ * Phase R evidence of one on-demand `query_knowledge_base` tool call this turn
+ * (Law 6 — full lineage, code-computed not LLM-self-reported). Drives the
+ * deterministic grounding-confidence gate in watcher/groundingConfidence.ts.
+ */
+export interface RetrievalTelemetryEntry {
+  query: string;
+  hitCount: number;
+  requestedLimit: number;
+  /** Top hit's score, kept for lineage/debugging only — NOT used by the confidence
+   * gate, since TF-IDF and RRF-fused scores live on incompatible scales. */
+  topScore: number | null;
+}

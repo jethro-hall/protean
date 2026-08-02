@@ -299,6 +299,14 @@ describe('assembleTurn', () => {
     expect(assembled.knowledgeCollectionsUsed).toEqual(['finance-ato-rd-tax-incentive']);
   });
 
+  it('injects the grounded-refusal protocol only when the turn is grounded (Phase R)', () => {
+    const groundedTurn = assembleTurn({ ...assembleBase, history: [], grounded: true });
+    expect(groundedTurn.systemPromptDynamic).toContain("don't have enough grounded source material");
+
+    const ungroundedTurn = assembleTurn({ ...assembleBase, history: [], grounded: false });
+    expect(ungroundedTurn.systemPromptDynamic).not.toContain('grounded source material');
+  });
+
   it('injects the response-depth instruction into the dynamic suffix when requested', () => {
     const assembled = assembleTurn({
       ...assembleBase,

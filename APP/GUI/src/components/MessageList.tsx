@@ -144,6 +144,12 @@ function Bubble({
                 : `${tier.charAt(0).toUpperCase() + tier.slice(1)} tier`}
             </span>
           )}
+          {!isUser && message.stats?.groundingConfidence !== undefined && (
+            <span className={`grounding-badge ${message.stats.groundingConfidence}`}>
+              grounding: {message.stats.groundingConfidence}
+              <InfoHint hintKey="groundingConfidenceBadge" />
+            </span>
+          )}
         </div>
         <div className="body">
           {isUser && <AttachmentTags message={message} />}
@@ -163,6 +169,14 @@ function Bubble({
           {!isUser && message.stopped === true && (
             <p className="stopped-tag" role="status">
               [stopped]
+            </p>
+          )}
+          {!isUser && (message.stats?.unverifiedCitationClaims?.length ?? 0) > 0 && (
+            <p className="banner error fabrication-banner" role="alert">
+              This answer claims a lookup ("
+              {message.stats?.unverifiedCitationClaims?.join('", "')}") that no tool call this
+              turn actually backs — treat the citation as unverified.
+              <InfoHint hintKey="fabricationBanner" />
             </p>
           )}
           {!isUser && message.stats !== undefined && (

@@ -1,6 +1,7 @@
 import type { ToolPolicy } from './agentLoop.js';
 import type { ProteanMcpServerBinding } from './connectors.js';
 import type { GroundingConfig } from './grounding.js';
+import type { RetrievalTelemetryEntry } from './knowledge.js';
 import type { ChatMessage, EffortLevel, TokenUsage } from './turn.js';
 
 /**
@@ -49,6 +50,8 @@ export interface GatewayRequest {
   maxTokens?: number;
   /** When aborted, the provider adapter must seize the model run immediately. */
   abortSignal?: AbortSignal;
+  /** Phase R evidence collector — the knowledgeBase MCP tool handler pushes into this as it runs. */
+  retrievalTelemetry?: RetrievalTelemetryEntry[];
 }
 
 export type GatewayEvent =

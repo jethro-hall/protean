@@ -143,6 +143,7 @@ export function buildClaudeQueryOptions(request: GatewayRequest): Options {
       request.knowledgeCollectionWeights,
       request.runtimeConfigDir,
       request.groundingConfig,
+      request.retrievalTelemetry,
     );
   }
   return options;

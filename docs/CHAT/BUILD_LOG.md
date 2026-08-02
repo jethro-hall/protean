@@ -2445,3 +2445,71 @@ is also just better practice. Idempotent (`ON CONFLICT DO UPDATE`), safe to re-r
 **This closes Grounded Knowledge v2 Phase Q.** Remaining: Phase R (anti-hallucination guardrail
 hardening — GUI-visible fabrication banner, deterministic confidence gate, honest refusal protocol),
 Phase S (honest stop-and-ask clarification protocol).
+
+## 2026-08-02 · Claude · Phase 6 · Grounded Knowledge v2 Phase R — anti-hallucination guardrail hardening
+
+Closes the exact gap the 2026-08-01 Phase P entry named as unbuilt: the citation-fabrication audit
+(`findUnverifiedProvenanceClaims`) has always run, but only ever logged to lineage — invisible to the
+person actually reading the answer. Three additions, all deterministic/code-computed (Law 4 — never
+the model self-reporting):
+
+1. **GUI-visible fabrication banner.** `unverifiedCitationClaims` now rides the turn's `done` event
+   (threaded through `contracts/turn.ts`'s TurnEvent union) instead of dying in lineage-only. A new
+   `.banner.error.fabrication-banner` in `MessageList.tsx` renders directly under any answer that trips
+   it, with an `InfoHint` explaining the check is a post-hoc scan of the model's own output against its
+   own tool-call record, not a self-report.
+2. **Deterministic grounding-confidence gate.** New `watcher/groundingConfidence.ts`: when a grounded
+   turn actually calls `query_knowledge_base` and the best call's hit count comes back below half its
+   requested limit, the turn is tagged `groundingConfidence: 'low'` (zero hits → `'none'`) — a small
+   `.grounding-badge` next to the model name in `MessageList.tsx`. Evidence flows via a new mutable
+   `retrievalTelemetry` collector array, created in `runTurn.ts` and attached to `AssembledTurn` the
+   same way `abortSignal` already is (not part of the cache key) — `claudeMcp.ts`'s tool handler pushes
+   real `{query, hitCount, requestedLimit, topScore}` rows into it as `query_knowledge_base` actually
+   runs, and `runTurn.ts` reads the same array back after the turn completes.
+   **Deliberately count-based, not score-based** — Phase Q's own live measurement showed TF-IDF and
+   RRF-fused scores on incompatible scales (~0–2 vs ~0–0.03); a shared numeric cutoff would have been
+   false precision, not a real signal.
+   **A genuine limitation, found live while verifying this, logged honestly rather than hidden**: with
+   hybrid search active, `query_knowledge_base` almost always returns a full quota of hits, because
+   pgvector's nearest-neighbour search always returns *something*, and even a purely coincidental
+   keyword overlap can fill out the rest — so a query with no real matching material can still come
+   back "5 of 5" and never cross the count-based threshold. Caught live: asking the finance pack an FBT
+   penalty question (a topic the corpus doesn't cover at all) returned hitCount 5/5 with a fused score
+   of 0.0325 — barely above the corpus floor — and the badge correctly stayed silent even though the
+   evidence was genuinely thin. **The badge is a secondary, best-effort signal, not the primary
+   guardrail** — item 3 below is, and it held correctly in this exact case (see live proof).
+3. **`GROUNDED_REFUSAL_PROTOCOL_PROMPT`** (`config/defaults.ts`), injected in `assemble.ts` only when
+   `grounded: true`, alongside the existing citation-honesty prompt: instructs the model to say plainly
+   "I don't have enough grounded source material to answer this confidently" when neither the digest
+   nor a tool call actually backs an answer, and to clearly label any general-knowledge fallback as
+   separate and unverified rather than blending it into what reads as a sourced answer — the concrete
+   implementation of "must be sure of everything, including if it must say it can't answer with
+   confidence."
+
+**Proof:**
+- `tsc --noEmit` + `eslint` + `vitest run` clean on `APP/CODE` — 269/269 tests, including a new
+  `groundingConfidence.test.ts` (7 cases: not-grounded, never-called, zero-hits, thin-hits, solid-hits,
+  best-of-multiple-calls both directions) and 4 new `runTurn.ts` integration tests using a fake agent
+  that pushes real telemetry into the live `AssembledTurn.retrievalTelemetry` array exactly as
+  `claudeMcp.ts` does, against the real checked-in finance collection (no mocked domain data).
+- `tsc --noEmit` + `eslint` clean on `APP/GUI`.
+- **Live proof, real running engine, no mocks**: asked the finance pack (grounded ON) "What is the
+  maximum penalty for failing to keep proper R&D record-keeping documentation the ATO requires?" — a
+  real question the curated collection genuinely does not cover. The model correctly answered
+  "[UNKNOWN] — The grounded knowledge base does not contain information about [this]", explained what
+  the digest *does* cover, then offered a separate, clearly-labelled "**General knowledge option
+  (unverified against a live source this turn)**" instead of blending a guess into a sourced-looking
+  answer — GROUNDED_REFUSAL_PROTOCOL_PROMPT working exactly as designed. Because that answer used the
+  phrase "knowledge base" without an actual `query_knowledge_base` call this turn, the existing
+  citation-fabrication audit correctly flagged it — and, for the first time, the new banner rendered
+  live in the browser: real red `.banner.error` styling, the flagged phrase quoted verbatim, positioned
+  directly under the answer (screenshot captured). A second live query, an FBT penalty question the
+  finance corpus doesn't cover, produced the same honest-decline behaviour and confirmed the confidence
+  badge's documented limitation above.
+- Separately confirmed via a real-CSS Playwright render (not the live engine) that `.grounding-badge.low`
+  resolves to the app's real `--warn-wash`/`--warn-ink` tokens and `.grounding-badge.none` to real
+  `--err-wash`/`--err` tokens — both already-established, already-verified design tokens, not new color
+  choices.
+
+**This closes Grounded Knowledge v2 Phase R.** Remaining: Phase S (honest stop-and-ask clarification
+protocol) — the last phase of the 7-phase Grounded Knowledge v2 plan.

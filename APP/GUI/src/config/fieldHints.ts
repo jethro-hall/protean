@@ -58,6 +58,16 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'Unticked is standard behaviour \u2014 this is an experimental parallel path, off by default, so you can A/B it against normal answers.',
     example: 'Finance grounded in ATO R&D Tax Incentive guidance; Medical grounded in RACGP Standards.',
   },
+  fabricationBanner: {
+    what: 'A deterministic, code-run check found a phrase claiming a lookup happened (e.g. "retrieved from", "official knowledge base") with no matching tool call this turn.',
+    why: 'A correct figure with a fabricated citation is still a fabrication (Law 6) \u2014 this is not the model self-reporting, it is a post-hoc scan of its own output against its own tool-call record, shown exactly as found.',
+    example: 'Flagged phrase: "according to our database" \u2014 no query_knowledge_base call ran this turn.',
+  },
+  groundingConfidenceBadge: {
+    what: 'This grounded turn called the knowledge-base tool but got back thin (\u201clow\u201d) or zero (\u201cnone\u201d) evidence, relative to how many results it asked for.',
+    why: 'Code-computed from the real tool-call results, never the model\u2019s own opinion of its confidence \u2014 a signal that the answer may be leaning on general knowledge rather than the curated source material.',
+    example: 'Asked for 5 results, got 1 back \u2192 "low". Asked for 5, got 0 back \u2192 "none".',
+  },
   responseDepth: {
     what: 'A plain-language stand-in for the response length/complexity budget (the raw number was previously only a server env var).',
     why: 'Bigger, more expert answers cost more tokens and take longer \u2014 this lets you trade that off per question instead of a fixed engine-wide number. It never changes which model tier answers, only how much room and depth the reply gets.',

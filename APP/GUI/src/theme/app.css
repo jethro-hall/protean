@@ -62,6 +62,22 @@
   color: var(--muted);
   font-weight: var(--fw-med);
 }
+.grounding-badge {
+  text-transform: none;
+  font-weight: var(--fw-semi);
+  font-size: var(--fz-11);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 1px var(--s-3);
+  border-radius: var(--r-sm);
+  margin-left: var(--s-3);
+}
+.grounding-badge.low { background: var(--warn-wash); color: var(--warn-ink); }
+.grounding-badge.none { background: var(--err-wash); color: var(--err); }
+.fabrication-banner {
+  margin: var(--s-3) 0;
+}
 .assistant-html p {
   margin: 0 0 var(--s-4);
 }

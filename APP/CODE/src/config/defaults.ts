@@ -141,6 +141,22 @@ export const CITATION_HONESTY_PROTOCOL_PROMPT =
   'against a live source this turn") — a correct figure with a fabricated citation is still a ' +
   'fabrication.';
 
+/**
+ * Grounded-refusal protocol (Phase R) — the concrete implementation of "must be sure of
+ * everything, including if it must say it can't answer with confidence." Injected ONLY when
+ * a turn is grounded: true, alongside CITATION_HONESTY_PROTOCOL_PROMPT. Distinct from that
+ * prompt: citation-honesty stops the model from FAKING a source; this stops it from FILLING
+ * a gap in the grounded material with general knowledge while implying it's sourced.
+ */
+export const GROUNDED_REFUSAL_PROTOCOL_PROMPT =
+  'This turn is grounded — you are expected to answer from the knowledge digest already in ' +
+  'context and, when it is not enough, from a real query_knowledge_base call. If neither the ' +
+  'digest nor a tool call surfaces material that actually answers the question, say so plainly: ' +
+  '"I don\'t have enough grounded source material to answer this confidently" — then, if useful, ' +
+  'offer a clearly-labelled general-knowledge answer as a separate, explicitly unverified ' +
+  'option. Do not blend an unsourced guess into an answer that reads as grounded; assume nothing ' +
+  'and only state what you can actually back.';
+
 /** Upload limits: text attachments only for now; caps keep prompts inside the token budget. */
 export const MAX_ATTACHMENT_BYTES = 512 * 1024;
 export const MAX_ATTACHMENTS_PER_TURN = 5;
@@ -165,6 +181,15 @@ export const TURN_STOPPED_MESSAGE = 'Turn stopped by user';
  * Never in a pack's own `tools` array — it is conditional, not always-on.
  */
 export const GROUNDING_TOOL_ID = 'knowledgeBaseQuery';
+
+/**
+ * Grounding-confidence gate (Phase R) — a retrieval call whose best result has
+ * fewer than half its requested hits (rounded up) is tagged 'low' evidence;
+ * zero hits is tagged 'none'. Deliberately count-based, not score-based: a
+ * live Phase Q measurement showed TF-IDF and RRF-fused scores on incompatible
+ * scales (~0-2 vs ~0-0.03) — a shared numeric cutoff would be false precision.
+ */
+export const GROUNDING_MIN_HIT_RATIO = 0.5;
 
 /** SSE wire constants (the internal stream protocol to the GUI). */
 export const SSE_HEADERS = {

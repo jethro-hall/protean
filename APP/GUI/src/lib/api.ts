@@ -32,6 +32,10 @@ export interface TurnDone {
   timings: TurnTimings;
   usage: TokenUsage | null;
   costUsd: number | null;
+  /** Citation-honesty audit (Phase R) — phrases claiming a lookup with no tool call to back it. */
+  unverifiedCitationClaims?: string[];
+  /** Deterministic, code-computed grounding-confidence gate (Phase R). Absent = no concern. */
+  groundingConfidence?: 'low' | 'none';
 }
 
 export type ArtefactType = 'html' | 'markdown' | 'code' | 'text';
