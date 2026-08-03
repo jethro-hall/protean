@@ -1,0 +1,42 @@
+# Numbers Audit Report — RE WSL PEV RD Running Ledger RY2024
+
+Source: `docs/RE WSL PEV - RD Running Ledger RY2024.xlsx` → sheet **R&D Detailed (Prod) FY24**  
+Studio workflow: **Numbers Audit Report (GUI)** (`workflow.xlsx-numbers-audit.gui.v1`)  
+Clean CSV header: `ID#,DESCRIPTION,Quantity,Cost Per Unit.,CREDIT'S,Total Cost.`
+
+## Executive Summary
+- **Per-line arithmetic (Qty × Unit = Total): PASS** — 0 mismatches on all priced lines.
+- **Category subtotals vs their lines: PASS** — Smartmotion / VSETT / ZERO each reconcile.
+- **Banner Total PEV Spend: PASS vs category subtotals** — 308,851.17 + 120,640.26 + 34,664.68 = **464,156.11**.
+- **REVIEW — $8,000 of priced lines sit outside any category total** (and therefore outside the banner):
+  - **RE Battery Bags** — 40 × 50 = **2,000.00**
+  - **Blankets** — 2 × 3,000 = **6,000.00**
+  - Together **8,000.00** after “Total ZERO Scooters”; blank **Heat Sensor Gun** follows (no amount).
+- If those two lines belong in FY24 PEV R&D spend, the true total is **472,156.11**, not 464,156.11.
+
+## Control Totals (deterministic — authoritative)
+
+| Bucket | Lines | Sum(Total Cost) |
+|---|---:|---:|
+| Smartmotion bikes (to subtotal) | 27 | 308,851.17 |
+| VSETT scooters (to subtotal) | 11 | 120,640.26 |
+| ZERO scooters (to subtotal) | 6 | 34,664.68 |
+| **Banner / category subtotals** | — | **464,156.11** |
+| Orphans after last total | 2 | **8,000.00** |
+| All priced lines | 46 | 472,156.11 |
+| Qty×Unit mismatches | — | **0** |
+
+## Findings
+1. **REVIEW — Orphan spend $8,000.** Battery Bags + Blankets are priced correctly but not rolled into a category total or the banner. Decide: include in PEV spend (update banner) or exclude intentionally (document why).
+2. **PASS — Line arithmetic** on every priced row.
+3. **PASS — Category rollups** match their line sums.
+4. **INFO — Heat Sensor Gun** row has description only (blank qty/unit/total).
+5. **INFO — Empty ID#** on all rows (sheet layout).
+6. **INFO — Conversion note:** Excel phantom cells at extreme columns; exports must clamp width (~10 cols).
+
+## Studio GUI re-test
+1. https://studio.rideai.com.au/ → File → **Open Workflow…** → **Numbers Audit Report (GUI)**
+2. **Run** → paste `workflow_input` JSON with `csv` = CLEAN_HEADER UTF-8 CSV, `notes` mentioning banner 464156.11
+3. **Run workflow** → inspect report → **Save** if you change the graph
+
+LLM Numbers Auditor may still flag missing ID#/credits/outliers; treat those as secondary to the deterministic checks above.

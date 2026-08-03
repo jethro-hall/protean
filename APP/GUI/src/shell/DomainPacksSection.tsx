@@ -438,7 +438,7 @@ export function DomainPacksSection() {
     }
   };
 
-  const openNew = (draft?: PackDraftProposal) => {
+  const openNew = (draft?: PackDraftProposal, collectionId?: string) => {
     setLoadError(null);
     setImportWarnings(null);
     setIsNew(true);
@@ -446,7 +446,18 @@ export function DomainPacksSection() {
     setEditing(
       draft === undefined
         ? NEW_DOMAIN_PACK_TEMPLATE
-        : { ...NEW_DOMAIN_PACK_TEMPLATE, displayName: draft.displayName, systemPrompt: draft.systemPrompt, vocabulary: draft.vocabulary },
+        : {
+            ...NEW_DOMAIN_PACK_TEMPLATE,
+            displayName: draft.displayName,
+            systemPrompt: draft.systemPrompt,
+            vocabulary: draft.vocabulary,
+            // The collection you just built in "Build from documents" is the whole reason this
+            // draft exists -- attach it by default instead of leaving the human to hunt for the
+            // matching checkbox in the list below (a real, previously-manual gap).
+            ...(collectionId !== undefined
+              ? { knowledgeCollections: [collectionId], knowledgeCollectionWeights: { [collectionId]: 1 } }
+              : {}),
+          },
     );
   };
 
@@ -459,7 +470,7 @@ export function DomainPacksSection() {
   if (authoring) {
     return (
       <DocumentAuthoringFlow
-        onDraftPackReady={(draft) => openNew(draft)}
+        onDraftPackReady={(draft, collectionId) => openNew(draft, collectionId)}
         onDone={() => {
           setAuthoring(false);
           reload();

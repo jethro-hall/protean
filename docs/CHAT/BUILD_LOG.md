@@ -2740,3 +2740,386 @@ needed) with the import warnings shown as a banner above it.
 
 This pack is a real, useful deliverable (not a test fixture) and was left in place, unlike prior phases'
 throwaway test collections.
+
+## 2026-08-02 · Claude · Phase 4/5/6 · Live web search for the research-governance pack + creator-profile protocol
+
+Owner asked for two things: (1) give the `llm-research-governance` pack real internet search via MCP
+so its "trusted-source-only web research" mandate is actually executable, not aspirational; (2) make
+the engine give a detailed, evidence-backed account of its creator (Jeff Hall) when asked, referencing
+his real resume.
+
+**Web search.** No external search-provider MCP server (Brave/Tavily/etc.) is configured in this repo
+and none has credentials — standing one up would need an API key the owner hasn't supplied. The Claude
+Agent SDK ships its own first-class `WebSearch`/`WebFetch` tools (confirmed in the installed 0.3.220
+`sdk-tools.d.ts`), so this uses that native capability through the existing builtin-connector pattern
+rather than inventing a new one. Added a `webSearch` entry to `connectors.catalog.json`
+(`kind: "builtin"`, `sdkTools: ["WebSearch", "WebFetch"]`) and raised the `PROTEAN_AGENT_*` ceiling
+(`DEFAULT_AGENT_AVAILABLE_TOOLS`/`DEFAULT_AGENT_ALLOWED_TOOLS` in `config/defaults.ts`, plus
+`.env.example`) to include them. Per the registry's own no-silent-activation contract
+(`config/loadConnectors.ts`), raising the ceiling only makes the tools *available* — a pack still has
+to name `"webSearch"` in its own `tools` array to actually get them wired, so `finance`/`medical`/
+`generic` are unaffected.
+
+Checked in the actual `llm-research-governance` pack for the first time as
+`src/domains/llm-research-governance/pack.json` — generated with the existing deterministic
+`importDomainPackJson()` importer (not hand-transcribed) against
+`docs/LLM_Domain_Package/llm_research_governance_domain_pack.json`, with `tools: ["webSearch"]` added
+on top of the importer's output. Discovered in the process that this exact pack was already saved as a
+**live runtime overlay** (`APP/LLMBUILD_DATA/runtime-config/domain-packs.json`, from the prior BUILD_LOG
+entry's GUI import) with `tools: []` — and `loadDomainPackWithOverlay` lets an overlay entry shadow a
+checked-in pack by id. Without updating that overlay too, the new checked-in pack would have been
+silently shadowed and web search would never have actually activated. Patched the overlay's `tools` to
+match. Verified end-to-end with a real (non-mocked) call to `loadDomainPack` → `resolveToolset`: the
+pack's declared `webSearch` tool resolves to live `toolPolicy.availableTools = ['WebFetch', 'WebSearch']`.
+
+**Creator profile.** While fixing the overlay, found an unrelated, unfinished edit already sitting in
+that same runtime-config file: the **finance** pack's live systemPrompt (overlay only, not the checked-in
+file) had a stray sentence grafted on — "You are also a specialist in Australia Personal Tax, and for
+people named Jeff Hall you will do." (cuts off mid-thought, wrong pack, no supporting `tools`). Flagged
+it to the owner rather than silently touching their data; owner confirmed removal. Raised a second
+concern before writing any creator-bio content: a hardcoded, hype-toned "spiel" has no real evidence
+behind it (Law 6) and reads as flattery the Charter explicitly warns against (Law 2 also requires
+domain facts live in data, not ad-hoc prompt injection into an unrelated pack, which is exactly what
+the stray line above was). Owner supplied the actual source of truth —
+`docs/LLM_Domain_Package/Jeff Hall - Resume (2).pdf` — and confirmed: deliver it with real enthusiasm,
+but grounded in that document.
+
+Added `CREATOR_PROFILE_PROTOCOL_PROMPT` to `config/defaults.ts`, following the exact existing pattern of
+`ARTEFACT_PROTOCOL_PROMPT`/`NARRATION_PROTOCOL_PROMPT`/`CITATION_HONESTY_PROTOCOL_PROMPT`/
+`CLARIFICATION_PROTOCOL_PROMPT`: an engine-wide constant (not a domain fact) injected into every turn's
+dynamic system-prompt suffix in `watcher/assemble.ts`, so it fires regardless of which domain pack is
+active. Every fact in it (Extreme-E, the NSW Government Secure PaaS build, the PNG Digicel HP Helion
+platform, QLD Health's telehealth video system, the QLD "One-Stop Shop" SSO integration, the $15M+ QUU
+network-separation program, the Australian Embassy Jakarta build, the Thailand PEA cloud migration, the
+Touraust CIO role, TOGAF/CISSP/CCIE certifications, the Macquarie University degree) is transcribed
+directly from the resume — nothing embellished or invented. Deliberately left his personal mobile
+number out: this constant ships on every single turn across every domain and tenant, so a broadcast
+system prompt is the wrong channel for that PII even though it isn't secret — the prompt instructs the
+model to offer a direct introduction on request instead of stating the number.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` + `vitest run` clean on `APP/CODE` — 296/296 tests unchanged (new prompt
+  constant only extends the always-injected dynamic suffix; existing tests assert `.toContain(...)`,
+  not exact equality, so this was verified as non-breaking rather than assumed).
+- Live (non-mocked) script: confirmed `loadDomainPack('finance').systemPrompt` (the checked-in file) has
+  no Jeff Hall special-case; confirmed `CREATOR_PROFILE_PROTOCOL_PROMPT` contains the real facts above
+  and does NOT contain the phone number.
+- Live (non-mocked) script: confirmed `resolveToolset` wires `llm-research-governance`'s declared
+  `webSearch` tool id to real `WebSearch`/`WebFetch` availability.
+
+## 2026-08-03 · Claude · GUI · Chat timeline minimap rail
+
+Owner hit a real gap in the two features above during live testing: the actual `.env` (not just
+`.env.example`) explicitly pinned `PROTEAN_AGENT_AVAILABLE_TOOLS=Read,Grep,Glob`, overriding the new
+code default, and the already-running engine process predated every change in this session — so the
+research pack's turn failed with the connector-ceiling error even though the code was correct. Fixed
+`.env`, killed and restarted the engine (`npm start` in `APP/CODE`), and re-verified both prior fixes
+live against the real API before moving on (confirmed via `POST /api/turn`: the research pack now
+reports `WebSearch`/`WebFetch` available, and the generic pack answers "who created you?" correctly
+from `CREATOR_PROFILE_PROTOCOL_PROMPT`).
+
+Owner then asked for a "chat timeline" nav aid, pasting a working vanilla-JS/CSS prototype (dark
+Catppuccin-themed) of a minimap rail: one dot per user message, positioned along a vertical track by
+scroll position, active dot highlighted, hover tooltip preview, click-to-jump — and asked for it built
+into the real app "to fit the website, sleek business ready" rather than the prototype's own look.
+
+Read the prototype for the *mechanism* (position-by-scroll-offset, IntersectionObserver-style active
+tracking, hover tooltip, click-to-scroll) but rebuilt it from scratch against Protean's own design
+system rather than porting its markup/CSS: new `APP/GUI/src/components/ChatTimeline.tsx`, wired into
+`MessageList.tsx` (added `data-chat-msg-id` to each bubble for lookup, a `scrollRef` on `.chat-scroll`),
+styled entirely with existing Layer 2/3 tokens in `components.css` (`--line`, `--muted`, `--accent-blue`,
+`--blue-wash`, `--ink`, `--shadow-tip`, the existing spacing/radius scale) — zero new hex colours (Law 2).
+The hover tooltip deliberately reuses the exact visual language of the existing `.info .pop` (i)-hint
+tooltip (dark `--ink` background, white text, arrow, `--shadow-tip`) so it reads as the same design
+system, not a bolted-on widget. Added `--z-timeline: 22` to the documented z-index ladder in
+`tokens.css` (between rail/preview and topbar).
+
+Departed from the prototype's approach in one deliberate way: position/active-tracking uses direct
+`getBoundingClientRect()`/`scrollTop` measurement and a scroll-listener (rAF-throttled) rather than
+`IntersectionObserver`, because the prototype assumed `window` scrolling — Protean's chat lives in its
+own `overflow:auto` `.chat-scroll` container, and `IntersectionObserver`'s `root` option is more
+fragile against a container whose content height changes continuously during token streaming than a
+direct scrollTop comparison. A `ResizeObserver` on both the scroll container and the thread content
+recomputes node positions as assistant replies stream in and grow the page. The rail is intentionally
+absent (not just visually hidden) below 2 user messages, when the thread isn't tall enough to actually
+scroll, and below the same 1180px breakpoint the app already uses to collapse the conversations rail —
+chosen deliberately to match, since that's exactly the point the app already starts giving back
+horizontal space (UX_STANDARDS "no clutter": a nav aid for scrolling shouldn't exist when there's
+nothing to scroll, or no room for it).
+
+**Proof:**
+- `tsc --noEmit` + `eslint` clean on `APP/GUI`.
+- Real browser verification (Playwright against the actual running Vite dev server + engine, headless
+  Chromium, not a static render): sent 5 real messages through the live UI, confirmed 5 timeline nodes
+  render at the right scroll-proportional positions; hovering a middle node shows the dark tooltip with
+  the correct truncated message text, fully on-screen, matching the existing tooltip style; scrolling
+  the thread to top correctly moved the active (filled-blue) node from message 4 to message 2 — i.e.
+  live scroll-tracking, not a static snapshot; clicking the first node smooth-scrolled the thread back
+  to the top message (`scrollTop` landed at the thread's own top padding, confirming exact alignment);
+  resizing to 1000px width made the rail disappear cleanly (`display: none`, confirmed via computed
+  style) with no layout breakage; checked bounding-box overlap against both the composer and the open
+  preview pane programmatically — no overlap with the preview pane, and the composer overlap found (a
+  few px at one specific width/pane-open combination) is inside composer-wrap's own empty right-padding
+  gutter, confirmed by screenshot to not visually touch the composer's box or its send button.
+
+## 2026-08-03 · Claude · GUI + engine · Saved conversations, rail search, timeline confirmation
+
+Owner asked for three things: confirm the chat timeline (previous entry) keeps building new nodes as a
+conversation grows; make chats actually save; and list every saved chat in the left rail with a search
+box supporting dimensional comparisons (`>`, `<`, `=`, `>=`, `<=`).
+
+**Investigated before building anything.** The GUI's conversation list was 100% in-memory (`useReducer`
+state, lost on reload) — but the engine already had two real, unused-by-the-GUI persistence layers:
+`watcher/sessionStore.ts` (Phase 2, raw role+content JSONL per session, survives restarts) and
+`watcher/record.ts` (Law 6, full per-turn lineage — cost, tokens, model, domainId, timestamps —
+day-partitioned JSONL under `LLMBUILD_DATA/prompt-history`). Chats already "saved" server-side; nothing
+surfaced it. Confirmed via `useTurn.ts` that a GUI conversation's client-generated `id` IS the
+`sessionId` sent with every turn — meaning a session fetched from either store slots back into
+`Conversation.id` with zero backend changes needed for continuity.
+
+Built purely as a read surface over that existing evidence (Law 4/6 — nothing new tracked):
+- New `watcher/sessionSummaries.ts`: groups lineage rows by `sessionId`, derives `title` (first turn's
+  raw input, truncated), `domainId`, `createdAt`/`updatedAt`, `turnCount`, and summed `totalCostUsd`/
+  token totals. Pure function, 6 new tests (`test/sessionSummaries.test.ts`).
+- Two new routes: `GET /api/sessions` (the list) and `GET /api/sessions/:id` (full history via the
+  already-existing `SessionStore.history()` — no new storage code). 2 new `server.test.ts` cases,
+  including a real end-to-end one: post a real turn, then list it and fetch it back.
+- GUI: `lib/api.ts` gained `fetchSessions`/`fetchSessionMessages`; `appState.ts` gained
+  `savedSessions`, an optional `Conversation.domainId` (known for a reopened saved chat, since the
+  global domain picker is otherwise a single shared setting, not per-conversation — a pre-existing
+  simplification, not fixed here), and `setSavedSessions`/`openSavedSession` actions. `useTurn.ts`
+  refetches the list after every completed turn so the rail updates live, not just on reload.
+- New `lib/sessionQuery.ts`: the dimensional search language the owner asked for — `cost>0.05`,
+  `tokens<2000`, `messages>=4`, `domain=finance`/`domain!=finance`, plain words ANDed as substring
+  title search, `cost > 0.05` (spaced) parsing identically to `cost>0.05`. Pure deterministic parsing
+  (Law 4 — not an LLM's job), verified with 15 hand-checked cases via a scratch script before wiring in.
+- `ConversationsRail.tsx` rewritten: merges currently-open conversations (their live totals computed
+  from `message.stats` via the existing `sumConversationUsage` helper — reused, not duplicated) with
+  every saved-but-not-open session from the server, de-duplicated by id, filtered live by the search
+  box. Clicking an open row switches to it (unchanged); clicking a saved-only row fetches its history
+  and hydrates a real `Conversation` via `openSavedSession` — replayed as plain-text bubbles (no
+  worklog/segments, since those were never persisted; `MessageList.tsx`'s existing `segments ??
+  []` fallback already renders that honestly, no new code needed). Added a `conversationSearch`
+  field hint (UX_STANDARDS §2) explaining the operator syntax.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` + `vitest run` clean on `APP/CODE` (304/304 — also fixed a pre-existing
+  `config.test.ts` assertion that still expected the old `Read,Grep,Glob` tool ceiling, stale since the
+  `.env` fix earlier this session added `WebSearch`/`WebFetch` to the real default).
+- `tsc --noEmit` + `eslint` + production `vite build` clean on `APP/GUI`.
+- Real browser verification (Playwright, headless Chromium, against the actual running engine with its
+  **99 real pre-existing saved conversations** from this project's own history — not fixtures): rail
+  shows all 100 rows (99 saved + the fresh empty one); `cost>1` correctly surfaces exactly the two
+  sessions over $1 ($1.33, $1.32) out of 99; `domain=llm-research-governance` correctly isolates only
+  that domain's tag; the combined query `cost>1 domain=llm-research-governance` correctly ANDs down to
+  1; the (i) hint renders full WHAT/WHY/E.G. text on screen (redirected its popover `direction="down"`
+  after the first screenshot showed it clipped at the very top of the viewport); clicking a saved row
+  reopens it with its real historical messages rendered; the chat timeline from the previous entry
+  correctly grows a 6th node the moment a new message is sent into a just-reopened saved conversation,
+  and the rail's own "12 msg · $0.01" total updates live in the same screenshot — confirming the
+  timeline, the new persistence layer, and the pre-existing streaming state all compose correctly on a
+  real turn, not just in isolation.
+- Cleaned up own scratch data afterward: deleted the 3 session files this verification pass created
+  under `LLMBUILD_DATA/sessions/`, and surgically removed only their corresponding rows from today's
+  `prompt-history`/`token-telemetry` day-partitions (verified line-by-line against `sessionId` first) —
+  the owner's own real conversations from earlier today (the GP-doctor / medical-professional research
+  sessions, one of which hit the `max_turns` ceiling) were confirmed untouched before and after.
+
+**Not done (explicitly out of scope for this pass):** the domain picker stays a single global setting,
+not per-conversation — switching to a reopened saved chat shows its real historical domain tag in the
+rail, but does not switch the active picker, so the next NEW message still uses whatever the picker is
+set to. Flagged in code, not fixed, since it is a pre-existing behaviour this task didn't touch the root
+cause of.
+
+## 2026-08-03 · Claude · GUI · Fixed the domain-picker desync flagged above — it was a real, live bug
+
+Owner pasted a real model response from the research-governance pack claiming it only had Glob/Grep/Read
+(no web search), asking why. A direct live API call against `llm-research-governance` right then returned
+the correct answer (WebSearch/WebFetch available) — so the engine itself was fine. That pointed straight
+at the exact gap flagged (but explicitly left unfixed) in the immediately preceding entry: reopening a
+saved conversation restores its real historical `domainId` for display, but `useSendTurn` always sends
+`state.settings.domainId` — the single GLOBAL picker — with every turn, never the reopened conversation's
+own domain. So typing a follow-up into a reopened research-governance chat silently ran the turn under
+whatever domain the picker happened to be on (e.g. `generic`, no `webSearch` tool at all), while the
+model still answered in the old conversation's voice because the prior turns' history was still right
+there in context — exactly explaining a response that talks like the research pack but has the wrong
+tools. Ruled out the exact-answer cache as a cause first (`computeCacheKey` includes `toolsetVersion`,
+which changes whenever the resolved tool list changes, so a stale pre-fix cache hit was never possible;
+also moot since the engine process restarted since then anyway, clearing the in-memory cache).
+
+Fix: `appState.ts`'s `selectConversation` and `openSavedSession` reducer cases now sync
+`settings.domainId` to the target conversation's own `domainId` whenever it's known (a brand-new
+conversation has none yet, so the current picker stands untouched for that case — unchanged behaviour).
+One source of truth (`settings.domainId`) stays the single thing `useSendTurn` reads, rather than adding
+a second competing domain field to reconcile.
+
+**Proof:** Playwright against the real running app: captured the actual outgoing `POST /api/turn` body
+before and after the fix. Before: opening a saved `llm-research-governance` conversation left the
+composer's domain label on `generic` and the intercepted request body's `domainId` was wrong. After:
+opening the same saved conversation flips the topbar/composer label to
+`llm-research-governance` immediately, and the next real turn's captured request body carries
+`domainId: "llm-research-governance"` — the model correctly answered "I have WebSearch... and
+WebFetch... available right now."
+
+Cleaned up afterward: this verification pass appended one real test turn onto the owner's own genuine
+saved conversation ("Find relevant literature for the creating of a Medical Professional General
+Practitioner…", b7d8929a…) and created one throwaway session. Removed exactly those rows from the
+session store and today's prompt-history/token-telemetry partitions (matched by sessionId, spot-checked
+line by line first) and confirmed via `GET /api/sessions` that both real conversations
+(`b7d8929a…` turnCount 1/$0.86, `79432d87…` turnCount 3/$1.33) are back to their exact original numbers.
+
+## 2026-08-03 · Claude · GUI + engine · URL-sourced knowledge ingestion (Plan Mode)
+
+Owner corrected an earlier misread: pasted model text about "Most Technical Legal Agent" / "COURT
+DOCUMENTS in COURT FORMAT" wasn't a request to generate legal documents — the actual ask is that the
+`llm-research-governance` pack (and future domain packs like a GP-training or QLD-lawyer pack) should be
+able to go find the *real source documents* a human studying that profession would use — legislation,
+curricula, regulator standards — pull them in, and have them chunked/embedded into a proper knowledge
+collection, so the pack answers from real ingested material rather than re-searching per question.
+Entered Plan Mode given the size (touches ingestion, storage, domain-pack wiring, GUI) — plan approved,
+full record at the plan file referenced in that turn.
+
+**Investigated before building anything** (two parallel Explore passes): the grounded-knowledge pipeline
+(Phase 6/M–S) already existed and worked end-to-end — PDF upload → deterministic extraction/chunking →
+LLM-proposed headings (human-reviewed) → LLM fidelity check against raw pages → save into a pgvector +
+flat-file-JSON collection. The one real gap: ingestion was 100% human-driven, one file at a time, no
+URL-fetch path anywhere. Also checked the SDK's own `WebFetchOutput` type: its `result` field is an
+LLM-*processed* answer to a prompt, not raw page text — using it to acquire text for ingestion would
+give the pipeline's own fidelity-check nothing genuine to compare against, and would violate Law 4
+(deterministic before generative) for something code can already do. So ingestion fetching needed to be
+separate, deterministic, server-side code — never the agent's own `WebFetch`/`WebSearch` tools. Owner
+confirmed via two clarifying questions: (1) reuse the research pack's own chat citations as the
+discovery mechanism rather than building a second dedicated "discover sources" tool/endpoint — the
+research pack already produces exactly the right `{url, title, trust_tier}` shape via real `WebSearch`
+calls; (2) build PDF **and** HTML extraction now, not phased.
+
+**Built:**
+- `src/tools/ingestion/urlExtract.ts` (new): `extractFromUrl(url)` — SSRF guard first
+  (`isPubliclyRoutableUrl`, rejects non-http(s) schemes and any hostname/redirect-target that resolves
+  to a loopback/private/link-local/cloud-metadata address; a new user-supplied-URL-triggers-a-fetch
+  surface needs this, not optional), a byte cap + timeout (mirrors the existing `MAX_PDF_BYTES`
+  pattern), then branches on content-type: PDF bytes go straight into the **existing, unchanged**
+  `extractPdfText()`; HTML goes through a new deliberately-simple deterministic `htmlToText()` (strip
+  script/style/head/comments, turn block-closes into newlines, decode entities) — not a full
+  "readability" algorithm, since the existing `verifyChunkFidelity` LLM check is exactly the safety net
+  for when that produces messy output on a real-world page, the same role `pdfExtract.ts`'s own
+  scanned-PDF rejection already plays.
+- `POST /api/settings/knowledge/ingest-url` (new route, `server.ts`): identical response shape to the
+  existing `/ingest`, so every downstream route (propose/verify-fidelity/save-collection) and the GUI's
+  review state work completely unchanged regardless of which ingestion route produced the draft chunks.
+- `DocumentAuthoringFlow.tsx`: added a "paste URL(s)" mode alongside file upload, restructured to
+  **accumulate** multiple sources (file and/or URL) into one collection draft instead of one-file-only,
+  with a completeness check per source (not one report clobbering the last — a fidelity check is
+  inherently per-source, comparing that source's own chunks against its own raw pages).
+- Closed a real pre-existing gap found during exploration: saving a collection and creating the pack
+  that should use it were two disconnected manual steps (`onDraftPackReady` never carried the collection
+  id through to the new pack's `knowledgeCollections`). Now it does — `DomainPacksSection.tsx`'s
+  `openNew` seeds `knowledgeCollections`/`knowledgeCollectionWeights` from the collection just built.
+
+**Proof:**
+- `tsc --noEmit` + `eslint` + `vitest run` clean on `APP/CODE` — 332/332 (23 new `urlExtract.test.ts`
+  cases incl. SSRF guard edge cases via a duck-typed redirect mock so no real network/DNS is needed in
+  tests, and 5 new `server.test.ts` cases for the real route using the existing
+  outbound-fetch-interception pattern already established for the custom-provider test).
+- `tsc --noEmit` + `eslint` + `vite build` clean on `APP/GUI`.
+- **Live, real-world proof, no mocks**: asked the `llm-research-governance` pack (chat, real WebSearch)
+  to find one official RACGP curriculum URL; it returned a real URL, independently confirmed live with
+  `curl -I` (200 OK); fed that exact URL through the new `/ingest-url` route — correctly auto-derived the
+  page's real title, extracted 23 chunks; saved as a collection (embeddings generated automatically via
+  the existing Voyage/pgvector integration since credentials are configured in this environment);
+  attached it to a new domain pack; sent a real grounded turn asking a specific fact from the page (which
+  curriculum edition, which guideline documents) — the model answered correctly from the real ingested
+  content, citing the actual source. Cleaned up all live-proof artifacts afterward (pack, collection,
+  pgvector rows, session/lineage rows) and confirmed the owner's real data was untouched throughout.
+
+## 2026-08-03 · Claude · GUI · Settings modal polish — root-caused, not patched
+
+Owner sent a screenshot of the Settings > Domain Packs tab, frustrated that after repeated "look and
+feel" discussions it still wasn't "polished and customer ready" — visible horizontal scrollbar across
+the whole modal. Root-caused rather than papering over it:
+
+1. **The scrollbar**: `.settings-modal-body` had `overflow-y: auto` with no `overflow-x` set — per the
+   CSS spec, one axis set to a non-`visible` value forces the other axis to compute as `auto` too, so
+   ANY child content wider than the modal (here: three action buttons in one non-wrapping flex row)
+   silently produced a horizontal scrollbar on the *entire modal body*, not just that row. Fixed at the
+   root: added `overflow-x: hidden` to `.settings-modal-body` (a deliberate policy, not a workaround —
+   nothing should ever need horizontal scroll inside this modal) and made `.protean-settings-row` wrap
+   by default (removed the now-redundant opt-in `.protean-settings-row-wrap` modifier class and its two
+   usages) so multi-button rows reflow instead of overflowing in the first place.
+
+2. **A second, more serious pre-existing bug found while verifying the first fix**: `InfoHint`'s tooltip
+   popover has always centered itself on its icon and popped upward with a fixed `direction` prop — for
+   an icon near the bottom or an edge of any clipping container (not just this modal), the tooltip's own
+   top or side runs past the container's boundary and gets silently clipped mid-sentence, with no
+   indication anything is missing. Confirmed via direct DOM measurement (not guessing): one hint's real
+   content is 470px tall against a ~350px-tall panel — clipped by roughly 70px regardless of direction.
+   Rebuilt `InfoHint` to measure itself against its *actual nearest clipping/scrolling ancestor* (walks
+   up computed `overflow` values — the viewport alone isn't the right bound inside a modal that's
+   smaller than the viewport) on every open: flips vertically toward whichever side has more room,
+   shifts horizontally to stay clear of both edges, and caps its own height to whatever room the chosen
+   side actually has (`overflow-y: auto` inside the tooltip itself) so genuinely long content scrolls
+   internally instead of being invisibly cut off outside. This fixes every tooltip in the app at once,
+   not just the one in the screenshot — the owner's explicit ask ("template it all").
+
+**Proof:** Playwright sweep across all 5 Settings tabs confirmed zero horizontal overflow (previously
+just the Domain Packs tab). Direct DOM measurement swept every `(i)` icon across all 5 tabs (21 total)
+plus the 7 on the main chat page (composer, message stats, ChatTimeline search) — zero clipped against
+their real container bounds, before vs. after screenshots confirm the previously-half-missing tooltip
+now shows its full WHAT/WHY text with the overflow portion reachable by a small internal scroll rather
+than silently missing. `tsc --noEmit` + `eslint` + `vite build` clean.
+
+## 2026-08-03 · Claude · GUI · Narrow-window layout completely broken — real architectural bug, not a lint
+
+Owner sent a screenshot of a genuinely broken layout on a narrow browser window (Windows-snapped
+alongside File Explorer, ~500-640px wide, a normal real-world usage pattern, not a phone): topbar text
+wrapping mid-pill, composer squeezed into a ~50px sliver, Live Preview overlapping everything. This was
+NOT the settings-modal tooltip issue from the entries above — reproduced exactly via Playwright at the
+same width and root-caused properly.
+
+**Root cause, in three layered parts, found via direct DOM/cascade inspection (not guessing):**
+
+1. **Two separate CSS files silently fighting over the same selectors.** `components.css`'s "C15
+   RESPONSIVE CONTRACT" section is explicitly commented "Breakpoints are the ONLY place layout tokens
+   are overridden" — but `app.css` (loaded *after* components.css per `theme/index.css`'s import order)
+   had its own leftover `@media (max-width: 1180px) { .app { grid-template-columns: 0 1fr 0; } }` and an
+   unconditional `.preview { position: relative; }`. Same specificity, later in the concatenated
+   stylesheet always wins regardless of which media query is "more specific" narratively — so at any
+   width ≤1180px, app.css's hardcoded rules silently overrode components.css's real responsive
+   contract, including the entire ≤760px single-column mobile layout and the fixed-position mobile
+   drawer for the preview pane. Confirmed via `document.styleSheets` traversal showing both rules
+   present and matching, in that exact losing order. Fixed by deleting the duplicate/conflicting
+   declarations from app.css and scoping its `.preview{position:relative}` to `@media (min-width:761px)`
+   so it stops fighting the mobile drawer rule below that.
+2. **Grid items default to `min-width:auto`.** Even after #1, `.topbar` (spanning the full grid width)
+   and `.chat` had no `min-width:0`, so their own content's natural (min-content) width could force the
+   *entire* `.app` grid wider than the viewport on a narrow window — one bar's content breaking the
+   whole page, not just itself. Added `min-width: 0` to `.chat`, `.rail`, `.preview`, `.topbar`, plus
+   `overflow-x: auto` on `.topbar` as the honest fallback if content still doesn't fit at extreme widths
+   (scrolls the bar itself, never silently hides a button — same principle as the settings-modal fix
+   above).
+3. **Un-constrained flex children wrapped their own text instead of the container handling it.**
+   `.pill`/`.brand`/`.telemetry` had no `white-space: nowrap`, so once the topbar could actually shrink
+   (from fixing #2), the domain pill's label wrapped mid-phrase ("Generic corporate assistant" broken
+   across two lines) rather than the bar scrolling as a whole. Added `.topbar > * { flex: none;
+   white-space: nowrap; }` (only `.spacer` stays flexible, which has no content to protect).
+
+**A second-order bug from fix #3, caught before it shipped**: `white-space` is inherited, and the
+Settings modal (`.settings-modal-scrim`) is DOM-nested inside `.protean-settings` — a direct child of
+`.topbar` — even though it visually escapes via `position:fixed`. Inheritance follows the DOM tree, not
+layout, so the new nowrap rule was silently propagating into every banner/hint/label in the *entire*
+modal, and into every `(i)` tooltip's own text (one tooltip's `.v` span measured 1977px wide, unwrapped,
+invisible until hover but still real overflowing layout). Reset `white-space: normal` explicitly on
+`.settings-modal-scrim` and on `.info .pop` so both subtrees wrap normally regardless of ancestor
+context — a general lesson applied, not a one-off patch: anything that deliberately sets `white-space`
+(or any other inherited property) on a broad selector needs an explicit reset at every DOM-nested
+subtree that shouldn't inherit it, checked by walking the actual DOM tree, not assumed from visual
+layout.
+
+**Proof:** Playwright sweep across 400/480/500/600/700/759/760/761/900/1000/1180/1181/1440px — `.chat`
+and `.composer` width now track the viewport exactly at every mobile/tablet width; `.preview` is
+correctly `fixed` (off-canvas drawer) below 760px and `relative` (grid column) above it, matching the
+documented contract for the first time. Re-ran the full tooltip-clipping sweep from the entry above
+(21 settings icons + 7 main-page icons) after these changes — still zero clipped. Screenshot at a
+realistic 640px "Windows-snapped" width (the owner's actual scenario) and at 1440px (the original
+reported screenshot's exact scenario) both confirmed clean by direct visual comparison, not just the
+automated check. `tsc --noEmit` + `eslint` + `vite build` clean.

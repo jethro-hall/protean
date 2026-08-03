@@ -34,7 +34,20 @@
   padding: 0 var(--s-7); background: var(--surface);
   border-bottom: 1px solid var(--line); z-index: var(--z-top);
   box-shadow: var(--shadow-sm);
+  /* Grid items default to min-width:auto (their content's natural size), which lets a wide
+     topbar (brand + telemetry + domain pill + actions, none of it wrapping) force the WHOLE
+     .app grid wider than the viewport on a narrow window — the entire page breaks, not just
+     this bar. min-width:0 lets the grid track actually shrink to the viewport; overflow-x:auto
+     is the honest fallback if the content genuinely still doesn't fit at extreme widths (scrolls
+     the bar itself, never silently hides a button). Found live 2026-08-03 at ~500px width. */
+  min-width: 0; overflow-x: auto; overflow-y: hidden;
 }
+/* Everything in the topbar EXCEPT .spacer keeps its natural single-line width -- a squeezed
+   flex child with no explicit width wraps its own text instead of shrinking cleanly, which is
+   how "Generic corporate assistant" ended up broken across two lines on a narrow window. Once
+   .spacer has nowhere left to give, .topbar's own overflow-x:auto takes over (a contained
+   horizontal scroll of the bar, never a page-wide break) rather than mid-word wrapping. */
+.topbar > * { flex: none; white-space: nowrap; }
 .topbar .spacer { flex: 1; }
 .brand { display: flex; align-items: center; gap: var(--s-3); font-weight: var(--fw-bold); letter-spacing: var(--track-tight); }
 .brand small { color: var(--muted); font-weight: var(--fw-med); }
@@ -71,6 +84,13 @@
 .pill:hover { border-color: var(--accent-blue-2); }
 .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-blue); }
 .pill.domain .dot { background: var(--accent-orange); }
+/* Domain pack display names are free text (LLM-authored or hand-typed on import, Law 1 --
+   nothing about their length is constrained at the data layer) and .topbar's inherited
+   white-space:nowrap (added to stop mid-text wrapping) means an unconstrained label like
+   "University-Level Professional Documentation Research Governance" just pushes the whole
+   topbar wider instead of wrapping, forcing a horizontal scrollbar. Cap and ellipsize the
+   label itself; the full name is still available via the span's title attribute on hover. */
+.pill-domain-label { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 
 .gear {
   width: 32px; height: 32px; border-radius: var(--s-3); border: 1px solid var(--line);
@@ -100,7 +120,7 @@
    ----------------------------------------------------------------------------- */
 .rail {
   grid-area: rail; background: var(--surface); border-right: 1px solid var(--line);
-  display: flex; flex-direction: column; min-height: 0; z-index: var(--z-panel);
+  display: flex; flex-direction: column; min-height: 0; min-width: 0; z-index: var(--z-panel);
   box-shadow: 1px 0 0 var(--c-ink-a05), 2px 0 8px var(--c-ink-a05);
 }
 .rail-head { padding: var(--s-6) var(--s-6) var(--s-4); }
@@ -112,21 +132,57 @@
 }
 .newchat:hover { filter: brightness(1.05); }
 .newchat:active { transform: translateY(1px); }
+.rail-search {
+  display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-4);
+  padding: 7px var(--s-4); border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--bg); transition: border-color var(--step), box-shadow var(--step);
+}
+.rail-search:focus-within { border-color: var(--accent-blue-2); box-shadow: 0 0 0 3px var(--blue-wash); }
+.rail-search-ico { color: var(--muted); font-size: var(--fz-13); flex: none; }
+.rail-search input {
+  flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink);
+  font-size: var(--fz-13); font-family: inherit;
+  /* The example placeholder ("Search…  cost>0.05  domain=finance") and real dimensional
+     queries both run longer than the rail is wide -- without this, overflow just hard-clips
+     mid-character with no ellipsis, reading as a rendering glitch rather than "there's more
+     text here". */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rail-search input:focus { outline: none; }
+.rail-search input::placeholder { color: var(--muted); }
+.rail-search input::-webkit-search-cancel-button { cursor: pointer; }
+.rail-open-error { margin: 0 var(--s-6) var(--s-3); }
+.rail-empty { padding: var(--s-5) var(--s-4); font-size: var(--fz-12); color: var(--muted); }
+.conv.saved { color: var(--ink-soft); }
+.conv .meta .cost { font-family: var(--mono); font-size: var(--fz-10); color: var(--muted); margin-left: auto; }
 .rail-label {
   font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
   font-weight: var(--fw-semi); padding: var(--s-3) var(--s-3) var(--s-2);
   display: flex; align-items: center; justify-content: space-between;
 }
-.conv-list { overflow-y: auto; flex: 1; min-height: 0; padding: 0 var(--s-4) var(--s-5); }
+/* overflow-y:auto with no explicit overflow-x computes the other axis to auto too (CSS
+   Overflow spec) -- a .meta row (domain tag + count + cost, non-wrapping flex children with
+   their own content-based minimum widths) that's slightly wider than the rail was enough to
+   put a horizontal scrollbar on the whole conversation list, instead of just clipping. */
+.conv-list { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; padding: 0 var(--s-4) var(--s-5); }
 .conv {
-  display: flex; flex-direction: column; gap: 2px; padding: 9px var(--s-4); border-radius: var(--r-sm);
-  color: var(--ink); cursor: pointer; border: 1px solid transparent;
+  /* <button> keeps fit-content/shrink-to-fit sizing for its own outer box even once display
+     is overridden to flex (a long-standing browser quirk for form controls, unlike <div>) --
+     without an explicit width, each row sized itself to its own title's content width
+     (measured: 134px-536px per row, ignoring the 263px rail) instead of filling the rail,
+     so .title's text-overflow:ellipsis below had no constrained box to ever clip against.
+     Forcing width:100% also surfaces <button>'s UA-default text-align:center, invisible
+     before since the box exactly matched its own content width -- reset to left explicitly. */
+  display: flex; flex-direction: column; width: 100%; gap: 2px; padding: 9px var(--s-4); border-radius: var(--r-sm);
+  color: var(--ink); cursor: pointer; border: 1px solid transparent; text-align: left;
   transition: background var(--step), border-color var(--step);
 }
 .conv:hover { background: var(--blue-wash-2); }
 .conv.active { background: var(--blue-wash); border-color: var(--accent-blue-2); }
-.conv .title { font-size: var(--fz-13); font-weight: var(--fw-med); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.conv .meta { font-size: var(--fz-11); color: var(--muted); display: flex; align-items: center; gap: var(--s-2); }
+.conv .title { width: 100%; font-size: var(--fz-13); font-weight: var(--fw-med); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv .meta { font-size: var(--fz-11); color: var(--muted); display: flex; align-items: center; gap: var(--s-2); flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+.conv .meta .tag { flex: none; white-space: nowrap; }
+.conv .meta > span:not(.tag) { flex: none; white-space: nowrap; }
 .tag { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; padding: 1px var(--s-2); border-radius: var(--r-pill); background: var(--blue-wash); color: var(--accent-blue); font-weight: var(--fw-semi); }
 .tag.generic { background: var(--inert); color: var(--muted); }
 .rail-foot { border-top: 1px solid var(--line); padding: var(--s-4) var(--s-6); display: flex; align-items: center; gap: var(--s-4); }
@@ -147,7 +203,7 @@
    WHAT: the centre conversation column. Thread is capped at --read-w for a
          comfortable reading measure.
    ----------------------------------------------------------------------------- */
-.chat { grid-area: chat; display: flex; flex-direction: column; min-height: 0; background: var(--bg); position: relative; }
+.chat { grid-area: chat; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); position: relative; }
 .chat-scroll { flex: 1; overflow-y: auto; min-height: 0; padding: var(--s-10) 0 var(--s-3); scroll-behavior: smooth; }
 .thread { max-width: var(--read-w); margin: 0 auto; padding: 0 var(--s-10); display: flex; flex-direction: column; gap: var(--s-9); }
 
@@ -162,6 +218,24 @@
 .bubble .body p:last-child { margin-bottom: 0; }
 .bubble .body strong { font-weight: var(--fw-bold); }
 .msg.user .body { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 11px var(--s-6); box-shadow: var(--shadow-sm); }
+
+/* Chat timeline — a thin minimap rail, one node per user turn, for jumping around a
+   long conversation. Positioned against .chat (not .chat-scroll), so it stays put
+   while the thread scrolls underneath it. Hidden entirely unless there's enough
+   history to actually scroll (ChatTimeline.tsx) and on narrow viewports — a nav aid
+   earns its place only when the thread is long enough to need one (no clutter). */
+.chat-timeline { position: absolute; top: var(--s-10); bottom: var(--s-10); right: var(--s-6); width: 20px; z-index: var(--z-timeline); pointer-events: none; }
+.tl-track { position: relative; width: 2px; height: 100%; margin: 0 auto; background: var(--line); border-radius: var(--r-pill); }
+.tl-node { position: absolute; left: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; padding: 0; border-radius: 50%; background: var(--surface); border: 2px solid var(--muted); cursor: pointer; pointer-events: auto; transition: background var(--step), border-color var(--step), transform var(--step); }
+.tl-node:hover, .tl-node:focus-visible { border-color: var(--accent-blue); transform: scale(1.25); outline: none; }
+.tl-node.active { background: var(--accent-blue); border-color: var(--accent-blue); box-shadow: 0 0 0 4px var(--blue-wash); }
+.tl-tip { position: absolute; right: calc(100% + var(--s-5)); top: 50%; transform: translateY(-50%) translateX(4px); width: max-content; max-width: 240px; background: var(--ink); color: var(--c-white); font-size: 11.5px; font-weight: var(--fw-reg); line-height: 1.4; padding: 8px 11px; border-radius: var(--r-sm); box-shadow: var(--shadow-tip); opacity: 0; pointer-events: none; transition: opacity var(--step), transform var(--step); }
+.tl-node:hover .tl-tip, .tl-node:focus-visible .tl-tip { opacity: 1; transform: translateY(-50%) translateX(0); }
+.tl-tip::after { content: ""; position: absolute; left: 100%; top: 50%; transform: translateY(-50%); border: 5px solid transparent; border-left-color: var(--ink); }
+
+@media (max-width: 1180px) {
+  .chat-timeline { display: none; }
+}
 
 /* C5a · epistemic labels — evidence discipline made visible. Attach to any claim. */
 .ep { font-family: var(--mono); font-size: var(--fz-10); font-weight: var(--fw-semi); padding: 1px 5px; border-radius: 4px; vertical-align: middle; letter-spacing: .02em; }
@@ -401,9 +475,13 @@ table.fin tr.total td.n { color: var(--ok); }
    ----------------------------------------------------------------------------- */
 .info { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--accent-blue-2); color: var(--accent-blue); background: var(--surface); font-size: 9.5px; font-weight: var(--fw-heavy); font-family: var(--mono); cursor: help; vertical-align: middle; margin-left: 5px; transition: background var(--step), color var(--step), transform var(--step); position: relative; }
 .info:hover, .info:focus-visible, .info.open { background: var(--accent-blue); color: var(--c-white); transform: translateY(-1px); outline: none; }
-.info .pop { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%) translateY(4px); width: 248px; background: var(--ink); color: var(--c-white); border-radius: var(--r-sm); padding: 11px var(--s-5); text-align: left; box-shadow: var(--shadow-tip); opacity: 0; pointer-events: none; transition: opacity var(--step), transform var(--step); z-index: var(--z-tip); font-family: var(--font); font-weight: var(--fw-reg); }
-.info:hover .pop, .info:focus-visible .pop, .info.open .pop { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
-.info .pop::after { content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--ink); }
+/* white-space:normal is explicit, not incidental -- .info can sit inside an ancestor that sets
+   nowrap (e.g. .topbar > *, so pills/labels never wrap), and white-space inherits by default;
+   without resetting it here the tooltip's own text would inherit nowrap and render at its full
+   unwrapped width (invisible until hover, since opacity is 0, but still real overflowing layout). */
+.info .pop { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(calc(-50% + var(--pop-shift, 0px))) translateY(4px); width: 248px; max-height: min(var(--pop-max-height, 320px), 60vh); overflow-y: auto; background: var(--ink); color: var(--c-white); border-radius: var(--r-sm); padding: 11px var(--s-5); text-align: left; white-space: normal; box-shadow: var(--shadow-tip); opacity: 0; pointer-events: none; transition: opacity var(--step), transform var(--step); z-index: var(--z-tip); font-family: var(--font); font-weight: var(--fw-reg); }
+.info:hover .pop, .info:focus-visible .pop, .info.open .pop { opacity: 1; transform: translateX(calc(-50% + var(--pop-shift, 0px))) translateY(0); pointer-events: auto; }
+.info .pop::after { content: ""; position: absolute; top: 100%; left: calc(50% - var(--pop-shift, 0px)); transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--ink); }
 .info .pop .row { display: flex; gap: var(--s-3); margin-bottom: var(--s-2); font-size: 11.5px; line-height: 1.45; }
 .info .pop .row:last-child { margin-bottom: 0; }
 .info .pop .k { flex: none; width: 52px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-blue-2); padding-top: 1px; }
@@ -478,7 +556,17 @@ table.fin tr.total td.n { color: var(--ok); }
    Breakpoints are the ONLY place layout tokens are overridden.
    ============================================================================= */
 @media (max-width: 1180px) {
-  .app { grid-template-columns: 0 1fr var(--preview-w); grid-template-areas: "top top top" "chat chat preview"; }
+  /* --preview-w is user-draggable up to PREVIEW_WIDTH_MAX_PX (880px, appState.ts) with no
+     viewport awareness at drag time. Layout.tsx sets it as an INLINE style on .app itself
+     (`style={{'--preview-w': ...}}`), which beats any stylesheet rule short of !important --
+     a `:root { --preview-w: min(var(--preview-w), 45vw) }` override here cannot win against
+     it (and is also a self-reference cycle: computed-value-time resolution of the var()
+     inside a redeclaration of the same custom property on the same selector is invalid per
+     spec, not "the previous cascade value"). So clamp at the point of use instead: without
+     this, a wide desktop-dragged pane keeps reserving its full fixed pixel width once the
+     window narrows into this tier, leaving the `1fr` chat track a sliver (e.g. 1000px
+     window - 880px preview = 120px chat). */
+  .app { grid-template-columns: 0 1fr min(var(--preview-w), 45vw); grid-template-areas: "top top top" "chat chat preview"; }
   .rail { position: fixed; top: var(--topbar-h); bottom: 0; left: 0; width: var(--rail-w); transform: translateX(-100%); transition: transform var(--step); box-shadow: var(--shadow); }
   .rail.open { transform: none; }
   .mobile-only { display: inline-grid; }

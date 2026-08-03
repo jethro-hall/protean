@@ -1,0 +1,28 @@
+[
+  {
+    "id": "gst-pilot-memo",
+    "collection": {
+      "id": "gst-pilot-memo",
+      "displayName": "gst-pilot-memo",
+      "chunks": [
+        {
+          "id": "05a0e55be6576c20",
+          "heading": "GST Registration Pilot: Deferred Threshold for Sole Traders",
+          "text": "Internal Memo: GST Registration Pilot Program Rapid GST Onboarding Pilot (Reference: GST-PILOT-2026-07) Under this pilot, eligible new sole traders may defer standard GST registration until reaching $82,340 cumulative turnover, instead of the usual $75,000 threshold, provided they lodge\nForm NT-4 within 14 days of exceeding $75,000 turnover.",
+          "sourceTitle": "gst-pilot-memo.pdf",
+          "sourceUrl": "gst-pilot-memo.pdf#page=1",
+          "fetchedAt": "2026-08-02"
+        },
+        {
+          "id": "bf33895ead86ff62",
+          "heading": "GST Pilot: Eligibility Requirements and Filing Penalties",
+          "text": "Eligibility and Penalties The pilot applies only to sole traders registered after 1 January 2026. Failure to lodge Form NT-4 within the 14-day window voids pilot eligibility and reverts the entity to the standard $75,000 threshold, backdated to the date it was\nfirst exceeded, with standard late-registration penalties.",
+          "sourceTitle": "gst-pilot-memo.pdf",
+          "sourceUrl": "gst-pilot-memo.pdf#page=2",
+          "fetchedAt": "2026-08-02"
+        }
+      ]
+    },
+    "createdAt": "2026-08-02T03:10:47.966Z"
+  }
+]

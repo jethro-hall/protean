@@ -1,6 +1,14 @@
-/* App-only layout glue (namespaced). Uses Layer 2–3 tokens only — ADR-0005. */
-.preview {
-  position: relative;
+/* App-only layout glue (namespaced). Uses Layer 2–3 tokens only — ADR-0005.
+ * .preview's own `position` is scoped to >760px only (the min-width media query below): below
+ * that, components.css's C15 responsive contract makes .preview a `position: fixed` off-canvas
+ * drawer, and an unconditional rule here (this file loads AFTER components.css, so equal-
+ * specificity same-file-order rules win regardless of which media query "sounds" more specific)
+ * was silently clobbering that back to `relative` on every narrow viewport -- found live
+ * 2026-08-03 (a real phone/snapped-window width breaks the whole layout, not a lint-only bug). */
+@media (min-width: 761px) {
+  .preview {
+    position: relative;
+  }
 }
 .protean-resize {
   display: none;
@@ -128,6 +136,7 @@
 .preview {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .preview-body {
   flex: 1;
@@ -149,6 +158,11 @@
   align-items: center;
   justify-content: center;
   padding: var(--s-8);
+  /* DOM-nested inside .protean-settings (a .topbar > * child, which forces white-space:nowrap so
+     pills/labels never wrap) even though it visually escapes via position:fixed -- inheritance
+     follows the DOM tree, not layout, so every banner/hint/label in the whole modal would
+     otherwise silently stop wrapping too. Reset once here for the entire modal subtree. */
+  white-space: normal;
 }
 .settings-modal {
   width: 100%;
@@ -194,6 +208,7 @@
 }
 .settings-modal-body {
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0;
   padding: var(--s-6);
 }
@@ -275,6 +290,8 @@
 }
 .protean-settings-row {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--s-3);
   margin-top: var(--s-3);
 }
@@ -292,9 +309,6 @@
   font-size: var(--fz-13);
   color: var(--ink);
   cursor: pointer;
-}
-.protean-settings-row-wrap {
-  flex-wrap: wrap;
 }
 .protean-settings-advanced-toggle {
   margin-top: var(--s-4);
@@ -566,13 +580,15 @@
   .rail-toggle {
     display: grid;
   }
-  .app {
-    grid-template-columns: 0 1fr 0;
-  }
-  .app.preview-collapsed {
-    grid-template-columns: 0 1fr 0;
-  }
-  .preview {
-    width: min(var(--preview-w), 92vw);
-  }
+  /* .app's own grid-template-columns/areas, and --preview-w's viewport cap, are NOT
+   * redeclared here -- that's exactly the bug this file caused (see the .preview comment
+   * above): this file loads after components.css, so a same-specificity rule here at the
+   * same or a wider breakpoint always won, silently flattening components.css's C15
+   * responsive contract (the single source of truth for those, by its own explicit
+   * comment) at every width below 1180px, including the ≤760px single-column mobile
+   * layout. A former `.preview { width: min(var(--preview-w), 92vw) }` rule here only
+   * capped the element's own box -- the grid TRACK it sits in (sized by the now-properly-
+   * capped --preview-w custom property, components.css:531) still reserved the full
+   * uncapped width, so it shrank .preview's visible box while leaving the .chat track
+   * exactly as squeezed as before. Removed in favour of the single track-level cap. */
 }

@@ -85,6 +85,43 @@ export async function fetchDomains(): Promise<DomainSummary[]> {
   return body.domains;
 }
 
+// ---------------------------------------------------------------------------
+// Saved conversations. Mirrors src/watcher/sessionSummaries.ts — a read
+// surface over history that already persists (Phase 2) and lineage that's
+// already logged (Law 6), not a new store.
+// ---------------------------------------------------------------------------
+
+export interface SessionSummary {
+  id: string;
+  title: string;
+  domainId: string;
+  createdAt: string;
+  updatedAt: string;
+  turnCount: number;
+  totalCostUsd: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+}
+
+export interface SavedMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export async function fetchSessions(): Promise<SessionSummary[]> {
+  const res = await fetch('/api/sessions');
+  if (!res.ok) throw new Error(`Saved-conversation list failed (${res.status})`);
+  const body = (await res.json()) as { sessions: SessionSummary[] };
+  return body.sessions;
+}
+
+export async function fetchSessionMessages(id: string): Promise<SavedMessage[]> {
+  const res = await fetch(`/api/sessions/${encodeURIComponent(id)}`);
+  if (!res.ok) throw new Error(`Saved conversation "${id}" failed to load (${res.status})`);
+  const body = (await res.json()) as { messages: SavedMessage[] };
+  return body.messages;
+}
+
 /** Surface the engine's human error message, not raw JSON (UX: wording makes sense). */
 export function extractErrorMessage(rawBody: string, status: number): string {
   try {
@@ -485,6 +522,18 @@ export async function ingestPdf(
     body: JSON.stringify({ fileName, base64Pdf }),
   });
   return settingsJson(res, 'Failed to ingest PDF.');
+}
+
+/** URL-sourced ingestion (deterministic fetch + PDF/HTML extraction) — same draft shape as ingestPdf. */
+export async function ingestUrl(
+  url: string,
+  sourceTitle?: string,
+): Promise<KnowledgeAuthoringResult & { chunks: KnowledgeChunkDraft[]; pages: ExtractedPageDraft[] }> {
+  const res = await settingsFetch('/api/settings/knowledge/ingest-url', {
+    method: 'POST',
+    body: JSON.stringify({ url, ...(sourceTitle !== undefined ? { sourceTitle } : {}) }),
+  });
+  return settingsJson(res, 'Failed to ingest URL.');
 }
 
 export async function verifyChunkFidelity(

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { SHELL_EMPTY_COPY } from '../config/shell';
+import { ChatTimeline } from './ChatTimeline';
 import { InfoHint } from './InfoHint';
 import { Worklog } from './Worklog';
 import {
@@ -163,7 +164,7 @@ function Bubble({
 }) {
   const isUser = message.role === 'user';
   return (
-    <div className={`msg ${isUser ? 'user' : 'assistant'}`}>
+    <div className={`msg ${isUser ? 'user' : 'assistant'}`} data-chat-msg-id={message.id}>
       <div className="who-ico" aria-hidden>
         {isUser ? 'JH' : 'P'}
       </div>
@@ -245,6 +246,7 @@ export function MessageList() {
   const state = useAppState();
   const conversation = activeConversation(state);
   const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -265,23 +267,26 @@ export function MessageList() {
   }
 
   return (
-    <div className="chat-scroll" aria-live="polite">
-      <div className="thread">
-        {conversation.messages.map((message) => (
-          <Bubble
-            key={message.id}
-            message={message}
-            conversation={conversation}
-            tier={state.settings.tier}
-          />
-        ))}
-        {conversation.status === 'error' && conversation.errorMessage !== undefined && (
-          <div className="banner error" role="alert">
-            <strong>The turn failed.</strong> {conversation.errorMessage}
-          </div>
-        )}
-        <div ref={endRef} />
+    <>
+      <div className="chat-scroll" aria-live="polite" ref={scrollRef}>
+        <div className="thread">
+          {conversation.messages.map((message) => (
+            <Bubble
+              key={message.id}
+              message={message}
+              conversation={conversation}
+              tier={state.settings.tier}
+            />
+          ))}
+          {conversation.status === 'error' && conversation.errorMessage !== undefined && (
+            <div className="banner error" role="alert">
+              <strong>The turn failed.</strong> {conversation.errorMessage}
+            </div>
+          )}
+          <div ref={endRef} />
+        </div>
       </div>
-    </div>
+      <ChatTimeline messages={conversation.messages} scrollRef={scrollRef} />
+    </>
   );
 }

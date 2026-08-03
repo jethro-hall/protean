@@ -61,10 +61,10 @@ describe('requireModel', () => {
 });
 
 describe('agentLoop config', () => {
-  it('defaults to Read/Grep/Glob multi-turn dontAsk policy', () => {
+  it('defaults to Read/Grep/Glob/WebSearch/WebFetch multi-turn dontAsk policy', () => {
     const config = loadConfig();
-    expect(config.agentLoop.availableTools).toEqual(['Read', 'Grep', 'Glob']);
-    expect(config.agentLoop.allowedTools).toEqual(['Read', 'Grep', 'Glob']);
+    expect(config.agentLoop.availableTools).toEqual(['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch']);
+    expect(config.agentLoop.allowedTools).toEqual(['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch']);
     expect(config.agentLoop.maxTurns).toBe(8);
     expect(config.agentLoop.permissionMode).toBe('dontAsk');
     expect(config.agentLoop.toolsetVersion).toContain('Glob');

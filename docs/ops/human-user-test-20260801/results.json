@@ -1,0 +1,171 @@
+{
+  "phase": "Human User Test",
+  "driver": "agent-browser headless (no DISPLAY; Cursor IDE browser MCP unavailable)",
+  "baseUrl": "http://127.0.0.1:5173/",
+  "engine": "http://127.0.0.1:8787",
+  "counts": {
+    "PASS": 22,
+    "FAIL": 5,
+    "PARTIAL": 2
+  },
+  "results": [
+    {
+      "result": "PASS",
+      "control": "settings-strong-pill",
+      "notes": "visible"
+    },
+    {
+      "result": "PASS",
+      "control": "settings-finance-pill",
+      "notes": "visible"
+    },
+    {
+      "result": "PASS",
+      "control": "settings-medical-pill",
+      "notes": "visible"
+    },
+    {
+      "result": "PASS",
+      "control": "settings-fast-pill",
+      "notes": "visible"
+    },
+    {
+      "result": "PASS",
+      "control": "brand-after-domain",
+      "notes": "\"Protean\\n\u00b7 finance\""
+    },
+    {
+      "result": "PASS",
+      "control": "foot-tier-strong",
+      "notes": "\"\ud83d\udcce Attach\\ni\\nWHAT\\nAttach text files (JSON, Markdown, CSV\u2026) to your message.\\nWHY\\nThe file content is read into the turn and stays in the conversation, so follow-ups can keep working on it.\\nE.G.\\nUpload an n8n workflow spec and ask Protean to build the workflow JSON.\\nTier \u00b7 strong\\ni\\nWHAT\\nThe speed/quality tier answering you.\\nWHY\\nFast answers simple turns cheaply; Strong reasons more deeply but costs more and takes longer.\\nDomain \u00b7 finance\\ni\\nWHAT\\nThe active domain pack (vocabulary, tools, and behaviour).\\nWHY\\nProtean shape-shifts per domain \u2014 switching packs changes how answers are framed, with no code change.\\nE.G.\\nFinance / CFO\u2019s-CFO analyst\""
+    },
+    {
+      "result": "PASS",
+      "control": "foot-domain-finance",
+      "notes": "\"\ud83d\udcce Attach\\ni\\nWHAT\\nAttach text files (JSON, Markdown, CSV\u2026) to your message.\\nWHY\\nThe file content is read into the turn and stays in the conversation, so follow-ups can keep working on it.\\nE.G.\\nUpload an n8n workflow spec and ask Protean to build the workflow JSON.\\nTier \u00b7 strong\\ni\\nWHAT\\nThe speed/quality tier answering you.\\nWHY\\nFast answers simple turns cheaply; Strong reasons more deeply but costs more and takes longer.\\nDomain \u00b7 finance\\ni\\nWHAT\\nThe active domain pack (vocabulary, tools, and behaviour).\\nWHY\\nProtean shape-shifts per domain \u2014 switching packs changes how answers are framed, with no code change.\\nE.G.\\nFinance / CFO\u2019s-CFO analyst\""
+    },
+    {
+      "result": "PASS",
+      "control": "preview-close-reopen",
+      "notes": "ok"
+    },
+    {
+      "result": "PASS",
+      "control": "rail-toggle",
+      "notes": "clicked"
+    },
+    {
+      "result": "PASS",
+      "control": "infohint-telemetry",
+      "notes": "open"
+    },
+    {
+      "result": "PASS",
+      "control": "new-conversation",
+      "notes": "ok"
+    },
+    {
+      "result": "PASS",
+      "control": "attach-chip",
+      "notes": "seen"
+    },
+    {
+      "result": "PASS",
+      "control": "live-turn-finance",
+      "notes": "streamed"
+    },
+    {
+      "result": "PASS",
+      "control": "telemetry-populated",
+      "notes": "\"TTFT \u2014 total \u2014 cache \u2014 i WHAT Latency and cache facts for the last answer (TTFT, total, cache hit). WHY Protean measures every turn \u2014 leanness you can\u2019t see can\u2019t be defended. E.G. TTFT 640 ms \u00b7 total 3.2 s \u00b7 cache miss\""
+    },
+    {
+      "result": "FAIL",
+      "control": "stop-button",
+      "notes": "not in DOM (busy or idle)"
+    },
+    {
+      "result": "PASS",
+      "control": "worklog",
+      "notes": "present"
+    },
+    {
+      "result": "PASS",
+      "control": "finance-answer-content",
+      "notes": "BLUF"
+    },
+    {
+      "result": "PASS",
+      "control": "telemetry-real-nums",
+      "notes": "["
+    },
+    {
+      "result": "PARTIAL",
+      "control": "toolchip",
+      "notes": "none"
+    },
+    {
+      "result": "PARTIAL",
+      "control": "artefact-ui",
+      "notes": "none-yet"
+    },
+    {
+      "result": "PASS",
+      "control": "live-turn-medical",
+      "notes": "triage"
+    },
+    {
+      "result": "FAIL",
+      "control": "brand-medical",
+      "notes": "\"Protean\\n\u00b7 finance\""
+    },
+    {
+      "result": "FAIL",
+      "control": "stop-during-stream",
+      "notes": "missing"
+    },
+    {
+      "result": "PASS",
+      "control": "style-worklog-toggle",
+      "notes": "ok"
+    },
+    {
+      "result": "PASS",
+      "control": "style-infohint",
+      "notes": "ok"
+    },
+    {
+      "result": "PASS",
+      "control": "shell-prototype",
+      "notes": "opened"
+    },
+    {
+      "result": "PASS",
+      "control": "domain-medical-switch",
+      "notes": "brand shows medical (26-medical-switch-ok.png)"
+    },
+    {
+      "result": "FAIL",
+      "control": "api-tool-artefact-workflow",
+      "notes": "kinds=['done']"
+    },
+    {
+      "result": "FAIL",
+      "control": "domain-medical-recheck",
+      "notes": "\"Protean\\n\u00b7 medical\""
+    }
+  ],
+  "scores": {
+    "functionality": 6.0,
+    "fitForPurpose": 6.5,
+    "bestPractice": 5.0
+  },
+  "marketReadiness": "POC-only",
+  "criticalBlockers": [
+    "Stop control missing from live Composer (aria becomes Streaming but no seize/abort UI) \u2014 regression vs BUILD_LOG claim",
+    "Designed tool+artefact finance workflow returned empty output / toolsCalled=[] on HUT retest (SSE kinds=[done] only)",
+    "Public URL requires Authentik; Cursor browser MCP not available so owner cannot watch headed automation on this host",
+    "RideAI/Jeff Hall hardcodes in shell foot and empty-state copy misaligned with multi-domain product claim",
+    "External MCP (Odoo/GhostDL/email) and Bash still not enabled"
+  ]
+}

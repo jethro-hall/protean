@@ -126,7 +126,7 @@ function GeneralTab({
         <legend>
           Response depth <InfoHint hintKey="responseDepth" />
         </legend>
-        <div className="protean-settings-row protean-settings-row-wrap">
+        <div className="protean-settings-row">
           {RESPONSE_DEPTHS.map((depth) => (
             <button
               key={depth.label}
@@ -217,7 +217,7 @@ function RuntimeTab({
             Only applies to the built-in Fast/Strong tiers — switch off your custom provider in the composer to use it.
           </p>
         )}
-        <div className="protean-settings-row protean-settings-row-wrap">
+        <div className="protean-settings-row">
           {EFFORT_LEVELS.map((level) => (
             <button
               key={level.id}
@@ -347,7 +347,9 @@ export function SettingsMenu() {
         onClick={() => setOpen(true)}
       >
         <span className="dot" aria-hidden />
-        <span>{domainLabel}</span>
+        <span className="pill-domain-label" title={domainLabel}>
+          {domainLabel}
+        </span>
       </button>
       <button
         type="button"

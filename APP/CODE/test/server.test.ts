@@ -169,6 +169,37 @@ describe('engine HTTP surface', () => {
     expect(done.timings.totalMs).toBeGreaterThan(0);
   });
 
+  it('lists a real completed turn as a saved session summary, and fetches its full history', async () => {
+    await fetch(`${baseUrl}/api/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'a question worth remembering', sessionId: 'server-test-sessions-1' }),
+    });
+
+    const listRes = await fetch(`${baseUrl}/api/sessions`);
+    expect(listRes.status).toBe(200);
+    const { sessions } = (await listRes.json()) as {
+      sessions: Array<{ id: string; title: string; turnCount: number; totalCostUsd: number }>;
+    };
+    const summary = sessions.find((s) => s.id === 'server-test-sessions-1');
+    expect(summary).toBeDefined();
+    expect(summary?.title).toBe('a question worth remembering');
+    expect(summary?.turnCount).toBe(1);
+
+    const getRes = await fetch(`${baseUrl}/api/sessions/server-test-sessions-1`);
+    expect(getRes.status).toBe(200);
+    const { messages } = (await getRes.json()) as { messages: Array<{ role: string; content: string }> };
+    expect(messages[0]).toEqual({ role: 'user', content: 'a question worth remembering' });
+    expect(messages[1]?.role).toBe('assistant');
+  });
+
+  it('returns 404 with a specific message for a session id with no saved history', async () => {
+    const res = await fetch(`${baseUrl}/api/sessions/never-existed`);
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain('never-existed');
+  });
+
   it('streams artefact events over SSE and reports the saved path', async () => {
     const res = await fetch(`${baseUrl}/api/turn`, {
       method: 'POST',
@@ -409,6 +440,103 @@ describe('engine HTTP surface', () => {
       const body = (await res.json()) as { ok: boolean; message: string };
       expect(body.ok).toBe(false);
       expect(body.message).toContain('Could not parse this file as a PDF');
+    });
+  });
+
+  describe('POST /api/settings/knowledge/ingest-url', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    /** Intercepts only the outbound ingestion fetch -- the test's own call to the local server still uses the real fetch. */
+    function stubOutboundFetch(response: Response): void {
+      const realFetch = globalThis.fetch;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+          const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+          if (requestUrl.startsWith(baseUrl)) return realFetch(input as string, init);
+          return response;
+        }),
+      );
+    }
+
+    it('fetches a real PDF from a URL and extracts draft chunks, same shape as file-upload ingest', async () => {
+      const pdf = buildTestPdf([
+        [
+          { text: 'Eligibility', fontSize: 14 },
+          { text: 'Entities must incur real notional deductions to qualify for the offset, in full.' },
+        ],
+      ]);
+      stubOutboundFetch(new Response(pdf, { status: 200, headers: { 'content-type': 'application/pdf' } }));
+
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/ingest-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://8.8.8.8/act.pdf' }),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        ok: boolean;
+        message: string;
+        chunks: Array<{ heading: string; sourceUrl: string; sourceTitle: string }>;
+      };
+      expect(body.ok).toBe(true);
+      expect(body.chunks.length).toBeGreaterThan(0);
+      expect(body.chunks[0]?.heading).toBe('Eligibility');
+      expect(body.chunks[0]?.sourceUrl).toBe('https://8.8.8.8/act.pdf#page=1');
+      expect(body.chunks[0]?.sourceTitle).toBe('https://8.8.8.8/act.pdf');
+    });
+
+    it('fetches HTML and auto-derives sourceTitle from <title> when none is given', async () => {
+      const html =
+        '<html><head><title>Criminal Code Act</title></head><body><p>Section 1: real clause text.</p></body></html>';
+      stubOutboundFetch(new Response(html, { status: 200, headers: { 'content-type': 'text/html' } }));
+
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/ingest-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://8.8.8.8/act.html' }),
+      });
+      const body = (await res.json()) as { ok: boolean; chunks: Array<{ sourceTitle: string }> };
+      expect(body.ok).toBe(true);
+      expect(body.chunks[0]?.sourceTitle).toBe('Criminal Code Act');
+    });
+
+    it('an explicit sourceTitle wins over the page\'s own <title>', async () => {
+      const html = '<html><head><title>Ignored</title></head><body><p>Some real body text here.</p></body></html>';
+      stubOutboundFetch(new Response(html, { status: 200, headers: { 'content-type': 'text/html' } }));
+
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/ingest-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://8.8.8.8/act.html', sourceTitle: 'My Chosen Title' }),
+      });
+      const body = (await res.json()) as { ok: boolean; chunks: Array<{ sourceTitle: string }> };
+      expect(body.chunks[0]?.sourceTitle).toBe('My Chosen Title');
+    });
+
+    it('refuses a private/loopback URL before ever fetching -- the SSRF guard, exercised through the real route', async () => {
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/ingest-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'http://127.0.0.1/internal' }),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { ok: boolean; message: string };
+      expect(body.ok).toBe(false);
+      expect(body.message).toContain('not a fetchable public');
+    });
+
+    it('rejects a request whose url is not a valid URL with a 400, not a bare crash', async () => {
+      const res = await fetch(`${baseUrl}/api/settings/knowledge/ingest-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'not a url' }),
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain('Invalid ingest-url request');
     });
   });
 

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { streamTurn, type Attachment } from '../lib/api';
+import { fetchSessions, streamTurn, type Attachment } from '../lib/api';
 import { activeConversation } from './appState';
 import { useAppDispatch, useAppState } from './useAppStore';
 
@@ -142,6 +142,13 @@ export function useSendTurn(): (input: string, attachments?: Attachment[]) => vo
             });
           } else if (event.type === 'done') {
             dispatch({ type: 'assistantDone', conversationId, messageId, stats: event });
+            // The turn just persisted server-side (Phase 2 store + Law 6 lineage) --
+            // refresh the rail's saved-conversation list so it shows up there too.
+            fetchSessions()
+              .then((sessions) => dispatch({ type: 'setSavedSessions', sessions }))
+              .catch(() => {
+                /* the rail's list just stays stale until the next successful turn or reload */
+              });
           } else {
             dispatch({ type: 'turnError', conversationId, messageId, message: event.message });
           }

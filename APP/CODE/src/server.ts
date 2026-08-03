@@ -20,6 +20,7 @@ import { domainPackSchema } from './contracts/domainPack.js';
 import { listKnowledgeCollectionsWithOverlay } from './config/knowledgeCollections.js';
 import { extractPdfText } from './tools/ingestion/pdfExtract.js';
 import { chunkText } from './tools/ingestion/chunkText.js';
+import { extractFromUrl } from './tools/ingestion/urlExtract.js';
 import { proposeChunkMetadata } from './tools/authoring/proposeChunkMetadata.js';
 import { proposePackDraft } from './tools/authoring/proposePackDraft.js';
 import { verifyChunkFidelity } from './tools/authoring/verifyChunkFidelity.js';
@@ -47,6 +48,7 @@ import { createMemoryCacheStore, type CacheStore } from './watcher/cache.js';
 import { resolveEffectiveTier, resolveGrounding } from './watcher/assemble.js';
 import { runTurn } from './watcher/runTurn.js';
 import { createFileSessionStore, type SessionStore } from './watcher/sessionStore.js';
+import { listSessionSummaries } from './watcher/sessionSummaries.js';
 import { saveUpload } from './watcher/uploads.js';
 import { expandZipAttachments } from './watcher/expandZipAttachments.js';
 import {
@@ -356,6 +358,26 @@ function handleDomains(deps: AppDeps, res: ServerResponse): void {
 }
 
 // ---------------------------------------------------------------------------
+// Saved conversations (chat persistence + the rail's search): session history
+// already persists every turn (Phase 2, watcher/sessionStore.ts) and every
+// turn's full lineage is already logged (Law 6, watcher/record.ts) -- this is
+// purely a read surface over that existing evidence, nothing new tracked.
+// ---------------------------------------------------------------------------
+
+function handleListSessions(deps: AppDeps, res: ServerResponse): void {
+  writeJson(res, 200, { sessions: listSessionSummaries(deps.config.paths.promptHistoryDir) });
+}
+
+function handleGetSession(deps: AppDeps, id: string, res: ServerResponse): void {
+  const messages = deps.sessions.history(id);
+  if (messages.length === 0) {
+    writeJson(res, 404, { error: `No saved session "${id}"` });
+    return;
+  }
+  writeJson(res, 200, { id, messages });
+}
+
+// ---------------------------------------------------------------------------
 // Settings: Providers & Models (Phase 6). Admin/settings-time calls only --
 // never the live chat-turn path, which still goes through
 // gateway/adapters/claude.ts exclusively.
@@ -644,6 +666,49 @@ async function handleIngestKnowledge(req: IncomingMessage, res: ServerResponse):
 }
 
 // ---------------------------------------------------------------------------
+// URL-sourced ingestion: the same deterministic extract-then-chunk pipeline
+// as PDF upload above, fed by a fetched URL instead of a file (tools/
+// ingestion/urlExtract.ts owns the fetch + SSRF guard + PDF/HTML branching).
+// Response shape is identical to /ingest on purpose -- every downstream route
+// (propose, verify-fidelity, save-collection) and the GUI's review state work
+// unchanged regardless of which ingestion route produced the draft chunks.
+// ---------------------------------------------------------------------------
+
+const ingestUrlBodySchema = z.object({
+  url: z.url(),
+  sourceTitle: z.string().min(1).optional(),
+});
+
+async function handleIngestUrl(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const parsed = ingestUrlBodySchema.safeParse(await readJsonBody(req));
+  if (!parsed.success) {
+    writeJson(res, 400, { error: `Invalid ingest-url request: ${parsed.error.message}` });
+    return;
+  }
+  const { url, sourceTitle: requestedTitle } = parsed.data;
+
+  const extracted = await extractFromUrl(url);
+  if (!extracted.ok) {
+    writeJson(res, 200, { ok: false, message: extracted.reason, chunks: [], log: [extracted.reason] });
+    return;
+  }
+  if (extracted.result.pages.length > MAX_PDF_PAGES) {
+    const message = `"${url}" has ${extracted.result.pages.length} pages -- the limit is ${MAX_PDF_PAGES}.`;
+    writeJson(res, 200, { ok: false, message, chunks: [], log: [message] });
+    return;
+  }
+
+  const sourceTitle = requestedTitle ?? extracted.result.title ?? url;
+  const chunks = chunkText(extracted.result.pages, {
+    sourceTitle,
+    sourceFileRef: url,
+    fetchedAt: new Date().toISOString().slice(0, 10),
+  });
+  const message = `Fetched "${sourceTitle}" and extracted ${chunks.length} draft chunk(s) from ${extracted.result.pages.length} page(s), ${extracted.result.totalChars} characters total. Review before saving -- nothing is written to a pack yet.`;
+  writeJson(res, 200, { ok: true, message, chunks, pages: extracted.result.pages, log: [message] });
+}
+
+// ---------------------------------------------------------------------------
 // Grounded Knowledge v2 Phase P: LLM-assisted authoring, mandatory human
 // review. Every route here returns DRAFT proposals only -- nothing saves
 // until POST /api/settings/knowledge/save-collection is called explicitly
@@ -809,6 +874,17 @@ export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
       handleDomains(deps, res);
       return;
     }
+    if (req.method === 'GET' && url.pathname === '/api/sessions') {
+      handleListSessions(deps, res);
+      return;
+    }
+    if (req.method === 'GET' && url.pathname.startsWith('/api/sessions/')) {
+      const id = url.pathname.slice('/api/sessions/'.length);
+      if (id !== '') {
+        handleGetSession(deps, id, res);
+        return;
+      }
+    }
     if (req.method === 'POST' && url.pathname === '/api/turn') {
       void handleTurn(deps, req, res).catch((cause: unknown) => {
         const message = cause instanceof Error ? cause.message : String(cause);
@@ -900,6 +976,12 @@ export function startServer(deps: AppDeps): ReturnType<typeof createServer> {
     }
     if (req.method === 'POST' && url.pathname === '/api/settings/knowledge/ingest') {
       void handleIngestKnowledge(req, res).catch((cause: unknown) => {
+        writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
+      });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/settings/knowledge/ingest-url') {
+      void handleIngestUrl(req, res).catch((cause: unknown) => {
         writeJson(res, 500, { error: cause instanceof Error ? cause.message : String(cause) });
       });
       return;

@@ -1,0 +1,170 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "professional_documentation_research",
+  "generated_at": "{{generated_at_iso8601}}",
+  "reference_date": "{{reference_date_yyyy_mm_dd}}",
+  "request": {
+    "profession": "{{profession}}",
+    "alternate_titles": [],
+    "jurisdiction": {
+      "country": "{{country_name}}",
+      "country_code": "{{iso_3166_1_alpha2}}",
+      "subnational_unit": "{{state_province_or_region_or_null}}",
+      "subnational_code": "{{iso_3166_2_or_null}}",
+      "scope_note": "{{scope_note}}"
+    },
+    "language": "{{language}}",
+    "audience_level": "university",
+    "document_goal": "{{document_goal}}",
+    "research_mode": "trusted_sources_only",
+    "must_include_topics": [],
+    "must_exclude_topics": [],
+    "kb_taxonomy": {
+      "domain": "{{taxonomy_domain_or_null}}",
+      "discipline": "{{taxonomy_discipline_or_null}}",
+      "tags": []
+    }
+  },
+  "governance": {
+    "record_status": "verified",
+    "trusted_source_policy_passed": true,
+    "current_data_check_passed": true,
+    "data_cutoff_date": "{{reference_date_yyyy_mm_dd}}",
+    "freshness_assessment": {
+      "overall_recency": "current",
+      "oldest_material_source_date": "{{oldest_material_source_date_or_null}}",
+      "newest_material_source_date": "{{newest_material_source_date_or_null}}",
+      "staleness_warnings": []
+    },
+    "limitations": [],
+    "conflicts_detected": [],
+    "verification_notes": []
+  },
+  "profession_profile": {
+    "canonical_profession_name": "{{canonical_profession_name}}",
+    "profession_summary": "{{2_to_5_sentence_summary}}",
+    "role_definition": "{{official_or_source_grounded_definition}}",
+    "regulated_status": "licensed",
+    "practice_areas": [],
+    "regulators": [
+      {
+        "name": "{{regulator_name}}",
+        "jurisdiction": "{{jurisdiction_label}}",
+        "role": "{{regulatory_role}}",
+        "citation_ids": [
+          "SRC-001"
+        ]
+      }
+    ],
+    "professional_bodies": [],
+    "accreditation_bodies": [],
+    "university_pathways": [
+      {
+        "pathway_name": "{{pathway_name}}",
+        "credential_level": "{{degree_or_award_type}}",
+        "entry_requirements_summary": "{{entry_requirements_summary}}",
+        "duration": "{{duration_or_null}}",
+        "accreditation_required": true,
+        "official_pathway_note": "{{official_pathway_note}}",
+        "citation_ids": [
+          "SRC-002"
+        ]
+      }
+    ],
+    "licensing_or_registration": [
+      {
+        "stage_name": "{{stage_name}}",
+        "requirement_summary": "{{requirement_summary}}",
+        "issuing_body": "{{issuing_body}}",
+        "effective_date": "{{effective_date_or_null}}",
+        "citation_ids": [
+          "SRC-003"
+        ]
+      }
+    ],
+    "core_competencies": [
+      {
+        "competency": "{{competency_label}}",
+        "summary": "{{competency_summary}}",
+        "citation_ids": [
+          "SRC-004"
+        ]
+      }
+    ],
+    "ethical_and_legal_obligations": [
+      {
+        "obligation": "{{obligation_label}}",
+        "summary": "{{obligation_summary}}",
+        "citation_ids": [
+          "SRC-005"
+        ]
+      }
+    ],
+    "employment_outlook": {
+      "overview": "{{official_statistics_grounded_overview_or_null}}",
+      "official_statistics": [
+        {
+          "metric_name": "{{metric_name}}",
+          "metric_value": "{{metric_value}}",
+          "unit": "{{unit}}",
+          "reference_period": "{{reference_period}}",
+          "geography": "{{geography}}",
+          "citation_ids": [
+            "SRC-006"
+          ]
+        }
+      ],
+      "trend_note": "{{trend_note_or_null}}",
+      "caveats": []
+    },
+    "current_changes": [
+      {
+        "change_type": "{{policy_rule_standard_or_handbook_change}}",
+        "effective_date": "{{effective_date}}",
+        "change_summary": "{{change_summary}}",
+        "impact": "{{impact_summary}}",
+        "citation_ids": [
+          "SRC-007"
+        ]
+      }
+    ],
+    "jurisdiction_variations": [
+      {
+        "jurisdiction_label": "{{jurisdiction_label}}",
+        "variation_summary": "{{variation_summary}}",
+        "citation_ids": [
+          "SRC-008"
+        ]
+      }
+    ]
+  },
+  "knowledge_base_payload": {
+    "canonical_title": "{{profession}} in {{jurisdiction}}",
+    "short_description": "{{short_description}}",
+    "retrieval_keywords": [],
+    "agent_notes": {
+      "safe_to_answer_from_record_until": "{{safe_to_answer_until_date}}",
+      "escalation_triggers": [],
+      "follow_up_needed": false
+    }
+  },
+  "citations": [
+    {
+      "citation_id": "SRC-001",
+      "source_type": "government_website",
+      "title": "{{source_title}}",
+      "publisher": "{{publisher}}",
+      "url": "{{https_url}}",
+      "domain": "{{domain}}",
+      "jurisdiction": "{{jurisdiction_label}}",
+      "publication_date": "{{publication_date_or_null}}",
+      "last_updated_date": "{{last_updated_date_or_null}}",
+      "effective_date": "{{effective_date_or_null}}",
+      "accessed_date": "{{reference_date_yyyy_mm_dd}}",
+      "is_primary": true,
+      "trust_tier": "Tier 1 Primary Authority",
+      "locator": "{{page_section_clause_or_null}}",
+      "evidence_note": "{{short_supporting_note}}"
+    }
+  ]
+}

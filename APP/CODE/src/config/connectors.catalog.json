@@ -11,6 +11,11 @@
       "sdkTools": ["Grep", "Glob"],
       "description": "Search workspace files by content or path pattern."
     },
+    "webSearch": {
+      "kind": "builtin",
+      "sdkTools": ["WebSearch", "WebFetch"],
+      "description": "Live internet search and page fetch (Claude Agent SDK WebSearch/WebFetch), for packs that must ground answers in current trusted-source web content."
+    },
     "dataLakeQuery": {
       "kind": "sdkMcp",
       "serverId": "protean-datalake",

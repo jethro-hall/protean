@@ -1,0 +1,474 @@
+
+{
+  "record_type": "professional_documentation_research",
+  "schema_version": "1.0.0",
+  "generated_at": "2026-08-03T00:00:00Z",
+  "reference_date": "2026-08-03",
+  "request": {
+    "profession": "General Practitioner (Medical Practitioner, specialist general practice)",
+    "alternate_titles": [
+      "GP",
+      "Specialist General Practitioner",
+      "Family Physician (informal, non-statutory)",
+      "Rural Generalist (ACRRM stream)"
+    ],
+    "jurisdiction": {
+      "country": "Australia",
+      "country_code": "AU",
+      "subnational_unit": null,
+      "subnational_code": null,
+      "scope_note": "Medical registration, specialty recognition and Fellowship pathways are governed nationally under the Health Practitioner Regulation National Law via AHPRA/Medical Board of Australia. Some practice-level matters (e.g. Schedule 8/poisons prescribing rules) are state/territory-legislated and are NOT resolved in this record — see limitations."
+    },
+    "language": "en",
+    "audience_level": "professional",
+    "document_goal": "Build a knowledge-base record supporting an AI agent that (a) structures pre-visit patient information before a GP consultation, and (b) models GP-standard clinical reasoning as an explicit history→examination→investigation→differential→justified-management chain, rather than unexplained prescribing instructions.",
+    "research_mode": "trusted_sources_only",
+    "must_include_topics": [
+      "pre-diagnosis / pre-consultation patient evaluation pathways",
+      "formal clinical reasoning standard used in GP training and assessment",
+      "registration and Fellowship pathway to practise as a GP",
+      "illustrative endocrine (HPG-axis) reasoning example, sourced"
+    ],
+    "must_exclude_topics": [],
+    "kb_taxonomy": {
+      "domain": "Health & Medicine",
+      "discipline": "General Practice / Primary Care Medicine",
+      "tags": [
+        "general-practitioner", "AHPRA", "Medical-Board-of-Australia", "RACGP", "ACRRM",
+        "clinical-reasoning", "pre-diagnosis-triage", "MBS-health-assessment", "AMC-accreditation",
+        "Australia"
+      ]
+    }
+  },
+  "profession_profile": {
+    "canonical_profession_name": "General Practitioner (Specialist Registration, General Practice)",
+    "profession_summary": "In Australia, a General Practitioner is a medical practitioner holding specialist (vocational) registration in general practice with the Medical Board of Australia, obtained through Fellowship of the Royal Australian College of General Practitioners (FRACGP) or Fellowship of the Australian College of Rural and Remote Medicine (FACRRM). GPs provide whole-person, continuing primary medical care and are the principal entry point to Medicare-rebated care in the Australian health system. The title and Medicare-rebate eligibility are both legally protected and conditioned on specialist registration.",
+    "role_definition": "A medical practitioner registered under the Health Practitioner Regulation National Law who, having completed an AMC-accredited primary medical qualification and either the RACGP or ACRRM vocational training and Fellowship pathway, holds specialist registration in the medical specialty of general practice with the Medical Board of Australia.",
+    "regulated_status": "registered",
+    "practice_areas": [
+      "Whole-person, continuing primary care across the lifespan",
+      "Preventive health assessments (chronic disease risk, over-75 assessments, Aboriginal and Torres Strait Islander health assessments)",
+      "Acute undifferentiated presentations and triage",
+      "Chronic disease management",
+      "Mental health care",
+      "Women's and men's health, including endocrine presentations",
+      "Rural generalist procedural practice (ACRRM stream: obstetrics, anaesthetics, emergency medicine, surgical assisting)"
+    ],
+    "regulators": [
+      {
+        "name": "Medical Board of Australia (administered by AHPRA under the National Registration and Accreditation Scheme)",
+        "jurisdiction": "Australia (national)",
+        "role": "Sets and enforces registration standards (general and specialist), maintains the Register, and issues the Good Medical Practice code of conduct governing all registered medical practitioners.",
+        "citation_ids": ["SRC-001", "SRC-002", "SRC-012"]
+      }
+    ],
+    "professional_bodies": [
+      {
+        "name": "Royal Australian College of General Practitioners (RACGP)",
+        "citation_ids": ["SRC-003", "SRC-007"]
+      },
+      {
+        "name": "Australian College of Rural and Remote Medicine (ACRRM)",
+        "citation_ids": ["SRC-011"]
+      }
+    ],
+    "accreditation_bodies": [
+      {
+        "name": "Australian Medical Council (AMC)",
+        "role": "Accredits primary medical programs (medical schools) against the Standards for Assessment and Accreditation of Primary Medical Programs (2023 edition, effective 1 January 2024), and accredits RACGP and ACRRM as the two specialist medical colleges authorised to define standards and deliver vocational training for general practice.",
+        "citation_ids": ["SRC-004", "SRC-011"]
+      }
+    ],
+    "university_pathways": [
+      {
+        "pathway_name": "Primary medical qualification (undergraduate- or graduate-entry medical degree)",
+        "credential_level": "Bachelor's or Master's-level medical degree (e.g. MBBS, MD) from an AMC-accredited provider",
+        "entry_requirements_summary": "Must be an AMC-accredited program leading to an academic qualification recognised on the AMC's list of accredited primary medical programs and, for graduates seeking registration, listed in the World Directory of Medical Schools. Specific admission criteria (ATAR thresholds, UCAT/GAMSAT requirements, interview processes) are set individually by each university and are NOT resolved in this record — see limitations.",
+        "duration": "Typically 4-6 years depending on undergraduate- vs graduate-entry structure (not independently verified per-program this turn)",
+        "accreditation_required": true,
+        "official_pathway_note": "The AMC 2023 Standards for Assessment and Accreditation of Primary Medical Programs, effective 1 January 2024, set the current Graduate Outcome Statements defining what graduates must be able to do on entry to practice, including clinical reasoning capability.",
+        "citation_ids": ["SRC-004", "SRC-012"]
+      },
+      {
+        "pathway_name": "Australian General Practice Training (AGPT) Program — RACGP Fellowship stream",
+        "credential_level": "Vocational Fellowship (FRACGP)",
+        "entry_requirements_summary": "Entry after completion of a primary medical qualification and internship (general registration). Government-funded apprenticeship-model program of 3-4 years comprising hospital training, general practice placements (GPT1-3) and extended/additional skills training, delivered against the RACGP 2022 Curriculum and Syllabus (42 units).",
+        "duration": "3-4 years",
+        "accreditation_required": true,
+        "official_pathway_note": "FRACGP has been the Australian Government-adopted standard (since 1996) for certifying competence to deliver unsupervised general practice services in any Australian setting.",
+        "citation_ids": ["SRC-003", "SRC-007"]
+      },
+      {
+        "pathway_name": "ACRRM Fellowship — Rural Generalist stream",
+        "credential_level": "Vocational Fellowship (FACRRM)",
+        "entry_requirements_summary": "Vocational training undertaken predominantly or entirely in rural and remote settings, leading to recognition of Rural Generalist Medicine as a specialist field of general practice.",
+        "duration": "Not independently verified this turn (curriculum-dependent)",
+        "accreditation_required": true,
+        "official_pathway_note": "FACRRM leads directly to specialist (vocational) registration as a GP with the Medical Board of Australia.",
+        "citation_ids": ["SRC-011"]
+      }
+    ],
+    "licensing_or_registration": [
+      {
+        "stage_name": "General registration",
+        "requirement_summary": "Required to practise medicine at all in Australia. Requires an AMC-accredited primary medical qualification, primary source verification of credentials, and (for international medical graduates) recognition via AMC/competent-authority pathways.",
+        "issuing_body": "Medical Board of Australia (via AHPRA)",
+        "effective_date": null,
+        "citation_ids": ["SRC-012"]
+      },
+      {
+        "stage_name": "Specialist (vocational) registration in general practice",
+        "requirement_summary": "Requires FRACGP or FACRRM Fellowship. From 21 October 2024, new specialist registrants must additionally have completed supervised practice, an orientation to the Australian healthcare system, and cultural safety education.",
+        "issuing_body": "Medical Board of Australia",
+        "effective_date": "2024-10-21",
+        "citation_ids": ["SRC-001"]
+      },
+      {
+        "stage_name": "Medicare provider eligibility for GP rebates",
+        "requirement_summary": "Since amendments to the Health Insurance Act 1973 effective 16 June 2021, access to Medicare rebates as a GP is conditioned on holding specialist registration in general practice with the Medical Board of Australia.",
+        "issuing_body": "Australian Government (Health Insurance Act 1973); registration verified via Medical Board of Australia",
+        "effective_date": "2021-06-16",
+        "citation_ids": ["SRC-001"]
+      }
+    ],
+    "core_competencies": [
+      {
+        "competency": "Hypothesis-driven clinical reasoning (Domain 2: Applied professional knowledge and skills)",
+        "summary": "The RACGP 2022 Curriculum and Syllabus formally defines clinical reasoning competencies including collecting and reporting clinical information in a hypothesis-driven manner, modifying differential diagnoses in light of clinical course and new data, and demonstrating diagnostic accuracy — i.e. an explicit, auditable chain from presenting problem to justified management, not an unexplained prescribing instruction.",
+        "citation_ids": ["SRC-007"]
+      },
+      {
+        "competency": "Assessed clinical reasoning under exam conditions (Key Feature Problems, KFP)",
+        "summary": "The Key Feature Problems exam, part of the RACGP Fellowship assessment, specifically tests clinical reasoning and decision-making in complex, real-world scenarios, as distinct from the Clinical Competency Exam which tests consultation and communication skills.",
+        "citation_ids": ["SRC-003"]
+      },
+      {
+        "competency": "Pre-consultation / pre-diagnosis information gathering",
+        "summary": "Two government-endorsed mechanisms structure evaluation before or at the start of a GP encounter: (1) the healthdirect Symptom Checker, a government-funded, clinically-governed self-triage tool (AI-upgraded December 2023) that collects age, sex, symptoms, conditions and risk factors and directs patients to self-care, GP, emergency care or Triple Zero; and (2) Medicare-funded structured Health Assessment items (701, 703, 705, 707, 224-227, 715 — time-tiered items, current MBS publication date 1 November 2025), which require the GP to collect patient history, arrange examinations/investigations, and produce a written report with recommendations before a management plan is finalised.",
+        "citation_ids": ["SRC-005", "SRC-008"]
+      },
+      {
+        "competency": "Endocrine differential reasoning (illustrative example, not a treatment protocol)",
+        "summary": "Per the Endocrine Society of Australia's position statement on male hypogonadism, apparent hormonal-imbalance presentations require biochemical confirmation (serum testosterone, LH, FSH) before a mechanism is assumed. The hypothalamic-pituitary-gonadal axis operates on negative feedback: GnRH from the hypothalamus drives pituitary LH/FSH, and LH drives testicular testosterone production; testosterone in turn suppresses GnRH/LH release. A finding consistent with relative oestrogen excess must therefore be traced to its point of origin in this axis (e.g. primary testicular failure vs pituitary/hypothalamic dysfunction vs peripheral aromatisation) before choosing between mechanistically distinct interventions such as an aromatase inhibitor/oestrogen-receptor antagonist versus treatment aimed at restoring upstream HPG-axis signalling. This is presented as an illustration of the required reasoning depth, not as treatment guidance for any individual.",
+        "citation_ids": ["SRC-009", "SRC-010"]
+      }
+    ],
+    "ethical_and_legal_obligations": [
+      {
+        "obligation": "Good Medical Practice: A Code of Conduct for Doctors in Australia",
+        "summary": "Issued by the Medical Board of Australia (originally adopted 2010 under the National Law, subject to ongoing updates), the Code requires prioritising patient safety and quality of care, considering the whole person, tailoring care to individual needs and preferences, establishing trust and respect in the doctor-patient relationship, ensuring informed consent, and protecting patient confidentiality. This is the primary source that makes 'unexplained prescribing without reasoning' a conduct issue, not merely a clinical-quality preference.",
+        "citation_ids": ["SRC-002"]
+      }
+    ],
+    "employment_outlook": {
+      "overview": "Jobs and Skills Australia classifies General Practitioners as being in national shortage, with regional and remote areas reporting critical shortages of GPs specifically.",
+      "official_statistics": [
+        {
+          "metric_name": "National shortage classification",
+          "metric_value": "In shortage (national)",
+          "unit": "categorical",
+          "reference_period": "Current at data underpinning February 2026 ABS Labour Force Survey release",
+          "geography": "Australia, with acute regional/rural shortage noted",
+          "citation_ids": ["SRC-006"]
+        }
+      ],
+      "trend_note": "Jobs and Skills Australia is transitioning from ANZSCO-based to OSCA-based occupation profiles in mid-2026, with a fuller combined Labour Force Survey and Employment Projections release scheduled for November 2026. Current occupation-page projections should be treated as provisional pending that release.",
+      "caveats": [
+        "Precise numeric projections (e.g. five-year employment growth percentage) were not returned in verifiable form this turn and are therefore omitted rather than estimated."
+      ]
+    },
+    "current_changes": [
+      {
+        "change_type": "registration_standard_change",
+        "effective_date": "2024-10-21",
+        "change_summary": "New specialist (vocational) registrants in general practice must complete supervised practice, an orientation to the Australian healthcare system, and cultural safety education.",
+        "impact": "Adds explicit onboarding/safety requirements to the specialist registration pathway beyond Fellowship alone.",
+        "citation_ids": ["SRC-001"]
+      },
+      {
+        "change_type": "accreditation_standard_change",
+        "effective_date": "2024-01-01",
+        "change_summary": "AMC's 2023 Standards for Assessment and Accreditation of Primary Medical Programs came into effect, replacing the prior standards and updating Graduate Outcome Statements.",
+        "impact": "Changes what AMC-accredited medical schools must demonstrate graduates can do on entry to practice, including clinical reasoning capability.",
+        "citation_ids": ["SRC-004"]
+      },
+      {
+        "change_type": "mbs_item_update",
+        "effective_date": "2025-11-01",
+        "change_summary": "Publication/update of the time-tiered Health Assessment MBS items (701, 703, 705, 707, 224-227).",
+        "impact": "Affects the structure and eligibility cohorts for Medicare-funded pre-diagnosis health assessments GPs use to gather structured patient information.",
+        "citation_ids": ["SRC-005"]
+      },
+      {
+        "change_type": "legislative_change",
+        "effective_date": "2021-06-16",
+        "change_summary": "Health Insurance Act 1973 amended to link GP Medicare-rebate eligibility to specialist registration with the Medical Board of Australia.",
+        "impact": "Made Fellowship-based specialist registration a practical precondition for Medicare-rebated general practice.",
+        "citation_ids": ["SRC-001"]
+      }
+    ],
+    "jurisdiction_variations": [
+      {
+        "jurisdiction_label": "Australia (national) vs rural/remote practice settings",
+        "variation_summary": "Registration, Fellowship standards and the Good Medical Practice code are uniform nationally under the Health Practitioner Regulation National Law. However, the ACRRM Rural Generalist pathway trains and credentials GPs for an expanded rural procedural scope (obstetrics, anaesthetics, emergency, surgical assisting) not required of the standard RACGP metropolitan pathway.",
+        "citation_ids": ["SRC-011"]
+      },
+      {
+        "jurisdiction_label": "State and territory drug scheduling and poisons law",
+        "variation_summary": "Not resolved in this record. Prescribing authority for certain controlled substances (e.g. Schedule 8 medicines) is governed by state/territory drugs-and-poisons legislation, which is known to vary but was not verified against a named state Act this turn.",
+        "citation_ids": []
+      }
+    ]
+  },
+  "citations": [
+    {
+      "citation_id": "SRC-001",
+      "source_type": "government_website",
+      "title": "Specialist Registration",
+      "publisher": "Medical Board of Australia",
+      "url": "https://www.medicalboard.gov.au/Registration/Types/Specialist-Registration.aspx",
+      "domain": "medicalboard.gov.au",
+      "jurisdiction": "Australia (national)",
+      "publication_date": null,
+      "last_updated_date": "2024-10-21",
+      "effective_date": "2024-10-21",
+      "accessed_date": "2026-08-03",
+      "is_primary": true,
+      "trust_tier": "Tier 1 Primary Authority",
+      "locator": "Specialist registration standard; GP Medicare-rebate linkage",
+      "evidence_note": "Confirms specialist registration requirements, the 21 Oct 2024 additions, and the 16 Jun 2021 Health Insurance Act linkage."
+    },
+    {
+      "citation_id": "SRC-002",
+      "source_type": "government_website",
+      "title": "Good medical practice: a code of conduct for doctors in Australia",
+      "publisher": "Medical Board of Australia",
+      "url": "https://www.medicalboard.gov.au/Codes-Guidelines-Policies/Code-of-conduct.aspx",
+      "domain": "medicalboard.gov.au",
+      "jurisdiction": "Australia (national)",
+      "publication_date": "2010-07-01",
+      "last_updated_date": null,
+      "effective_date": null,
+      "accessed_date": "2026-08-03",
+      "is_primary": true,
+      "trust_tier": "Tier 1 Primary Authority",
+      "locator": "Code of conduct overview",
+      "evidence_note": "Statutory conduct code applying to all registered medical practitioners; basis for ethical/legal obligations field."
+    },
+    {
+      "citation_id": "SRC-003",
+      "source_type": "professional_body_website",
+      "title": "AGPT Registrar Training Handbook — Introduction to general practice / Our Fellowships",
+      "publisher": "Royal Australian College of General Practitioners (RACGP)",
+      "url": "https://www.racgp.org.au/education/registrars/fellowship-pathways/policy-framework/program-handbooks-and-guidance-documents/agpt-registrar-training-handbook/your-agpt-program/introduction-to-general-practice",
+      "domain": "racgp.org.au",
+      "jurisdiction": "Australia (national)",
+      "publication_date": null,
+      "last_updated_date": null,
+      "effective_date": null,
+      "accessed_date": "2026-08-03",
+      "is_primary": true,
+      "trust_tier": "Tier 1 Primary Authority",
+      "locator": "AGPT program structure; KFP/CCE exam description",
+      "evidence_note": "Governing college describes AGPT structure, GPT1-3 placements, and KFP as the clinical-reasoning assessment component."
+    },
+    {
+      "citation_id": "SRC-004",
+      "source_type": "accreditor_website",
+      "title": "Assessment and accreditation of primary medical programs (medical schools); Accreditation standards and procedures",
+      "publisher": "Australian Medical Council (AMC)",
+      "url": "https://www.amc.org.au/accredited-organisations/medical-schools/assessment-and-accreditation-of-primary-medical-programs-medical-schools/",
+      "domain": "amc.org.au",
+      "jurisdiction": "Australia / Aotearoa New Zealand",
+      "publication_date": "2023-08-01",
+      "last_updated_date": null,
+      "effective_date": "2024-01-01",
+      "accessed_date": "2026-08-03",
+      "is_primary": true,
+      "trust_tier": "Tier 1 Primary Authority",
+      "locator": "2023 Standards for Assessment and Accreditation of Primary Medical Programs; Graduate Outcome Statements",
+      "evidence_note": "Confirms effective date 1 Jan 2024 and that Graduate Outcome Statements define entry-to-practice capability including clinical reasoning."
+    },
+    {
+      "citation_id": "SRC-005",
+      "source_type": "government_website",
+      "title": "Medicare Health Assessments: MBS Items 701-707 and 715 (fact sheet)",
+      "publisher": "Australian Government Department of Health, Disability and Ageing (MBS Online)",
+      "url": "https://www.mbsonline.gov.au/internet/mbsonline/publishing.nsf/Content/Factsheet-MedicareHealthAssessments",
+      "domain": "mbsonline.gov.au",
+      "jurisdiction": "Australia (national)",
+      "publication_date": null,
+      "last_updated_date": "2025-11-01",
+      "effective_date": "2025-11-01",
+      "accessed_date": "2026-08-03",
+      "is_primary": true,
+      "trust_tier": "Tier 1 Primary Authority",
+      "locator": "Time-tiered Health Assessment items 701/703/705/707/224-227/715",
+      "evidence_note": "Structured pre-diagnosis information-collection items GPs use as a Medicare-funded mechanism."
+    },
+    {
+      "citation_id": "SRC-006",
+      "source_type": "statistical_agency_website",
+      "title": "General Practitioners (253111) — Occupation and Industry Profile",
+      "publisher": "Jobs and Skills Australia",
+      "url": "https://www.jobsandskills.gov.au/data/occupation-and-industry-profiles/occupations/253111-general-practitioners",
+      "domain": "jobsandskills.gov.au",
+      "jurisdiction": "Australia (national)",
+      "publication_date": null,
+      "last_updated_date": "2026-02-01",
+      "effective_date": null,
+      "accessed_date": "2026-08-03",
+      "is_primary": false,
+      "trust_tier": "Tier 2 Institutional Authority",
+      "locator": "Occupation shortage classification; ABS Labour Force Survey Feb 2026 basis",
+      "evidence_note": "Confirms national shortage status; notes pending November 2026 OSCA-based data refresh."
+    },
+    {
+      "citation_id": "SRC-007",
+      "source_type": "professional_body_website",
+      "title": "2022 RACGP Curriculum and Syllabus — Core Competency Framework; Domain 2: Applied professional knowledge and skills",
+      "publisher": "Royal Australian College of General Practitioners (RACGP)",
+      "url": "https://www.racgp.org.au/getmedia/7f9a0902-8506-4250-bf9e-3277fa6d6b03/ID-2335-Curriculum-and-Syllabus-Core-Competency-Framework-V3.pdf.aspx",
+      "domain": "racgp.org.au",
+      "jurisdiction": "Australia (national)",
+      "publication_date": "2022-01-01",
+      "last_updated_date": null,
+      "effective_date": null,
+      "accessed_date": "2026-08-03",
+      "is_primary": true,
+      "trust_tier": "Tier 1 Primary Authority",
+      "locator": "Domain 2, clinical reasoning competency statements",
+      "evidence_note": "Direct source for the formal 'hypothesis-driven reasoning, modify differential with new data' competency language."
+    },
+    {
+      "citation_id": "SRC-008",
+      "source_type": "government_website",
+      "title": "healthdirect Symptom Checker",
+      "publisher": "Healthdirect Australia / Australian Government Department of Health, Disability and Ageing",
+      "url": "https://www.health.gov.au/resources/apps-and-tools/healthdirect-symptom-checker?language=en",
+      "domain": "health.gov.au",
+      "jurisdiction": "Australia (national)",
+      "publication_date": null,
+      "last_updated_date": "2023-12-01",
+      "effective_date": null,
+      "accessed_date": "2026-08-03",
+      "is_primary": true,
+      "trust_tier": "Tier 1 Primary Authority",
+      "locator": "Symptom Checker Gen2 AI upgrade, Dec 2023",
+      "evidence_note": "Government-funded pre-consultation triage tool; basis for pre-diagnosis-evaluation field."
+    },
+    {
+      "citation_id": "SRC-009",
+      "source_type": "peer_reviewed_position_statement",
+      "title": "Endocrine Society of Australia position statement on male hypogonadism (part 1): assessment and indications for testosterone therapy",
+      "publisher": "Endocrine Society of Australia / Medical Journal of Australia",
+      "url": "https://www.mja.com.au/journal/2016/205/4/endocrine-society-australia-position-statement-male-hypogonadism-part-1",
+      "domain": "mja.com.au",
+      "jurisdiction": "Australia (national)",
+      "publication_date": "2016-08-01",
+      "last_updated_date": null,
+      "effective_date": null,
+      "accessed_date": "2026-08-03",
+      "is_primary": false,
+      "trust_tier": "Tier 2 Institutional Authority",
+      "locator": "Assessment section; LH/FSH/testosterone hormonal work-up",
+      "evidence_note": "Basis for the HPG-axis reasoning illustration; national professional-society clinical position statement."
+    },
+    {
+      "citation_id": "SRC-010",
+      "source_type": "professional_body_journal_article",
+      "title": "Assessment and management of male androgen disorders: an update",
+      "publisher": "RACGP, Australian Family Physician",
+      "url": "https://www.racgp.org.au/afp/2014/may/male-androgen-disorders",
+      "domain": "racgp.org.au",
+      "jurisdiction": "Australia (national)",
+      "publication_date": "2014-05-01",
+      "last_updated_date": null,
+      "effective_date": null,
+      "accessed_date": "2026-08-03",
+      "is_primary": false,
+      "trust_tier": "Tier 3 Context Support Only",
+      "locator": "General overview article",
+      "evidence_note": "STALE: published May 2014, over 11 years before reference date. Used only as background context, not as sole support for the endocrine reasoning claim; SRC-009 carries the material claim."
+    },
+    {
+      "citation_id": "SRC-011",
+      "source_type": "professional_body_website",
+      "title": "Rural Generalist Medicine",
+      "publisher": "Australian College of Rural and Remote Medicine (ACRRM)",
+      "url": "https://www.acrrm.org.au/about-us/about-the-college/rural-generalist-medicine",
+      "domain": "acrrm.org.au",
+      "jurisdiction": "Australia (national, rural/remote focus)",
+      "publication_date": null,
+      "last_updated_date": null,
+      "effective_date": null,
+      "accessed_date": "2026-08-03",
+      "is_primary": true,
+      "trust_tier": "Tier 1 Primary Authority",
+      "locator": "Fellowship (FACRRM) and Rural Generalist recognition",
+      "evidence_note": "Confirms ACRRM as AMC-accredited second GP fellowship pathway leading to specialist registration."
+    },
+    {
+      "citation_id": "SRC-012",
+      "source_type": "government_website",
+      "title": "The role of the Australian Medical Council; Standard pathway",
+      "publisher": "Medical Board of Australia",
+      "url": "https://www.medicalboard.gov.au/registration/international-medical-graduates/role-of-amc.aspx",
+      "domain": "medicalboard.gov.au",
+      "jurisdiction": "Australia (national)",
+      "publication_date": null,
+      "last_updated_date": null,
+      "effective_date": null,
+      "accessed_date": "2026-08-03",
+      "is_primary": true,
+      "trust_tier": "Tier 1 Primary Authority",
+      "locator": "Primary medical qualification recognition; AMC accreditation linkage to general registration",
+      "evidence_note": "Basis for general registration requirement and AMC-accreditation dependency."
+    }
+  ],
+  "governance": {
+    "record_status": "partially_verified",
+    "trusted_source_policy_passed": true,
+    "current_data_check_passed": true,
+    "data_cutoff_date": "2026-08-03",
+    "freshness_assessment": {
+      "overall_recency": "current",
+      "oldest_material_source_date": "2014-05-01",
+      "newest_material_source_date": "2026-02-01",
+      "staleness_warnings": [
+        "SRC-010 (RACGP AFP, May 2014) is used for context only; it is more than a decade old and must not be treated as current clinical guidance on its own.",
+        "SRC-006 (Jobs and Skills Australia) is mid-transition from ANZSCO to OSCA occupation profiles; a fuller data release is expected November 2026 and this employment outlook should be refreshed after that date."
+      ]
+    },
+    "limitations": [
+      "University-specific admission requirements (ATAR, UCAT/GAMSAT thresholds, interview processes) were not verified against any named institution's official handbook this turn and are deliberately left unresolved rather than generalised.",
+      "State/territory-level prescribing law (e.g. Schedule 8 poisons legislation) was not verified against any specific state or territory Act this turn.",
+      "Exact duration of the ACRRM FACRRM pathway was not independently confirmed this turn."
+    ],
+    "conflicts_detected": [],
+    "verification_notes": [
+      "regulated_status is recorded as 'registered' rather than the template's example value 'licensed' because Australia's National Registration and Accreditation Scheme uses statutory registration, not a separate licensing instrument; this is functionally equivalent to licensing for downstream-agent purposes.",
+      "The estrogen/testosterone example supplied by the requester was treated strictly as an illustrative template for reasoning depth and grounded against a national professional-society position statement (SRC-009); it is not, and must not be presented as, advice for any specific patient."
+    ]
+  },
+  "knowledge_base_payload": {
+    "canonical_title": "General Practitioner in Australia",
+    "short_description": "Specialist medical practitioner registered with the Medical Board of Australia via RACGP or ACRRM Fellowship, providing whole-person continuing primary care, whose diagnostic and management decisions are governed by an explicit, hypothesis-driven clinical-reasoning standard rather than unexplained treatment instructions.",
+    "retrieval_keywords": [
+      "general practitioner", "GP Australia", "AHPRA registration", "Medical Board of Australia",
+      "RACGP fellowship", "ACRRM rural generalist", "clinical reasoning GP", "pre-diagnosis triage",
+      "healthdirect symptom checker", "MBS health assessment", "Good Medical Practice code",
+      "AMC accreditation medical schools", "GP shortage Australia"
+    ],
+    "agent_notes": {
+      "safe_to_answer_from_record_until": "2026-11-01",
+      "escalation_triggers": [
+        "Release of Jobs and Skills Australia's OSCA-based occupation profile and Employment Projections (expected November 2026) — refresh employment_outlook after this date.",
+        "Any further Medical Board of Australia amendment to specialist registration standards beyond the 21 Oct 2024 update.",
+        "Any AMC review outcome altering the 2023 Standards for Assessment and Accreditation of Primary Medical Programs.",
+        "Any request for a real patient's specific hormonal or other diagnosis — this record's endocrine example is illustrative only and must not be used to answer an individual clinical question."
+      ],
+      "follow_up_needed": true
+    }
+  }
+}

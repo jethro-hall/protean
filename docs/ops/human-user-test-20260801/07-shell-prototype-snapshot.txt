@@ -1,0 +1,360 @@
+- generic
+  - banner
+    - StaticText "Protean"
+    - StaticText "· Finance"
+    - generic
+      - StaticText "TTFT"
+      - StaticText "612ms"
+      - StaticText "tokens"
+      - StaticText "1,204"
+      - generic
+        - StaticText "cache"
+        - StaticText "miss"
+    - button "Ride Electric · Finance" [ref=e10]
+      - StaticText "Ride Electric · Finance"
+      - image
+    - button "Toggle preview pane" [ref=e11]
+      - image
+    - button "Settings" [ref=e12]
+      - image
+  - complementary
+    - button "New conversation" [ref=e13]
+      - image
+      - StaticText "New conversation"
+    - generic
+      - StaticText "RECENT"
+      - generic
+        - generic [ref=e27] clickable [cursor:pointer]
+          - StaticText "FY24 margin integrity — COGS restatement"
+          - StaticText "FINANCE"
+          - StaticText "2m ago"
+          - generic
+            - image
+            - StaticText "2"
+        - generic [ref=e28] clickable [cursor:pointer]
+          - StaticText "BAS Q4 reconciliation gaps"
+          - StaticText "FINANCE"
+          - StaticText "1h ago"
+          - generic
+            - image
+            - StaticText "1"
+        - generic [ref=e29] clickable [cursor:pointer]
+          - StaticText "Vendor contract — renewal brief"
+          - StaticText "GENERIC"
+          - StaticText "Yesterday"
+          - generic
+            - image
+            - StaticText "1"
+        - generic [ref=e30] clickable [cursor:pointer]
+          - StaticText "Store profitability — Burleigh vs Brisbane"
+          - StaticText "FINANCE"
+          - StaticText "2 days ago"
+      - StaticText "PINNED ARTEFACTS"
+      - image
+      - StaticText "Board memo — COGS FY24.pdf"
+      - image
+      - StaticText "TrueCOGS evidence.xlsx"
+    - StaticText "JH"
+    - StaticText "Jeff Hall"
+    - StaticText "RideAI · GhostStack"
+  - main
+    - generic
+      - StaticText "JH"
+      - StaticText "YOU"
+      - paragraph
+        - StaticText "Our FY24 product margins look wrong — some bikes show a loss. Is the COGS trustworthy, and what's the real group GP?"
+      - StaticText "P"
+      - StaticText "PROTEAN ·"
+      - StaticText "Strong tier"
+      - button "Worked About the worklog Restated group GP from booked cost anchor — 7 steps, 3 tools, 1 subagent 7 steps 4.1s" [expanded=true, ref=e31]
+        - image
+        - StaticText "Worked"
+        - button "About the worklog" [ref=e41]
+          - StaticText "i"
+          - tooltip "WHAT Every step the model took this turn — plans, reasoning, tool calls, subagents. WHY Full turn lineage, shown honestly. Collapse it once you trust the answer. EXAMPLE Click the header to minimise"
+            - StaticText "WHAT"
+            - StaticText "Every step the model took this turn — plans, reasoning, tool calls, subagents."
+            - StaticText "WHY"
+            - StaticText "Full turn lineage, shown honestly. Collapse it once you trust the answer."
+            - StaticText "EXAMPLE"
+            - StaticText "Click the header to minimise"
+        - StaticText "Restated group GP from booked cost anchor — 7 steps, 3 tools, 1 subagent"
+        - StaticText "7 steps"
+        - StaticText "4.1s"
+        - image
+      - generic
+        - generic
+          - image
+          - StaticText "Planned the turn"
+          - StaticText "38ms"
+          - StaticText "Deterministic assembly picked the Strong tier and a sequential tool plan: prove the cost anchor before trusting any margin. Cache checked — miss."
+        - generic
+          - image
+          - StaticText "Reasoning"
+          - StaticText "Booked COGS comes off the valuation layer, which is polluted by negative-inventory transfer revaluations. I shouldn't trust it. The defensible anchor is the ex-GST cost on paid supplier invoices — that chain is cash-provable."
+        - generic
+          - image
+          - StaticText "Queried the data-lake"
+          - code
+            - StaticText "dataLakeQuery"
+          - StaticText "214ms"
+          - StaticText "account.move.line where move_type=in_invoice and payment_state in (paid, in_payment) — 1,147 paid bills matched."
+        - generic
+          - image
+          - StaticText "Queried the data-lake"
+          - code
+            - StaticText "dataLakeQuery"
+          - StaticText "186ms"
+          - StaticText "Revenue leg: pos.order.line + sale.order.line price_subtotal, joined to product."
+        - generic
+          - image
+          - StaticText "Read the valuation layer"
+          - code
+            - StaticText "stock.valuation.layer"
+          - StaticText "92ms"
+          - StaticText "Pulled booked outbound COGS for comparison — confirmed it diverges from the invoice-cost anchor."
+        - generic
+          - image
+          - StaticText "Ran the Forensic analyst"
+          - StaticText "SUBAGENT"
+          - StaticText "3210ms"
+          - StaticText "Traced 338 sub-20%-margin products to source; 4 of 5 overstated, a handful genuinely sold below cost. Overstatement totals $1,110,251."
+        - generic
+          - image
+          - StaticText "Drafted the board memo"
+          - StaticText "340ms"
+          - StaticText "Handed the restated figures to the Report scribe → building the artefact in the preview pane."
+      - generic
+        - StaticText "Called"
+        - code
+          - StaticText "dataLakeQuery"
+        - StaticText "· account.move.line · in_invoice · paid"
+        - StaticText "214ms"
+      - generic
+        - StaticText "Called"
+        - code
+          - StaticText "dataLakeQuery"
+        - StaticText "· pos+sale line · price_subtotal"
+        - StaticText "186ms"
+      - generic
+        - StaticText "Called"
+        - code
+          - StaticText "fileRead"
+        - StaticText "· stock.valuation.layer"
+        - StaticText "92ms"
+      - paragraph
+        - StaticText "Short answer: the booked COGS is not trustworthy — negative-inventory transfer revaluations inflated it. Anchoring to cash-verified supplier-invoice cost instead FACT restates the group from a booked loss to a real profit."
+      - paragraph
+        - StaticText "On the 338 cash-verified products at or below 20% booked margin, group GP moves from ($299,408) booked to $810,843 restated — COGS overstated by ~$1,110,251. FACT"
+      - paragraph
+        - StaticText "Direction isn't uniform: about four in five products were overstated, but a few (Xurban Neo, some G3 ECity) genuinely sold below cost ESTIMATE — real pricing issues, not a data defect. I've drafted the board memo in the preview →"
+      - StaticText "Sources:"
+      - link "account.move.line (paid bills)" [ref=e32]
+      - StaticText "·"
+      - link "pos.order.line / sale.order.line" [ref=e33]
+      - StaticText "·"
+      - link "stock.valuation.layer" [ref=e34]
+    - generic
+      - textbox "Ask about FY24 margins, reconciliations, a board memo…" [ref=e35]
+      - button "Send message" [ref=e36]
+        - image
+      - button "Tools 8 · auto ORCHESTRATION About orchestration TOOLS Web search search Live web lookup File read fileRead Read attached docs Data-lake query dataLakeQuery Odoo / ledger SQL · required Send email emailSend Outbound mail (Outlook) AGENTS (SUBAGENTS) Forensic analyst Traces figures to source evidence Verifier Independent second-pass check Report scribe Drafts the board-ready artefact SKILLS Spreadsheet Build & read .xlsx PDF Create & fill PDFs Word doc" [expanded=false, ref=e37]
+        - image
+        - StaticText "Tools"
+        - StaticText "8"
+        - StaticText "· auto"
+        - generic
+          - StaticText "ORCHESTRATION"
+          - button "About orchestration" [ref=e62]
+            - StaticText "i"
+            - tooltip "WHAT How tools, agents and skills are sequenced this turn. WHY Auto lets the Watcher decide; pin it for control. EXAMPLE Auto · Sequential · Parallel"
+              - StaticText "WHAT"
+              - StaticText "How tools, agents and skills are sequenced this turn."
+              - StaticText "WHY"
+              - StaticText "Auto lets the Watcher decide; pin it for control."
+              - StaticText "EXAMPLE"
+              - StaticText "Auto · Sequential · Parallel"
+          - tablist
+            - button "Auto" [ref=e67]
+            - button "Sequential" [ref=e68]
+            - button "Parallel" [ref=e69]
+          - generic
+            - image
+            - StaticText "TOOLS"
+            - generic [ref=e70] clickable [cursor:pointer]
+              - StaticText "Web search"
+              - code
+                - StaticText "search"
+              - StaticText "Live web lookup"
+            - generic [ref=e71] clickable [cursor:pointer]
+              - StaticText "File read"
+              - code
+                - StaticText "fileRead"
+              - StaticText "Read attached docs"
+            - generic
+              - StaticText "Data-lake query"
+              - code
+                - StaticText "dataLakeQuery"
+              - StaticText "Odoo / ledger SQL · required"
+            - generic [ref=e72] clickable [cursor:pointer]
+              - StaticText "Send email"
+              - code
+                - StaticText "emailSend"
+              - StaticText "Outbound mail (Outlook)"
+          - generic
+            - image
+            - StaticText "AGENTS (SUBAGENTS)"
+            - generic [ref=e73] clickable [cursor:pointer]
+              - StaticText "Forensic analyst"
+              - StaticText "Traces figures to source evidence"
+            - generic [ref=e74] clickable [cursor:pointer]
+              - StaticText "Verifier"
+              - StaticText "Independent second-pass check"
+            - generic [ref=e75] clickable [cursor:pointer]
+              - StaticText "Report scribe"
+              - StaticText "Drafts the board-ready artefact"
+          - generic
+            - image
+            - StaticText "SKILLS"
+            - generic [ref=e76] clickable [cursor:pointer]
+              - StaticText "Spreadsheet"
+              - StaticText "Build & read .xlsx"
+            - generic [ref=e77] clickable [cursor:pointer]
+              - StaticText "PDF"
+              - StaticText "Create & fill PDFs"
+            - generic [ref=e78] clickable [cursor:pointer]
+              - StaticText "Word doc"
+              - StaticText "Board memos & letters"
+          - image
+          - StaticText "Availability follows the active domain pack. Off items are outside its allowlist."
+      - StaticText "Tier:"
+      - StaticText "Strong"
+      - button "About model tier" [ref=e38]
+        - StaticText "i"
+        - tooltip "WHAT Which model answers this turn. WHY Balances speed and depth. The Watcher can auto-pick; you can pin it. EXAMPLE Fast · Strong · Premium"
+          - StaticText "WHAT"
+          - StaticText "Which model answers this turn."
+          - StaticText "WHY"
+          - StaticText "Balances speed and depth. The Watcher can auto-pick; you can pin it."
+          - StaticText "EXAMPLE"
+          - StaticText "Fast · Strong · Premium"
+      - StaticText "Evidence"
+      - button "About evidence mode" [ref=e39]
+        - StaticText "i"
+        - tooltip "WHAT Forces every material claim to trace to a source. WHY No fabricated figures or false certainty — the CFO-analyst rule. EXAMPLE [FACT] / [ESTIMATE] labels appear inline"
+          - StaticText "WHAT"
+          - StaticText "Forces every material claim to trace to a source."
+          - StaticText "WHY"
+          - StaticText "No fabricated figures or false certainty — the CFO-analyst rule."
+          - StaticText "EXAMPLE"
+          - StaticText "[FACT] / [ESTIMATE] labels appear inline"
+      - StaticText "on"
+      - StaticText "⏎ send · ⇧⏎ newline"
+  - complementary
+    - image
+    - StaticText "Live preview"
+    - button "About the preview pane" [ref=e14]
+      - StaticText "i"
+      - tooltip "WHAT A live artefact the model builds as it writes. WHY You watch it assemble and steer it in real time — user + model as a team. EXAMPLE A board memo, table, chart or workflow"
+        - StaticText "WHAT"
+        - StaticText "A live artefact the model builds as it writes."
+        - StaticText "WHY"
+        - StaticText "You watch it assemble and steer it in real time — user + model as a team."
+        - StaticText "EXAMPLE"
+        - StaticText "A board memo, table, chart or workflow"
+    - tablist
+      - tab "Artefact" [ref=e19]
+      - tab "2ndClaude" [ref=e20]
+    - button "Close preview" [ref=e15]
+      - image
+    - heading "FY24 margin integrity — COGS restatement" [level=1, ref=e21]
+    - StaticText "Board memo · prepared for decision · 01 Aug 2026"
+    - heading "BOTTOM LINE UP FRONT" [level=2, ref=e22]
+    - generic
+      - StaticText "Booked product margins are understated by a data defect, not a trading failure. Restating to cash-verified cost moves group GP from ($299,408) to $810,843. Decision requested: approve a correcting journal (FY24 is closed) — no in-place rewrite."
+    - heading "THE NUMBERS About gross profit" [level=2, ref=e23]
+      - StaticText "THE NUMBERS "
+      - button "About gross profit" [ref=e40]
+        - StaticText "I"
+        - tooltip "WHAT GROSS PROFIT = REVENUE − COST OF GOODS SOLD. WHY THE HEADLINE MARGIN MEASURE FOR THE RESTATEMENT. EXAMPLE $810,843 RESTATED"
+          - StaticText "WHAT"
+          - StaticText "GROSS PROFIT = REVENUE − COST OF GOODS SOLD."
+          - StaticText "WHY"
+          - StaticText "THE HEADLINE MARGIN MEASURE FOR THE RESTATEMENT."
+          - StaticText "EXAMPLE"
+          - StaticText "$810,843 RESTATED"
+    - table
+      - rowgroup
+        - row
+          - columnheader "ENTITY" [ref=e63]
+          - columnheader "BOOKED GP" [ref=e64]
+          - columnheader "RESTATED GP" [ref=e65]
+          - columnheader "COGS OVERSTATED" [ref=e66]
+      - row
+        - cell "Retail" [ref=e42]
+        - cell "(311,232)" [ref=e43]
+        - cell "303,861" [ref=e44]
+        - cell "615,093" [ref=e45]
+      - row
+        - cell "Wholesale" [ref=e46]
+        - cell "8,656" [ref=e47]
+        - cell "448,627" [ref=e48]
+        - cell "439,971" [ref=e49]
+      - row
+        - cell "Brisbane" [ref=e50]
+        - cell "(18,787)" [ref=e51]
+        - cell "33,802" [ref=e52]
+        - cell "52,589" [ref=e53]
+      - row
+        - cell "Burleigh" [ref=e54]
+        - cell "21,955" [ref=e55]
+        - cell "24,553" [ref=e56]
+        - cell "2,598" [ref=e57]
+      - row
+        - cell "Group" [ref=e58]
+        - cell "(299,408)" [ref=e59]
+        - cell "810,843" [ref=e60]
+        - cell "1,110,251" [ref=e61]
+    - heading "WHY IT HAPPENED" [level=2, ref=e24]
+    - paragraph
+      - StaticText "Negative-inventory and transfer revaluations flowed into the valuation layer, inflating outbound COGS. The trustworthy anchor is the ex-GST cost on paid supplier invoices — a chain proven end-to-end (invoice → payment → bank reconciliation). FACT"
+    - heading "RECOMMENDATION" [level=2, ref=e25]
+    - paragraph
+      - StaticText "Post a correcting journal per entity (Dr Inventory / Cr COGS) for the overstatement. Draft only — never auto-posted. Net group P&L effect +$1,110,251 gross profit. ASSUMPTION auditor concurs on the anchor method."
+    - heading "RISKS & NEXT STEPS" [level=2, ref=e26]
+    - paragraph
+      - StaticText "A minority of SKUs sold genuinely below cost — treat as a pricing review, separate from this correction. Owner: Finance. By: next board meeting."
+    - textbox "Steer the artefact — “add a risks row”, “make it a chart”…" [ref=e16]
+    - button "Apply" [ref=e17]
+    - button "About steering" [ref=e18]
+      - StaticText "i"
+      - tooltip "WHAT A plain-language instruction to change the artefact. WHY Edit the output by asking, not by hand. EXAMPLE “add a risks row”"
+        - StaticText "WHAT"
+        - StaticText "A plain-language instruction to change the artefact."
+        - StaticText "WHY"
+        - StaticText "Edit the output by asking, not by hand."
+        - StaticText "EXAMPLE"
+        - StaticText "“add a risks row”"
+- dialog "Artefact summary"
+  - StaticText "· generated"
+  - generic
+    - StaticText "snapshot · as generated"
+  - button "Open in preview" [ref=e1]
+  - button "Close" [ref=e2]
+- group "Preview truthful UI states"
+  - StaticText "STATE"
+  - button "Normal" [ref=e3]
+  - button "Loading" [ref=e4]
+  - button "Streaming" [ref=e5]
+  - button "Degraded" [ref=e6]
+  - button "Error" [ref=e7]
+  - button "Empty" [ref=e8]
+  - button "About the state switcher" [ref=e9]
+    - StaticText "i"
+    - tooltip "WHAT Preview each truthful UI state. WHY Loading, streaming, degraded, error and empty must render honestly — never a spinner hiding a failure. EXAMPLE Try “Degraded” → provider failover"
+      - StaticText "WHAT"
+      - StaticText "Preview each truthful UI state."
+      - StaticText "WHY"
+      - StaticText "Loading, streaming, degraded, error and empty must render honestly — never a spinner hiding a failure."
+      - StaticText "EXAMPLE"
+      - StaticText "Try “Degraded” → provider failover"

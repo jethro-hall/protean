@@ -1,0 +1,765 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/professional-documentation-research.schema.json",
+  "title": "Professional Documentation Research Record",
+  "description": "Validation schema for trusted-source professional documentation research outputs intended for LLM-driven agent knowledge bases.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_type",
+    "generated_at",
+    "reference_date",
+    "request",
+    "governance",
+    "profession_profile",
+    "knowledge_base_payload",
+    "citations"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "record_type": {
+      "type": "string",
+      "const": "professional_documentation_research"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reference_date": {
+      "$ref": "#/$defs/dateString"
+    },
+    "request": {
+      "$ref": "#/$defs/request"
+    },
+    "governance": {
+      "$ref": "#/$defs/governance"
+    },
+    "profession_profile": {
+      "$ref": "#/$defs/professionProfile"
+    },
+    "knowledge_base_payload": {
+      "$ref": "#/$defs/knowledgeBasePayload"
+    },
+    "citations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/citation"
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dateString": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "nullableDateString": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    },
+    "citationIdArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^SRC-\\d{3,}$"
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profession",
+        "alternate_titles",
+        "jurisdiction",
+        "language",
+        "audience_level",
+        "document_goal",
+        "research_mode",
+        "must_include_topics",
+        "must_exclude_topics",
+        "kb_taxonomy"
+      ],
+      "properties": {
+        "profession": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "alternate_titles": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "jurisdiction": {
+          "$ref": "#/$defs/jurisdiction"
+        },
+        "language": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "audience_level": {
+          "type": "string",
+          "enum": [
+            "university",
+            "professional",
+            "regulatory",
+            "mixed"
+          ]
+        },
+        "document_goal": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "research_mode": {
+          "type": "string",
+          "const": "trusted_sources_only"
+        },
+        "must_include_topics": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "must_exclude_topics": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "kb_taxonomy": {
+          "$ref": "#/$defs/kbTaxonomy"
+        }
+      }
+    },
+    "jurisdiction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "country",
+        "country_code",
+        "subnational_unit",
+        "subnational_code",
+        "scope_note"
+      ],
+      "properties": {
+        "country": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "country_code": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "subnational_unit": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "subnational_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Z]{2}-[A-Z0-9]{1,3}$"
+        },
+        "scope_note": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "kbTaxonomy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "discipline",
+        "tags"
+      ],
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "discipline": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "tags": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_status",
+        "trusted_source_policy_passed",
+        "current_data_check_passed",
+        "data_cutoff_date",
+        "freshness_assessment",
+        "limitations",
+        "conflicts_detected",
+        "verification_notes"
+      ],
+      "properties": {
+        "record_status": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "partially_verified",
+            "manual_review_required"
+          ]
+        },
+        "trusted_source_policy_passed": {
+          "type": "boolean"
+        },
+        "current_data_check_passed": {
+          "type": "boolean"
+        },
+        "data_cutoff_date": {
+          "$ref": "#/$defs/dateString"
+        },
+        "freshness_assessment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "overall_recency",
+            "oldest_material_source_date",
+            "newest_material_source_date",
+            "staleness_warnings"
+          ],
+          "properties": {
+            "overall_recency": {
+              "type": "string",
+              "enum": [
+                "current",
+                "mixed",
+                "stale",
+                "undetermined"
+              ]
+            },
+            "oldest_material_source_date": {
+              "$ref": "#/$defs/nullableDateString"
+            },
+            "newest_material_source_date": {
+              "$ref": "#/$defs/nullableDateString"
+            },
+            "staleness_warnings": {
+              "$ref": "#/$defs/stringArray"
+            }
+          }
+        },
+        "limitations": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "conflicts_detected": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/conflict"
+          }
+        },
+        "verification_notes": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topic",
+        "conflict_summary",
+        "preferred_source_reason",
+        "citation_ids"
+      ],
+      "properties": {
+        "topic": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "conflict_summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "preferred_source_reason": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "citation_ids": {
+          "$ref": "#/$defs/citationIdArray"
+        }
+      }
+    },
+    "professionProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_profession_name",
+        "profession_summary",
+        "role_definition",
+        "regulated_status",
+        "practice_areas",
+        "regulators",
+        "professional_bodies",
+        "accreditation_bodies",
+        "university_pathways",
+        "licensing_or_registration",
+        "core_competencies",
+        "ethical_and_legal_obligations",
+        "employment_outlook",
+        "current_changes",
+        "jurisdiction_variations"
+      ],
+      "properties": {
+        "canonical_profession_name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "profession_summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "role_definition": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "regulated_status": {
+          "type": "string",
+          "enum": [
+            "licensed",
+            "registered",
+            "certified",
+            "unregulated",
+            "mixed"
+          ]
+        },
+        "practice_areas": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "regulators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/organizationRole"
+          }
+        },
+        "professional_bodies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/organizationRole"
+          }
+        },
+        "accreditation_bodies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/organizationRole"
+          }
+        },
+        "university_pathways": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/universityPathway"
+          }
+        },
+        "licensing_or_registration": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/licensingStage"
+          }
+        },
+        "core_competencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citedSummary"
+          }
+        },
+        "ethical_and_legal_obligations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ethicalObligation"
+          }
+        },
+        "employment_outlook": {
+          "$ref": "#/$defs/employmentOutlook"
+        },
+        "current_changes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/currentChange"
+          }
+        },
+        "jurisdiction_variations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jurisdictionVariation"
+          }
+        }
+      }
+    },
+    "organizationRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "jurisdiction",
+        "role",
+        "citation_ids"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "jurisdiction": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "role": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "citation_ids": {
+          "$ref": "#/$defs/citationIdArray"
+        }
+      }
+    },
+    "universityPathway": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pathway_name",
+        "credential_level",
+        "entry_requirements_summary",
+        "duration",
+        "accreditation_required",
+        "official_pathway_note",
+        "citation_ids"
+      ],
+      "properties": {
+        "pathway_name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "credential_level": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "entry_requirements_summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "duration": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "accreditation_required": {
+          "type": "boolean"
+        },
+        "official_pathway_note": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "citation_ids": {
+          "$ref": "#/$defs/citationIdArray"
+        }
+      }
+    },
+    "licensingStage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage_name",
+        "requirement_summary",
+        "issuing_body",
+        "effective_date",
+        "citation_ids"
+      ],
+      "properties": {
+        "stage_name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "requirement_summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "issuing_body": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "effective_date": {
+          "$ref": "#/$defs/nullableDateString"
+        },
+        "citation_ids": {
+          "$ref": "#/$defs/citationIdArray"
+        }
+      }
+    },
+    "citedSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "competency",
+        "summary",
+        "citation_ids"
+      ],
+      "properties": {
+        "competency": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "citation_ids": {
+          "$ref": "#/$defs/citationIdArray"
+        }
+      }
+    },
+    "employmentOutlook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overview",
+        "official_statistics",
+        "trend_note",
+        "caveats"
+      ],
+      "properties": {
+        "overview": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "official_statistics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/officialStatistic"
+          }
+        },
+        "trend_note": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "caveats": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "ethicalObligation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "obligation",
+        "summary",
+        "citation_ids"
+      ],
+      "properties": {
+        "obligation": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "citation_ids": {
+          "$ref": "#/$defs/citationIdArray"
+        }
+      }
+    },
+    "officialStatistic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric_name",
+        "metric_value",
+        "unit",
+        "reference_period",
+        "geography",
+        "citation_ids"
+      ],
+      "properties": {
+        "metric_name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "metric_value": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "unit": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "reference_period": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "geography": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "citation_ids": {
+          "$ref": "#/$defs/citationIdArray"
+        }
+      }
+    },
+    "currentChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_type",
+        "effective_date",
+        "change_summary",
+        "impact",
+        "citation_ids"
+      ],
+      "properties": {
+        "change_type": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "effective_date": {
+          "$ref": "#/$defs/dateString"
+        },
+        "change_summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "impact": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "citation_ids": {
+          "$ref": "#/$defs/citationIdArray"
+        }
+      }
+    },
+    "jurisdictionVariation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jurisdiction_label",
+        "variation_summary",
+        "citation_ids"
+      ],
+      "properties": {
+        "jurisdiction_label": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "variation_summary": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "citation_ids": {
+          "$ref": "#/$defs/citationIdArray"
+        }
+      }
+    },
+    "knowledgeBasePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_title",
+        "short_description",
+        "retrieval_keywords",
+        "agent_notes"
+      ],
+      "properties": {
+        "canonical_title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "short_description": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "retrieval_keywords": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "agent_notes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "safe_to_answer_from_record_until",
+            "escalation_triggers",
+            "follow_up_needed"
+          ],
+          "properties": {
+            "safe_to_answer_from_record_until": {
+              "$ref": "#/$defs/dateString"
+            },
+            "escalation_triggers": {
+              "$ref": "#/$defs/stringArray"
+            },
+            "follow_up_needed": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "citation_id",
+        "source_type",
+        "title",
+        "publisher",
+        "url",
+        "domain",
+        "jurisdiction",
+        "publication_date",
+        "last_updated_date",
+        "effective_date",
+        "accessed_date",
+        "is_primary",
+        "trust_tier",
+        "locator",
+        "evidence_note"
+      ],
+      "properties": {
+        "citation_id": {
+          "type": "string",
+          "pattern": "^SRC-\\d{3,}$"
+        },
+        "source_type": {
+          "type": "string",
+          "enum": [
+            "legislation",
+            "regulation",
+            "government_website",
+            "regulator_guidance",
+            "university_handbook",
+            "accreditor_standard",
+            "professional_body_rule",
+            "official_statistics",
+            "court_decision",
+            "other_official"
+          ]
+        },
+        "title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "publisher": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "domain": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "jurisdiction": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "publication_date": {
+          "$ref": "#/$defs/nullableDateString"
+        },
+        "last_updated_date": {
+          "$ref": "#/$defs/nullableDateString"
+        },
+        "effective_date": {
+          "$ref": "#/$defs/nullableDateString"
+        },
+        "accessed_date": {
+          "$ref": "#/$defs/dateString"
+        },
+        "is_primary": {
+          "type": "boolean"
+        },
+        "trust_tier": {
+          "type": "string",
+          "enum": [
+            "Tier 1 Primary Authority",
+            "Tier 2 Institutional Authority",
+            "Tier 3 Context Support Only"
+          ]
+        },
+        "locator": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "evidence_note": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    }
+  }
+}

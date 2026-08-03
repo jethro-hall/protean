@@ -1,0 +1,34 @@
+PASS|settings-strong-pill|visible
+PASS|settings-finance-pill|visible
+PASS|settings-medical-pill|visible
+PASS|settings-fast-pill|visible
+PASS|brand-after-domain|"Protean\n· finance"
+PASS|foot-tier-strong|"📎 Attach\ni\nWHAT\nAttach text files (JSON, Markdown, CSV…) to your message.\nWHY\nThe file content is read into the turn and stays in the conversation, so follow-ups can keep working on it.\nE.G.\nUpload an n8n workflow spec and ask Protean to build the workflow JSON.\nTier · strong\ni\nWHAT\nThe speed/quality tier answering you.\nWHY\nFast answers simple turns cheaply; Strong reasons more deeply but costs more and takes longer.\nDomain · finance\ni\nWHAT\nThe active domain pack (vocabulary, tools, and behaviour).\nWHY\nProtean shape-shifts per domain — switching packs changes how answers are framed, with no code change.\nE.G.\nFinance / CFO’s-CFO analyst"
+PASS|foot-domain-finance|"📎 Attach\ni\nWHAT\nAttach text files (JSON, Markdown, CSV…) to your message.\nWHY\nThe file content is read into the turn and stays in the conversation, so follow-ups can keep working on it.\nE.G.\nUpload an n8n workflow spec and ask Protean to build the workflow JSON.\nTier · strong\ni\nWHAT\nThe speed/quality tier answering you.\nWHY\nFast answers simple turns cheaply; Strong reasons more deeply but costs more and takes longer.\nDomain · finance\ni\nWHAT\nThe active domain pack (vocabulary, tools, and behaviour).\nWHY\nProtean shape-shifts per domain — switching packs changes how answers are framed, with no code change.\nE.G.\nFinance / CFO’s-CFO analyst"
+PASS|preview-close-reopen|ok
+PASS|rail-toggle|clicked
+PASS|infohint-telemetry|open
+PASS|new-conversation|ok
+PASS|attach-chip|seen
+PASS|live-turn-finance|streamed
+PASS|telemetry-populated|"TTFT — total — cache — i WHAT Latency and cache facts for the last answer (TTFT, total, cache hit). WHY Protean measures every turn — leanness you can’t see can’t be defended. E.G. TTFT 640 ms · total 3.2 s · cache miss"
+FAIL|stop-button|not in DOM (busy or idle)
+PASS|worklog|present
+PASS|finance-answer-content|BLUF
+PASS|telemetry-real-nums|[
+  "3611ms",
+  "7.8s",
+  "miss"
+]
+PARTIAL|toolchip|none
+PARTIAL|artefact-ui|none-yet
+PASS|live-turn-medical|triage
+FAIL|brand-medical|"Protean\n· finance"
+FAIL|stop-during-stream|missing
+PASS|style-worklog-toggle|ok
+PASS|style-infohint|ok
+PASS|shell-prototype|opened
+FAIL|domain-medical-switch|"Protean\n· generic"
+FAIL|api-tool-artefact-workflow|kinds=['done']
+FAIL|domain-medical-recheck|"Protean\n· medical"
+PASS|domain-medical-switch|brand shows medical (26-medical-switch-ok.png)

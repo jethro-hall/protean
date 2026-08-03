@@ -191,11 +191,11 @@
   --shadow-tip: 0 12px 30px var(--c-ink-a28);
 
   /* ---- z-index ladder (documented so nothing fights) ----
-     10 scrim(base) · 15 mobile scrim · 20 rail/preview · 30 topbar ·
-     60 (i) tooltip · 70 tool popover · 80 statebar · 90 artpop scrim · 95 artpop ·
-     98 settings-modal scrim · 99 settings-modal (topmost -- the settings modal must
-     win over everything else when open) */
-  --z-scrim: 15;  --z-panel: 20;  --z-top: 30;  --z-tip: 60;
+     10 scrim(base) · 15 mobile scrim · 20 rail/preview · 22 chat timeline rail ·
+     30 topbar · 60 (i) tooltip · 70 tool popover · 80 statebar · 90 artpop scrim ·
+     95 artpop · 98 settings-modal scrim · 99 settings-modal (topmost -- the settings
+     modal must win over everything else when open) */
+  --z-scrim: 15;  --z-panel: 20;  --z-timeline: 22;  --z-top: 30;  --z-tip: 60;
   --z-pop: 70;    --z-statebar: 80;  --z-artscrim: 90;  --z-art: 95;
   --z-settings-scrim: 98; --z-settings: 99;
 

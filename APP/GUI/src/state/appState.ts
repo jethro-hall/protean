@@ -2,7 +2,15 @@
  * App state model — types, constants, reducer. No React components so Vite
  * Fast Refresh can patch the provider module independently (Law 3: right module).
  */
-import type { ActivityKind, ArtefactType, EffortLevel, ModelTier, ResponseDepth, TurnDone } from '../lib/api';
+import type {
+  ActivityKind,
+  ArtefactType,
+  EffortLevel,
+  ModelTier,
+  ResponseDepth,
+  SessionSummary,
+  TurnDone,
+} from '../lib/api';
 
 /** Worklog visual kind (C6 data-kind) — optional override when richer than ActivityKind. */
 export type WorklogKind =
@@ -88,6 +96,12 @@ export interface Conversation {
   activeArtefactId: string | null;
   status: ConversationStatus;
   errorMessage?: string;
+  /**
+   * The domain this conversation actually ran under — known for a reopened saved
+   * conversation (from its persisted lineage), absent for a brand-new one still
+   * following the global picker (Settings.domainId). Never guessed (Law 6).
+   */
+  domainId?: string;
 }
 
 export interface Settings {
@@ -119,6 +133,8 @@ export interface AppState {
   previewOpen: boolean;
   /** User-adjusted preview pane width (px, desktop only). */
   previewWidth: number;
+  /** Every persisted conversation (Phase 2 session store + Law 6 lineage), for the rail's full list + search. */
+  savedSessions: SessionSummary[];
 }
 
 export const PREVIEW_WIDTH_DEFAULT_PX = 416;
@@ -194,7 +210,15 @@ export type Action =
   | { type: 'setProviderMaxTokens'; providerMaxTokens: number | undefined }
   | { type: 'toggleRail' }
   | { type: 'togglePreview' }
-  | { type: 'setPreviewWidth'; width: number };
+  | { type: 'setPreviewWidth'; width: number }
+  | { type: 'setSavedSessions'; sessions: SessionSummary[] }
+  | {
+      type: 'openSavedSession';
+      id: string;
+      title: string;
+      domainId: string;
+      messages: ChatMessage[];
+    };
 
 const TITLE_MAX_CHARS = 44;
 
@@ -222,6 +246,7 @@ export function initialState(): AppState {
     railOpen: false,
     previewOpen: true,
     previewWidth: PREVIEW_WIDTH_DEFAULT_PX,
+    savedSessions: [],
   };
 }
 
@@ -283,8 +308,21 @@ export function reducer(state: AppState, action: Action): AppState {
         activeId: conversation.id,
       };
     }
-    case 'selectConversation':
-      return { ...state, activeId: action.id, railOpen: false };
+    case 'selectConversation': {
+      // A reopened/saved conversation carries its own real domain (Law 6 — from its
+      // actual lineage, never guessed). Switching to it must switch the active picker
+      // too, or the next message you type silently runs under the WRONG domain while
+      // the model still talks in the old conversation's voice from history — a real
+      // bug, not a cosmetic one (a research pack's tools are not a generic pack's).
+      // A brand-new conversation has no domainId yet, so the current picker stands.
+      const domainId = state.conversations.find((conversation) => conversation.id === action.id)?.domainId;
+      return {
+        ...state,
+        activeId: action.id,
+        railOpen: false,
+        settings: domainId !== undefined ? { ...state.settings, domainId } : state.settings,
+      };
+    }
     case 'userMessage':
       return updateConversation(state, action.conversationId, (conversation) => ({
         ...conversation,
@@ -566,6 +604,36 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         previewWidth: Math.min(PREVIEW_WIDTH_MAX_PX, Math.max(PREVIEW_WIDTH_MIN_PX, action.width)),
       };
+    case 'setSavedSessions':
+      return { ...state, savedSessions: action.sessions };
+    case 'openSavedSession': {
+      // Already open in this tab (e.g. it's the conversation you just sent a turn in) — just switch to it.
+      // Still sync the picker: switching TO it must switch the active domain too (see selectConversation).
+      if (state.conversations.some((conversation) => conversation.id === action.id)) {
+        return {
+          ...state,
+          activeId: action.id,
+          railOpen: false,
+          settings: { ...state.settings, domainId: action.domainId },
+        };
+      }
+      const conversation: Conversation = {
+        id: action.id,
+        title: action.title,
+        domainId: action.domainId,
+        messages: action.messages,
+        artefacts: [],
+        activeArtefactId: null,
+        status: 'idle',
+      };
+      return {
+        ...state,
+        conversations: [conversation, ...state.conversations],
+        activeId: action.id,
+        settings: { ...state.settings, domainId: action.domainId },
+        railOpen: false,
+      };
+    }
     default:
       return state;
   }

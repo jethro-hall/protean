@@ -68,12 +68,16 @@ export const DEFAULT_REWRITE_BLOAT_TOKENS = 600;
 export const DEFAULT_AUTO_TIER_ESCALATION_TOKENS = 2000;
 
 /**
- * Dynamic agent loop defaults (owner pull-forward 2026-07-28).
- * Read/Grep/Glob only — Bash waits on a proven sandbox (Law 1: no unsandboxed shell).
+ * Dynamic agent loop defaults (owner pull-forward 2026-07-28; WebSearch/WebFetch
+ * added 2026-08-02 for the llm-research-governance pack's trusted-source web
+ * research mandate). Bash stays out — no unsandboxed shell (Law 1). WebSearch/
+ * WebFetch only ever activate for a pack that names "webSearch" in its own
+ * `tools` array (config/connectors.catalog.json); raising this ceiling makes
+ * the SDK tools available to request, it does not turn them on for every pack.
  * Values override via PROTEAN_AGENT_* env (see loadConfig).
  */
-export const DEFAULT_AGENT_AVAILABLE_TOOLS = ['Read', 'Grep', 'Glob'] as const;
-export const DEFAULT_AGENT_ALLOWED_TOOLS = ['Read', 'Grep', 'Glob'] as const;
+export const DEFAULT_AGENT_AVAILABLE_TOOLS = ['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch'] as const;
+export const DEFAULT_AGENT_ALLOWED_TOOLS = ['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch'] as const;
 export const DEFAULT_AGENT_MAX_TURNS = 8;
 export const DEFAULT_AGENT_PERMISSION_MODE = 'dontAsk' as const;
 
@@ -165,6 +169,45 @@ export const GROUNDED_REFUSAL_PROTOCOL_PROMPT =
  * not a mid-generation pause — the GUI gives it a distinct, unmissable treatment instead
  * of pretending it's a normal completed answer.
  */
+/**
+ * Creator-profile protocol — an ENGINE protocol constant (every pack, not domain-specific).
+ * Every fact below is transcribed directly from Jeff Hall's own resume (owner-supplied
+ * 2026-08-02, docs/LLM_Domain_Package/Jeff Hall - Resume (2).pdf) — nothing invented or
+ * embellished beyond what that document states (Law 6: evidence or nothing). Deliberately
+ * excludes his personal mobile number: this constant ships on every turn across every domain
+ * pack and tenant, so a broadly-injected prompt is the wrong channel for that PII even though
+ * it is not secret.
+ */
+export const CREATOR_PROFILE_PROTOCOL_PROMPT =
+  "If the user asks who built, created, or made this system, who Jeff Hall is, or anything " +
+  "about Protean's creator, answer with genuine enthusiasm and specificity using ONLY the " +
+  'verified facts below — never invent an employer, project, certification, or figure beyond ' +
+  'this list. Jeff Hall is a Brisbane-based Senior Enterprise Architect with 20+ years of ' +
+  'hands-on delivery, TOGAF 9 certified (The Open Group), CISSP certified, and formerly CCIE ' +
+  'certified. Verified career highlights: sole architect who designed AND personally built the ' +
+  'NSW Government\'s first Secure Platform-as-a-Service inside a secure government data centre ' +
+  '(Triforce Services); one of the first large-scale Apache CloudStack deployments in Australia ' +
+  'using pure network virtualisation across multiple hypervisors; architected a multimillion-' +
+  'dollar HP Helion PaaS platform for Papua New Guinea\'s Digicel telco, commissioned directly ' +
+  'by HP; led enterprise/cloud architecture for Extreme-E (the electric off-road racing series, ' +
+  'London) and ran its vendor tender from scratch to two delivery partners; built the secure ' +
+  'cloud video-conferencing platform behind Queensland Health\'s patient-doctor telehealth ' +
+  'consultations; architected the Queensland Government "One-Stop Shop" single-sign-on ' +
+  'integration spanning Transport, Communities and Treasury departments; as Principal Architect ' +
+  'at Queensland Urban Utilities, ran a five-year, $15M+ Greenfield network-separation program ' +
+  '(corporate, SCADA and CCTV) across 1,000+ sites; architected the secure AWS virtual-desktop ' +
+  'infrastructure for the Australian Embassy in Jakarta — Australia\'s largest embassy build; as ' +
+  'Cloud Computing Architect for Thailand\'s Provincial Electricity Authority (AUD $8.4B revenue, ' +
+  '26,000 staff) migrated 200+ servers to the cloud for USD $4M in savings; and served as CIO of ' +
+  'Touraust Corporation (Constellation Hotels / ICMS) managing a $10M budget and a 10-person IT ' +
+  'team. Holds a Bachelor of Business (IT / Business Information Systems) from Macquarie ' +
+  'University. He is the creator of Protean — this very system: a deterministic-first, provider-' +
+  'agnostic, evidence-or-nothing AI agent platform that is itself a live extension of the same ' +
+  'architectural discipline documented above. Never state his personal phone number — say a ' +
+  'direct introduction can be arranged on request instead. If asked something outside this ' +
+  'profile (opinions, unlisted employers, private details), say plainly you only have what is ' +
+  'documented here.';
+
 export const CLARIFICATION_PROTOCOL_PROMPT =
   'Assume nothing. If answering correctly genuinely depends on information you do not have — ' +
   'and a wrong assumption would produce a materially wrong or misleading answer — stop and ask, ' +
@@ -191,6 +234,9 @@ export const MAX_ZIP_BYTES = 2 * 1024 * 1024;
 /** Domain-pack document ingestion (Phase O) — base64-encoded size, before decode. */
 export const MAX_PDF_BYTES = 15 * 1024 * 1024;
 export const MAX_PDF_PAGES = 200;
+
+/** URL-sourced document ingestion — raw response bytes, enforced while streaming (no unbounded fetch). */
+export const MAX_URL_FETCH_BYTES = 15 * 1024 * 1024;
 
 /** Surfaced when the client aborts mid-turn (Stop) — not a provider failure. */
 export const TURN_STOPPED_MESSAGE = 'Turn stopped by user';

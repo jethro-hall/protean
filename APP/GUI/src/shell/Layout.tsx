@@ -84,7 +84,7 @@ export function Layout() {
       {railOpen && (
         <button
           type="button"
-          className="scrim rail-scrim"
+          className="scrim rail-scrim show"
           aria-label="Close conversations"
           onClick={() => dispatch({ type: 'toggleRail' })}
         />
@@ -105,7 +105,7 @@ export function Layout() {
           <>
             <button
               type="button"
-              className="scrim preview-scrim"
+              className="scrim preview-scrim show"
               aria-label="Close preview"
               onClick={() => dispatch({ type: 'togglePreview' })}
             />

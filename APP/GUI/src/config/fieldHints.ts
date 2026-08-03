@@ -158,6 +158,11 @@ export const fieldHints: Record<string, FieldHint> = {
     why: 'This is the guardrail against hallucination: every proposal is shown next to its literal source excerpt for you to verify before anything saves. Scanned/image-only PDFs are rejected outright — no OCR guessing.',
     example: 'Upload an HR policy PDF, review the proposed section headings against the real text, then save it as a knowledge collection a pack can reference.',
   },
+  domainPackIngestUrl: {
+    what: 'Fetch a document straight from a URL (a PDF or an HTML page — e.g. legislation, a curriculum, a regulator standard) instead of uploading a file. Paste several, one per line, to build one collection from multiple sources at once.',
+    why: 'The fetch itself is a plain deterministic download and extraction — never the agent’s own web-search tool — so the same real-text review and completeness check you get for an uploaded PDF applies here too, per source.',
+    example: 'Paste the citation URLs a research chat turn just gave you, one per line, then review each source’s chunks before saving.',
+  },
   domainPackImport: {
     what: 'Upload a domain-pack-shaped JSON file (systemPrompt, plus optionally title/packVersion/outputTemplates/validationSchema) and have its fields deterministically mapped onto a new pack draft — no LLM involved, this is a straight structural mapping.',
     why: 'Fields that map cleanly (systemPrompt, title, outputTemplates, a validationSchema) are filled in automatically; anything the importer doesn’t recognise is listed as a note rather than silently dropped, and nothing saves until you review the draft in the editor and click Save.',
@@ -192,5 +197,10 @@ export const fieldHints: Record<string, FieldHint> = {
     what: 'Free-form validation rules (as JSON) associated with this pack \u2014 not yet enforced by the engine, kept as declared metadata.',
     why: 'A place to record domain-specific constraints (e.g. required disclaimers) so they\u2019re documented alongside the pack even before enforcement code exists for them.',
     example: '{}',
+  },
+  conversationSearch: {
+    what: 'Search every saved conversation by title words, or filter by cost, tokens, message count, or domain using >, <, >=, <=, =, != (e.g. cost>0.05).',
+    why: 'Every turn already records its own cost/token numbers (Law 6) \u2014 this searches that real evidence instead of just titles.',
+    example: 'cost>0.05 domain=finance',
   },
 };
