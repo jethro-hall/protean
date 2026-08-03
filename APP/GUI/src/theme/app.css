@@ -46,6 +46,13 @@
   align-items: center;
   gap: var(--s-3);
 }
+.protean-settings-trigger-label {
+  display: block;
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .rail-label-spaced {
   margin-top: var(--s-3);
 }
@@ -317,5 +324,37 @@
   }
   .preview {
     width: min(var(--preview-w), 92vw);
+  }
+}
+
+@media (max-width: 760px) {
+  .scrim {
+    inset: 0;
+  }
+  .rail {
+    width: min(calc(100vw - var(--s-8)), var(--rail-w));
+  }
+  .protean-settings {
+    position: static;
+  }
+  .protean-settings-panel {
+    position: fixed;
+    top: auto;
+    right: max(var(--s-4), env(safe-area-inset-right));
+    bottom: max(var(--s-4), env(safe-area-inset-bottom));
+    left: max(var(--s-4), env(safe-area-inset-left));
+    width: auto;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - var(--s-8));
+    overflow-y: auto;
+  }
+  .protean-settings-row {
+    flex-wrap: wrap;
+  }
+  .protean-settings-row .pill,
+  .protean-settings-col .pill {
+    justify-content: center;
+  }
+  .protean-settings-trigger-label {
+    max-width: 10ch;
   }
 }

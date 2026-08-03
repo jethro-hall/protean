@@ -3,12 +3,21 @@ import { InfoHint } from './InfoHint';
 import { useSendTurn, useStopTurn } from '../state/useTurn';
 import { activeConversation } from '../state/appState';
 import { useAppState } from '../state/useAppStore';
+import { useMediaQuery } from '../shell/useMediaQuery';
 import {
   ATTACHMENT_ACCEPT,
   MAX_ATTACHMENTS_PER_TURN,
   MAX_ATTACHMENT_BYTES,
 } from '../config/uploads';
 import type { Attachment } from '../lib/api';
+
+const MOBILE_LAYOUT_QUERY = '(max-width: 760px)';
+
+function composerPlaceholder(isMobile: boolean): string {
+  return isMobile
+    ? 'Ask Protean anything…'
+    : 'Ask anything — the active domain pack shapes the answer…';
+}
 
 export function Composer() {
   const [draft, setDraft] = useState('');
@@ -18,6 +27,7 @@ export function Composer() {
   const sendTurn = useSendTurn();
   const stopTurn = useStopTurn();
   const state = useAppState();
+  const isMobile = useMediaQuery(MOBILE_LAYOUT_QUERY);
   const busy = ['waiting', 'streaming'].includes(activeConversation(state).status);
 
   const submit = (event: FormEvent) => {
@@ -87,7 +97,7 @@ export function Composer() {
             id="composer-input"
             rows={1}
             value={draft}
-            placeholder="Ask anything — the active domain pack shapes the answer…"
+            placeholder={composerPlaceholder(isMobile)}
             aria-label="Message"
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {

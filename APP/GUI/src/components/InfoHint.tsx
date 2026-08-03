@@ -28,16 +28,16 @@ export function InfoHint({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close();
     };
-    const onClickAway = (event: MouseEvent) => {
+    const onClickAway = (event: PointerEvent) => {
       if (rootRef.current !== null && !rootRef.current.contains(event.target as Node)) {
         close();
       }
     };
     document.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onClickAway);
+    document.addEventListener('pointerdown', onClickAway);
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onClickAway);
+      document.removeEventListener('pointerdown', onClickAway);
     };
   }, [open]);
 

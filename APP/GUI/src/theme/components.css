@@ -15,10 +15,11 @@
          .preview-collapsed. Responsive rules live in C15.
    ----------------------------------------------------------------------------- */
 .app {
-  display: grid; height: 100vh; width: 100vw;
+  display: grid; min-height: 100vh; min-height: 100dvh; height: 100dvh; width: 100%;
   grid-template-columns: var(--rail-w) 1fr var(--preview-w);
   grid-template-rows: var(--topbar-h) 1fr;
   grid-template-areas: "top top top" "rail chat preview";
+  overflow: hidden;
 }
 .app.preview-collapsed { grid-template-columns: var(--rail-w) 1fr 0; }
 .app.preview-collapsed .preview { transform: translateX(100%); pointer-events: none; }
@@ -99,7 +100,7 @@
    ----------------------------------------------------------------------------- */
 .rail {
   grid-area: rail; background: var(--surface); border-right: 1px solid var(--line);
-  display: flex; flex-direction: column; min-height: 0; z-index: var(--z-panel);
+  display: flex; flex-direction: column; min-height: 0; min-width: 0; z-index: var(--z-panel);
 }
 .rail-head { padding: var(--s-6) var(--s-6) var(--s-4); }
 .newchat {
@@ -145,7 +146,7 @@
    WHAT: the centre conversation column. Thread is capped at --read-w for a
          comfortable reading measure.
    ----------------------------------------------------------------------------- */
-.chat { grid-area: chat; display: flex; flex-direction: column; min-height: 0; background: var(--bg); position: relative; }
+.chat { grid-area: chat; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); position: relative; }
 .chat-scroll { flex: 1; overflow-y: auto; padding: var(--s-10) 0 var(--s-3); scroll-behavior: smooth; }
 .thread { max-width: var(--read-w); margin: 0 auto; padding: 0 var(--s-10); display: flex; flex-direction: column; gap: var(--s-9); }
 
@@ -282,7 +283,7 @@
    C8 · PREVIEW PANE  (head · body · artefact "paper" · steer)
    WHAT: the right-hand live artefact surface. Slides out under 760px.
    ----------------------------------------------------------------------------- */
-.preview { grid-area: preview; background: var(--surface); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; transition: transform var(--step); z-index: var(--z-panel); }
+.preview { grid-area: preview; background: var(--surface); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; min-width: 0; transition: transform var(--step); z-index: var(--z-panel); }
 .preview-head { display: flex; align-items: center; gap: var(--s-4); padding: var(--s-4) var(--s-6); border-bottom: 1px solid var(--line); }
 .preview-head .ptitle { font-weight: var(--fw-semi); font-size: var(--fz-13); display: flex; align-items: center; gap: var(--s-3); }
 .preview-head .spacer { flex: 1; }
@@ -475,13 +476,94 @@ table.fin tr.total td.n { color: var(--ok); }
   .app.preview-collapsed { grid-template-columns: 0 1fr 0; }
 }
 @media (max-width: 760px) {
-  :root { --preview-w: min(88vw, 420px); }
+  :root { --preview-w: 100vw; }
   .app { grid-template-columns: 1fr; grid-template-areas: "top" "chat"; }
-  .preview { position: fixed; top: var(--topbar-h); bottom: 0; right: 0; width: var(--preview-w); transform: translateX(100%); box-shadow: var(--shadow); }
+  .topbar {
+    height: auto;
+    min-height: calc(var(--topbar-h) + var(--s-10));
+    flex-wrap: wrap;
+    align-content: center;
+    gap: var(--s-3);
+    padding: max(var(--s-3), env(safe-area-inset-top)) max(var(--s-4), env(safe-area-inset-right))
+      var(--s-3) max(var(--s-4), env(safe-area-inset-left));
+  }
+  .topbar .spacer { display: none; }
+  .brand { flex: 1; min-width: 0; font-size: var(--fz-14); }
+  .brand small { display: none; }
+  .top-actions { margin-left: auto; gap: var(--s-2); }
+  .telemetry {
+    order: 4;
+    width: 100%;
+    justify-content: space-between;
+    padding: 0 var(--s-4);
+  }
+  .gear,
+  .send,
+  .icon-btn {
+    width: var(--topbar-h);
+    height: var(--topbar-h);
+  }
+  .pill,
+  .toolbtn,
+  .btn-ghost,
+  .go,
+  .newchat {
+    min-height: calc(var(--s-10) + var(--s-8));
+  }
+  .info {
+    padding: var(--s-2);
+    margin-left: var(--s-2);
+  }
+  .preview {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: var(--preview-w);
+    transform: translateX(100%);
+    box-shadow: var(--shadow);
+  }
   .preview.open { transform: none; }
   .app.preview-collapsed .preview { transform: translateX(100%); }
   .telemetry .t.tok { display: none; }
-  .thread, .composer { padding-left: var(--s-7); padding-right: var(--s-7); }
+  .thread { padding-left: var(--s-6); padding-right: var(--s-6); }
+  .msg { gap: var(--s-3); }
+  .bubble .name { flex-wrap: wrap; }
+  .composer-wrap {
+    padding-left: max(var(--s-4), env(safe-area-inset-left));
+    padding-right: max(var(--s-4), env(safe-area-inset-right));
+    padding-bottom: max(var(--s-6), env(safe-area-inset-bottom));
+  }
+  .composer {
+    padding-left: var(--s-4);
+    padding-right: var(--s-4);
+  }
+  .composer .field { gap: var(--s-3); align-items: stretch; }
+  .composer textarea { min-height: calc(var(--s-10) + var(--s-8)); }
+  .composer-foot { flex-wrap: wrap; row-gap: var(--s-3); }
+  .preview-head,
+  .steer {
+    flex-wrap: wrap;
+    padding-left: max(var(--s-4), env(safe-area-inset-left));
+    padding-right: max(var(--s-4), env(safe-area-inset-right));
+  }
+  .preview-head {
+    padding-top: max(var(--s-4), env(safe-area-inset-top));
+  }
+  .preview-tabs {
+    padding-left: max(var(--s-3), env(safe-area-inset-left));
+    padding-right: max(var(--s-3), env(safe-area-inset-right));
+  }
+  .paper { margin: var(--s-4); }
+  .steer {
+    padding-bottom: max(var(--s-4), env(safe-area-inset-bottom));
+  }
+  .steer input {
+    width: 100%;
+    min-width: 0;
+    min-height: calc(var(--s-10) + var(--s-8));
+  }
+  .steer .go { flex: 1; }
   .statebar { left: var(--s-5); right: var(--s-5); transform: none; bottom: var(--s-4); justify-content: center; flex-wrap: wrap; }
 }
 
