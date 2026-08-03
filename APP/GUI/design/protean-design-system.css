@@ -51,20 +51,20 @@ img, svg { display: block; max-width: 100%; }
 :root {
   color-scheme: light;
 
-  /* ---- brand & neutrals: the "pascal / executive" ramp ---- */
+  /* ---- brand & neutrals: the "pascal / executive" ramp (v0.2 — ADR-0006) ---- */
   --c-white:      #FFFFFF;
-  --c-paper:      #F7F9FC;   /* app canvas */
-  --c-ink-900:    #1E2A3A;   /* primary text / deepest ink */
-  --c-ink-500:    #5B6B7F;   /* muted text */
-  --c-line-200:   #E3E9F0;   /* hairline borders */
+  --c-paper:      #F4F7FB;   /* app canvas — a touch cooler so white surfaces lift */
+  --c-ink-900:    #15202E;   /* primary text / deepest ink (crisper) */
+  --c-ink-500:    #50617A;   /* muted text — deepened to clear WCAG AA */
+  --c-line-200:   #E0E7F0;   /* hairline borders */
   --c-neutral-100:#EEF1F5;   /* inert chip fill */
 
-  /* ---- blue: the primary action + system colour ---- */
-  --c-blue-600:   #4C8DD6;
-  --c-blue-400:   #7FB0E6;
-  --c-blue-200:   #DCE6F1;   /* soft blue hairline (worklog timeline rail) */
-  --c-blue-050:   #EDF3FB;   /* wash */
-  --c-blue-025:   #F2F7FD;   /* faintest wash */
+  /* ---- blue: the primary action + system colour (deep executive azure) ---- */
+  --c-blue-600:   #2F6FCF;   /* primary — 4.9:1 on white (AA); replaces washed #4C8DD6 */
+  --c-blue-400:   #6AA0E2;   /* secondary / hover / gradient partner */
+  --c-blue-200:   #CDDFF4;   /* soft blue hairline (worklog timeline rail) */
+  --c-blue-050:   #E6F0FC;   /* wash */
+  --c-blue-025:   #F0F6FD;   /* faintest wash */
 
   /* ---- orange: the single warm accent (artefacts, steer, subagents) ---- */
   --c-orange-500: #E8894A;
@@ -87,13 +87,13 @@ img, svg { display: block; max-width: 100%; }
   --c-red-050:    #F3E7E7;
 
   /* ---- raw alpha inks (for shadows / scrims / soft text) ---- */
-  --c-ink-a72:    rgba(30,42,58,.72);
-  --c-ink-a32:    rgba(30,42,58,.32);
-  --c-ink-a28:    rgba(30,42,58,.28);
-  --c-ink-a18:    rgba(30,42,58,.18);
-  --c-ink-a14:    rgba(30,42,58,.14);
-  --c-ink-a06:    rgba(30,42,58,.06);
-  --c-ink-a05:    rgba(30,42,58,.05);
+  --c-ink-a72:    rgba(21,32,46,.72);
+  --c-ink-a32:    rgba(21,32,46,.32);
+  --c-ink-a28:    rgba(21,32,46,.28);
+  --c-ink-a18:    rgba(21,32,46,.18);
+  --c-ink-a14:    rgba(21,32,46,.14);
+  --c-ink-a06:    rgba(21,32,46,.06);
+  --c-ink-a05:    rgba(21,32,46,.05);
 
   /* ---- frosted-glass tints (translucent surfaces: artpop, snapshot fade, brand sheen) ---- */
   --c-glass-90:   rgba(255,255,255,.9);
@@ -102,7 +102,7 @@ img, svg { display: block; max-width: 100%; }
   --c-glass-60:   rgba(255,255,255,.6);
   --c-glass-35:   rgba(255,255,255,.35);
   --c-glass-12:   rgba(255,255,255,.12);
-  --c-line-a70:   rgba(227,233,240,.7);   /* hairline over glass */
+  --c-line-a70:   rgba(224,231,240,.7);   /* hairline over glass */
 
   /* ---- tint-on-wash text/borders (banner variants) ---- */
   --c-tip-ink:    #EAF0F7;   /* light text inside the dark (i) tooltip */
@@ -192,7 +192,7 @@ img, svg { display: block; max-width: 100%; }
   --s-6: 14px; --s-7: 16px; --s-8: 18px; --s-9: 22px; --s-10: 26px;
 
   /* ---- radii ---- */
-  --r-sm: 7px;  --r: 10px;  --r-lg: 14px;  --r-pill: 99px;
+  --r-sm: 6px;  --r: 9px;  --r-lg: 12px;  --r-pill: 99px;
 
   /* ---- elevation ---- */
   --shadow-sm: 0 1px 2px var(--c-ink-a06);
@@ -220,7 +220,7 @@ img, svg { display: block; max-width: 100%; }
   --rise: .32s cubic-bezier(.2,.7,.3,1);
 
   /* ---- layout ---- */
-  --rail-w: 264px;  --preview-w: 420px;  --topbar-h: 52px;
+  --rail-w: 252px;  --preview-w: 420px;  --topbar-h: 50px;
   --read-w: 720px;  /* max reading measure for the chat thread */
 }
 
@@ -383,8 +383,9 @@ body {
   transition: background var(--step), border-color var(--step);
 }
 .conv:hover { background: var(--blue-wash-2); }
-.conv.active { background: var(--blue-wash); border-color: var(--accent-blue-2); }
+.conv.active { background: var(--blue-wash); border-color: var(--accent-blue); box-shadow: inset 2px 0 0 var(--accent-blue); }
 .conv .title { font-size: var(--fz-13); font-weight: var(--fw-med); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv.active .title { font-weight: var(--fw-semi); }
 .conv .meta { font-size: var(--fz-11); color: var(--muted); display: flex; align-items: center; gap: var(--s-2); }
 .tag { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; padding: 1px var(--s-2); border-radius: var(--r-pill); background: var(--blue-wash); color: var(--accent-blue); font-weight: var(--fw-semi); }
 .tag.generic { background: var(--inert); color: var(--muted); }

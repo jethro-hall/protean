@@ -122,8 +122,9 @@
   transition: background var(--step), border-color var(--step);
 }
 .conv:hover { background: var(--blue-wash-2); }
-.conv.active { background: var(--blue-wash); border-color: var(--accent-blue-2); }
+.conv.active { background: var(--blue-wash); border-color: var(--accent-blue); box-shadow: inset 2px 0 0 var(--accent-blue); }
 .conv .title { font-size: var(--fz-13); font-weight: var(--fw-med); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv.active .title { font-weight: var(--fw-semi); }
 .conv .meta { font-size: var(--fz-11); color: var(--muted); display: flex; align-items: center; gap: var(--s-2); }
 .tag { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; padding: 1px var(--s-2); border-radius: var(--r-pill); background: var(--blue-wash); color: var(--accent-blue); font-weight: var(--fw-semi); }
 .tag.generic { background: var(--inert); color: var(--muted); }

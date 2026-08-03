@@ -1125,3 +1125,39 @@ exist; prove Bash only after sandbox.
 
 **Next step:** owner supplies Bedrock (or Anthropic) credentials as Cursor Secrets so a future
 cloud agent can complete a live `POST /api/turn`; no further setup changes needed.
+
+## 2026-08-03 · Cursor · GUI · Executive palette & scale refinement (design tokens v0.2)
+
+**User request (verbatim):**
+> Fix up colours, layout and tighten template down.. sexty sleek business style llook, very
+> functional and everyrthing on the page deliberate, intentional and easy... please do now
+
+**What changed (theme tokens only — colour *contract* unchanged; ADR-0006):**
+- **Palette (Layer 1):** primary blue `--c-blue-600` `#4C8DD6 → #2F6FCF`. Browser review found the
+  old blue was ~2.6:1 on white — it fails WCAG AA both as link/code/heading text **and** as the fill
+  behind white button labels (`.newchat`/`.btn-primary`/`.send`). New azure is 4.9:1 (AA). Blue ramp
+  `400/200/050/025` re-balanced. Ink `#1E2A3A → #15202E`; muted `#5B6B7F → #50617A` (~6:1, AA);
+  hairline `#E3E9F0 → #E0E7F0`; canvas `#F7F9FC → #F4F7FB`. Shadow/scrim inks (`--c-ink-a*`,
+  `--c-line-a70`) rebased to the new ink/line RGB.
+- **Scale (Layer 3, "tighten the template"):** radii `7/10/14 → 6/9/12`; `--rail-w 264→252`;
+  `--topbar-h 52→50`.
+- **Component (token-only):** `.conv.active` gains an `--accent-blue` border + inset accent bar +
+  semibold title so the selected conversation is unmistakable.
+- Edited both the spec (`design/protean-design-system.css`) and the promoted live theme
+  (`src/theme/tokens.css`, `components.css`) in sync (DESIGN.md §1). Added ADR-0006; DESIGN.md §8
+  changelog updated.
+
+**Agent response / status (evidence):**
+- **Law 2 gate:** 0 hex/rgba literals in `base.css`/`components.css`/`app.css`; all raw values remain
+  in Layer 1 primitives.
+- **Quality gates:** `APP/GUI` `npm run lint` clean · `npm run build` (tsc `--noEmit` + vite build)
+  clean.
+- **Browser click-through (UX §4 — done, not deferred):** before/after screenshots at 1440×900 +
+  a walkthrough video (settings open, Strong tier, Medical→Finance domain switch showing the
+  deep-blue selected pill, preview-pane collapse). No misalignment/contrast issues; domain/tier
+  switching works client-side (no creds needed).
+- **Scope note:** live LLM chat still needs provider creds (unchanged from the setup entry above),
+  so the demo covers chrome + settings + domain switching, not a streamed answer.
+
+**Next step:** when Bedrock/Anthropic creds are supplied, re-verify the palette on a live turn
+(worklog purple, tool chips, artefact paper, financial table) end-to-end.

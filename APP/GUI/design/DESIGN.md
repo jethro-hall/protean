@@ -128,6 +128,16 @@ offer? That's a gap — add a token per §6, don't inline a literal.
 
 ## 8. Changelog
 
+- **2026-08-03** — v0.2 (ADR-0006). Executive palette & scale refinement (token *values* only; the
+  colour contract §4 is unchanged). Primary blue `--c-blue-600` `#4C8DD6 → #2F6FCF` — was ~2.6:1 on
+  white (failed AA as link/code/heading text **and** behind white button labels); now 4.9:1 (AA).
+  Blue ramp (`400/200/050/025`) re-balanced around it. Ink deepened (`--c-ink-900 → #15202E`), muted
+  text `--c-ink-500 → #50617A` (~6:1, AA), hairline `--c-line-200 → #E0E7F0`, canvas
+  `--c-paper → #F4F7FB`; shadow/scrim inks (`--c-ink-a*`, `--c-line-a70`) rebased to the new ink/line
+  RGB. Scale tightened: radii `--r-sm/--r/--r-lg 7/10/14 → 6/9/12`, `--rail-w 264→252`,
+  `--topbar-h 52→50`. Component (token-only): `.conv.active` gains a crisp accent border + inset bar
+  + semibold title. Verified: 0 literals outside Layer 1; GUI lint + build clean; browser
+  click-through done (before/after screenshots + walkthrough video in the PR).
 - **2026-07-27** — v0.1. Extracted the design system from the shell prototype into a 6-layer
   `protean-design-system.css`; added the C6 worklog component (the "show your working" feed) and its
   reserved-purple reasoning contract; built the living style guide. Added primitives `--c-ink-a18`,
