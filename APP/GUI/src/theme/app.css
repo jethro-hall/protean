@@ -83,17 +83,83 @@
   flex: 1;
   min-height: 0;
 }
+/* Dim backdrop behind the settings dialog (top overlay tier, above the topbar). */
+.protean-settings-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  z-index: var(--z-artscrim);
+}
+/* Centered modal: capped to the viewport so only its body scrolls — never the marathon list. */
 .protean-settings-panel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + var(--s-3));
-  width: 288px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(460px, 94vw);
+  max-height: min(84vh, 620px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-pop);
+  z-index: var(--z-art);
+  overflow: hidden;
+}
+.protean-settings-panel:focus-visible {
+  outline: none;
+}
+.protean-settings-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex: none;
+  padding: var(--s-5) var(--s-6);
+  border-bottom: 1px solid var(--line);
+}
+.protean-settings-head .settings-title {
+  font-size: var(--fz-15);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-tight);
+  color: var(--ink);
+}
+.protean-settings-head .spacer {
+  flex: 1;
+}
+.protean-settings-tabs {
+  display: flex;
+  gap: var(--s-2);
+  flex: none;
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+.protean-settings-tab {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: var(--s-4) var(--s-3);
+  font-size: var(--fz-13);
+  font-weight: var(--fw-semi);
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color var(--step), border-color var(--step);
+}
+.protean-settings-tab:hover {
+  color: var(--ink);
+}
+.protean-settings-tab.on {
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
+}
+.protean-settings-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--s-6);
-  z-index: var(--z-pop);
 }
 .protean-settings-panel legend {
   display: flex;
@@ -317,5 +383,39 @@
   }
   .preview {
     width: min(var(--preview-w), 92vw);
+  }
+}
+
+/* iPhone / small screens: the settings dialog becomes a full-screen sheet with
+   comfortable (≥44px) touch targets, so it's usable one-handed. */
+@media (max-width: 760px) {
+  .protean-settings-panel {
+    top: 0;
+    left: 0;
+    transform: none;
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+  .protean-settings-head {
+    padding-top: max(var(--s-5), env(safe-area-inset-top));
+  }
+  .protean-settings-tab {
+    flex: 1;
+    text-align: center;
+    padding: var(--s-5) var(--s-3);
+  }
+  .protean-settings-body {
+    padding-bottom: max(var(--s-8), env(safe-area-inset-bottom));
+  }
+  .protean-settings-panel .pill {
+    min-height: 44px;
+  }
+  .protean-settings-head .gear {
+    width: 40px;
+    height: 40px;
   }
 }
