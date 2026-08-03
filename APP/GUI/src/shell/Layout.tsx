@@ -1,10 +1,19 @@
-import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { ChatPane } from '../panes/ChatPane';
 import { ConversationsRail } from '../panes/ConversationsRail';
 import { PreviewPane } from '../panes/PreviewPane';
+import { activeConversation } from '../state/appState';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
 import { SettingsMenu } from './SettingsMenu';
 import { TopbarTelemetry } from './TopbarTelemetry';
+import { useMediaQuery } from './useMediaQuery';
+
+const MOBILE_LAYOUT_QUERY = '(max-width: 760px)';
 
 function PreviewResizeHandle({ currentWidth }: { currentWidth: number }) {
   const dispatch = useAppDispatch();
@@ -38,8 +47,34 @@ function PreviewResizeHandle({ currentWidth }: { currentWidth: number }) {
 export function Layout() {
   const state = useAppState();
   const dispatch = useAppDispatch();
+  const isMobile = useMediaQuery(MOBILE_LAYOUT_QUERY);
+  const previousIsMobile = useRef<boolean | null>(null);
   const previewOpen = state.previewOpen;
   const railOpen = state.railOpen;
+  const hasArtefacts = activeConversation(state).artefacts.length > 0;
+
+  useEffect(() => {
+    const firstRender = previousIsMobile.current === null;
+    const enteredMobile = previousIsMobile.current === false && isMobile;
+    if ((firstRender || enteredMobile) && isMobile && previewOpen && !hasArtefacts) {
+      dispatch({ type: 'togglePreview' });
+    }
+    previousIsMobile.current = isMobile;
+  }, [dispatch, hasArtefacts, isMobile, previewOpen]);
+
+  const toggleRail = () => {
+    if (isMobile && previewOpen) {
+      dispatch({ type: 'togglePreview' });
+    }
+    dispatch({ type: 'toggleRail' });
+  };
+
+  const togglePreview = () => {
+    if (isMobile && railOpen) {
+      dispatch({ type: 'toggleRail' });
+    }
+    dispatch({ type: 'togglePreview' });
+  };
 
   return (
     <div
@@ -55,7 +90,7 @@ export function Layout() {
           type="button"
           className="gear rail-toggle"
           aria-label="Toggle conversations"
-          onClick={() => dispatch({ type: 'toggleRail' })}
+          onClick={toggleRail}
         >
           ☰
         </button>
@@ -74,7 +109,7 @@ export function Layout() {
             aria-label="Toggle preview pane"
             aria-pressed={previewOpen}
             title="Toggle preview pane"
-            onClick={() => dispatch({ type: 'togglePreview' })}
+            onClick={togglePreview}
           >
             ▥
           </button>
@@ -86,7 +121,7 @@ export function Layout() {
           type="button"
           className="scrim rail-scrim"
           aria-label="Close conversations"
-          onClick={() => dispatch({ type: 'toggleRail' })}
+          onClick={toggleRail}
         />
       )}
 
@@ -107,7 +142,7 @@ export function Layout() {
               type="button"
               className="scrim preview-scrim"
               aria-label="Close preview"
-              onClick={() => dispatch({ type: 'togglePreview' })}
+              onClick={togglePreview}
             />
             <PreviewResizeHandle currentWidth={state.previewWidth} />
             <PreviewPane />

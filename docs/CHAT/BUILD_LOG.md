@@ -1384,3 +1384,39 @@ revealing a numeric token-budget override, with its own InfoHint. Wired through 
 **Residual:** only `turnTokenBudget` is exposed in Advanced today — the other adjustable settings
 (tier, domain, grounded) already have their own top-level controls, so nothing else currently needs
 a manual-override home; the Advanced section is there to grow into, not a stub for its own sake.
+
+## 2026-08-03 · GPT-5.4 · Phase 6 · Harden the web shell for iPhone/mobile usability
+
+**Context:** Owner asked: *"Make sure the website is Html5 multi device compatible that it’s clear
+and useable on mobile iPhone."* This is in-scope Phase 6 hardening/accessibility work, not a redesign.
+
+**What changed:**
+- Added `APP/GUI/src/shell/useMediaQuery.ts` so the live shell can react to actual mobile breakpoints
+  instead of relying on CSS alone for everything.
+- `Layout.tsx`: when the app first loads or crosses into the mobile breakpoint, an empty preview pane
+  is auto-collapsed so iPhone users land in the chat first, not a blank preview overlay. On mobile,
+  rail and preview toggles are now mutually exclusive so the shell cannot degrade into competing
+  drawers.
+- `components.css` + `app.css`: root shell now uses `100dvh`/`width: 100%` with overflow control,
+  safe-area-aware padding (`env(safe-area-inset-*)`), wrapped mobile topbar layout, larger touch
+  targets, wrapped composer/footer controls, full-width mobile preview overlay, mobile-friendly
+  preview header/steer bar spacing, and a bottom-sheet-style settings panel.
+- `SettingsMenu.tsx`: settings/domain triggers now use `pointerdown` click-away handling (touch-safe)
+  and show the short domain id in the mobile top bar so iPhone widths do not end up with an unreadable
+  truncated long domain label.
+- `InfoHint.tsx`: click-away handling also moved from `mousedown` to `pointerdown` so the mandatory
+  `(i)` affordance dismisses reliably on touch devices.
+- `Composer.tsx` + `PreviewPane.tsx`: mobile placeholders were shortened so the input affordances stay
+  clear at narrow widths instead of truncating into noise.
+
+**Proof:**
+- GUI validation: `APP/GUI` → `npm run build` ✅ and `npm run lint` ✅.
+- Live browser/mobile verification at ~390 px and ~370 px widths:
+  - initial load lands in the chat-first view (preview not open by default),
+  - top bar remains readable on phone widths,
+  - settings opens as a usable mobile overlay,
+  - preview opens as a mobile overlay rather than leaving a desktop-style three-pane layout visible.
+
+**Residual:** this pass hardens the existing responsive web shell for iPhone-sized browsers; it does
+not add swipe gestures or a mobile-native shell (both are beyond this scoped hardening pass and the
+roadmap explicitly keeps mobile-native shells in backlog).

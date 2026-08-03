@@ -1,8 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { InfoHint } from '../components/InfoHint';
 import { activeConversation, type Artefact } from '../state/appState';
+import { useMediaQuery } from '../shell/useMediaQuery';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
 import { useSendTurn } from '../state/useTurn';
+
+const MOBILE_LAYOUT_QUERY = '(max-width: 760px)';
+
+function steerPlaceholder(isMobile: boolean): string {
+  return isMobile
+    ? 'Refine this artefact…'
+    : 'Steer the artefact — “add a risks row”, “make it a chart”…';
+}
 
 function artefactLabels(artefacts: Artefact[]): Map<string, string> {
   const totals = new Map<string, number>();
@@ -28,6 +37,7 @@ export function PreviewPane() {
   const dispatch = useAppDispatch();
   const sendTurn = useSendTurn();
   const [steer, setSteer] = useState('');
+  const isMobile = useMediaQuery(MOBILE_LAYOUT_QUERY);
   const conversation = activeConversation(state);
   const labels = artefactLabels(conversation.artefacts);
   const artefact =
@@ -102,7 +112,7 @@ export function PreviewPane() {
         <input
           value={steer}
           onChange={(event) => setSteer(event.target.value)}
-          placeholder="Steer the artefact — “add a risks row”, “make it a chart”…"
+          placeholder={steerPlaceholder(isMobile)}
           aria-label="Steer the artefact"
           disabled={busy || artefact === undefined}
         />

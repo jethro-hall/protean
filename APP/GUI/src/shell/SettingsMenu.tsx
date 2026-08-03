@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { InfoHint } from '../components/InfoHint';
 import { fetchDomains, type DomainSummary, type ModelTier, type ResponseDepth } from '../lib/api';
 import { useAppDispatch, useAppState } from '../state/useAppStore';
+import { useMediaQuery } from './useMediaQuery';
 
 const TIERS: Array<{ id: ModelTier; label: string }> = [
   { id: 'fast', label: 'Fast' },
@@ -16,10 +17,13 @@ const RESPONSE_DEPTHS: Array<{ id: ResponseDepth | undefined; label: string }> =
   { id: 'professor', label: 'Professor' },
 ];
 
+const MOBILE_LAYOUT_QUERY = '(max-width: 760px)';
+
 /** Domain pill + settings gear (prototype top-actions). */
 export function SettingsMenu() {
   const state = useAppState();
   const dispatch = useAppDispatch();
+  const isMobile = useMediaQuery(MOBILE_LAYOUT_QUERY);
   const [open, setOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [domains, setDomains] = useState<DomainSummary[] | 'loading' | 'unavailable'>('loading');
@@ -36,16 +40,16 @@ export function SettingsMenu() {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
     };
-    const onClickAway = (event: MouseEvent) => {
+    const onClickAway = (event: PointerEvent) => {
       if (rootRef.current !== null && !rootRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     };
     document.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onClickAway);
+    document.addEventListener('pointerdown', onClickAway);
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onClickAway);
+      document.removeEventListener('pointerdown', onClickAway);
     };
   }, [open]);
 
@@ -54,6 +58,7 @@ export function SettingsMenu() {
       ? (domains.find((domain) => domain.id === state.settings.domainId)?.displayName ??
         state.settings.domainId)
       : state.settings.domainId;
+  const triggerLabel = isMobile ? state.settings.domainId : domainLabel;
 
   return (
     <div ref={rootRef} className="protean-settings">
@@ -61,22 +66,27 @@ export function SettingsMenu() {
         type="button"
         className="pill domain"
         title="Active domain pack — click to switch"
+        aria-haspopup="dialog"
+        aria-expanded={open}
         onClick={() => setOpen(true)}
       >
         <span className="dot" aria-hidden />
-        <span>{domainLabel}</span>
+        <span className="protean-settings-trigger-label" title={domainLabel}>
+          {triggerLabel}
+        </span>
       </button>
       <button
         type="button"
         className="gear"
         aria-label="Settings"
+        aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
         ⚙
       </button>
       {open && (
-        <div className="protean-settings-panel">
+        <div className="protean-settings-panel" role="dialog" aria-label="Settings">
           <fieldset>
             <legend>
               Model tier <InfoHint hintKey="modelTier" />
