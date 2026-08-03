@@ -1384,3 +1384,43 @@ revealing a numeric token-budget override, with its own InfoHint. Wired through 
 **Residual:** only `turnTokenBudget` is exposed in Advanced today — the other adjustable settings
 (tier, domain, grounded) already have their own top-level controls, so nothing else currently needs
 a manual-override home; the Advanced section is there to grow into, not a stub for its own sake.
+
+## 2026-08-03 · Cursor · GUI · Settings → tabbed, viewport-capped, iPhone-usable modal
+
+**User request (faithful summary; owner frustrated with the settings UX):**
+> Fix and sharpen the Settings screen — it looks terrible, the scroll is far too long, it should
+> be usable the moment you press the button. Group the settings under tabs across the top, make it
+> intuitive/easy to navigate, and usable on iPhone.
+
+**Important context / honesty note:** the owner's screenshots show a *tabbed Settings modal with a
+domain-pack editor* ("Build from documents" / "Import from JSON" / per-pack system-prompt + vocab
+editing). That component is **not present in any branch pushed to GitHub** (searched every remote
+ref for its distinctive strings — zero hits; `main`'s settings is still `SettingsMenu.tsx`). It is
+local, unpushed work, so this agent cannot edit that exact file. Owner asked to push the branch so
+the precise modal can be fixed. In the meantime, the settings surface that IS on `main` had the same
+faults (one long column, no tab grouping, not a mobile sheet), so it was hardened as the canonical
+fix + the pattern the local modal should follow.
+
+**What changed (`APP/GUI/src/shell/SettingsMenu.tsx`, `src/theme/app.css`):**
+- Converted the right-anchored dropdown popover into a **centered modal dialog** (`role="dialog"`,
+  `aria-modal`, scrim backdrop, Esc + backdrop-click close, focus moved into the dialog).
+- **Tabs across the top** — "Model" (tier, response depth, Advanced token override) and "Domain"
+  (domain pack, grounded knowledge) — so no section needs a marathon scroll; each tab fits at a
+  glance. Underline tab styling (blue active), token-only.
+- **Viewport-capped:** modal `max-height: min(84vh, 620px)` with the *body* the only scroll region
+  (sticky header + tabs), so the scrollbar is short — not the whole panel.
+- **iPhone:** `@media (max-width: 760px)` turns it into a **full-screen sheet** (`100vw`/`100dvh`,
+  no radius), full-width tabs, ≥44px touch targets, `env(safe-area-inset-*)` padding.
+
+**Proof:**
+- GUI `npm run lint` + `npm run build` (tsc `--noEmit` + vite) clean.
+- Desktop browser walkthrough (video): centered tabbed modal, tabs switch content, Advanced
+  expands, no long scrollbar; before/after captured (old dropdown → new modal).
+- iPhone verified by **computed ground truth**, not eyeballing: at a 390-wide viewport,
+  `matchMedia('(max-width:760px)').matches === true` and the panel's `getBoundingClientRect()` is
+  `{x:0, y:0, w:400, h:833}` — i.e. it fills the screen edge-to-edge (full-screen sheet), plus a
+  clean full-screen screenshot.
+
+**Next step:** owner pushes the branch containing the tabbed domain-pack-editor modal; apply the
+identical treatment (capped height + internal scroll + mobile sheet, and — for that editor's long
+system-prompt/vocabulary form — per-tab sections so nothing scrolls endlessly).
