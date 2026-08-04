@@ -288,6 +288,39 @@
 .protean-settings-panel fieldset:disabled input {
   cursor: not-allowed;
 }
+/* Fieldsets here are semantic groupings only. Strip the browser's default chrome
+   AND its min-inline-size:min-content floor — that floor lets a fieldset grow past
+   the modal width, so long explainer banners stop wrapping and collide with the
+   rows below them (the Domain Packs "mess"). Force normal block flow instead. */
+.settings-modal fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.settings-modal fieldset,
+.settings-modal .protean-settings-panel {
+  min-width: 0;
+}
+/* Long explainer banners must wrap as calm multi-line blocks. The shared .banner
+   is display:flex (to align an optional icon); in this modal a single wrapping text
+   child left the flex box's content height collapsed to ~0 while the text overflowed
+   DOWNWARD onto the rows below — the Domain Packs collision. In the modal these
+   banners are text-only, so render them as plain static blocks and pin the box to at
+   least its wrapped-text height (min-height:max-content) so it can never under-size. */
+.settings-modal-body .banner {
+  display: block;
+  position: static;
+  flex: none;
+  width: 100%;
+  height: auto;
+  min-height: max-content;
+  overflow: visible;
+  white-space: normal;
+}
+.settings-modal-body p.banner {
+  margin: 0;
+}
 .protean-settings-row {
   display: flex;
   flex-wrap: wrap;

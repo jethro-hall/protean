@@ -3123,3 +3123,33 @@ documented contract for the first time. Re-ran the full tooltip-clipping sweep f
 realistic 640px "Windows-snapped" width (the owner's actual scenario) and at 1440px (the original
 reported screenshot's exact scenario) both confirmed clean by direct visual comparison, not just the
 automated check. `tsc --noEmit` + `eslint` + `vite build` clean.
+
+## 2026-08-04 · Cursor · GUI · Fix Settings modal banner collapse (Domain Packs "mess")
+
+**User request (verbatim, frustrated):** "nothings changed again, thats still a mess nothing has
+changed." — the Settings > Domain Packs tab: the "Editing a built-in pack…" explainer was sitting
+on top of the "Finance / CFO's-CFO analyst" row.
+
+**Root cause (found via live DOM probing, not eyeballing):** the shared `.banner` is
+`display:flex; align-items:center`. Inside the settings modal, with a single wrapping text child,
+the flex box's **content height collapsed to ~0** (`clientHeight 22` = padding only, while
+`scrollHeight 67`), so the 3 wrapped lines overflowed DOWNWARD onto the rows below. Plain
+`display:block` alone didn't cure it (box still measured ~24px), so the box was pinned to its
+content height. Also stripped the modal fieldsets' UA chrome + `min-inline-size:min-content` floor,
+which can blow a fieldset past the modal width.
+
+**What changed (`APP/GUI/src/theme/app.css` only — CSS, no behaviour):**
+- `.settings-modal fieldset { min-inline-size:0; margin:0; padding:0; border:0 }` (+ `min-width:0`
+  on fieldset/panel) — semantic groupings only, no UA width floor.
+- `.settings-modal-body .banner { display:block; position:static; flex:none; width:100%;
+  height:auto; min-height:max-content; overflow:visible; white-space:normal }` — the banner box can
+  never under-size below its wrapped text again (fixes every banner in the modal, not just this one).
+
+**Proof:** `eslint` + `vite build` clean. Live browser (hard-reloaded): banner now
+`clientHeight 78 == scrollHeight 78`, box height 88px, gap to the first row `-8px` (no overlap).
+Screenshot at desktop width confirms the explainer sits fully in its own box with clear separation
+from Finance / Generic / University-Level / Medical rows — the collision is gone.
+
+**Note on prior confusion:** earlier PRs (#10 palette, #11 old-dropdown settings) predated this
+tabbed modal being merged to `main`, so the owner correctly saw "nothing changed" — this fix targets
+the real merged component (`SettingsMenu.tsx` / `DomainPacksSection.tsx`).
