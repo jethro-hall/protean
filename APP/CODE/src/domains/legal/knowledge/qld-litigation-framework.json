@@ -1,0 +1,54 @@
+{
+  "id": "legal-qld-litigation-framework",
+  "displayName": "Queensland Civil Litigation — Forum, Deadlines, Procedure & Ethics",
+  "chunks": [
+    {
+      "id": "legal-forum-monetary-jurisdiction",
+      "heading": "Queensland civil forum monetary jurisdiction",
+      "text": "QCAT's minor civil dispute jurisdiction (debt disputes, minor consumer/trader disputes) is capped at $25,000 for most claim types, with no monetary limit for residential tenancy matters; claims above $25,000 go to the Magistrates Court instead. The Magistrates Court hears civil money disputes up to $150,000. The District Court hears money disputes from $150,000 up to $750,000. Claims above $750,000, and matters seeking equitable or injunctive relief, generally proceed in the Supreme Court, which has unlimited civil jurisdiction. Forum choice can also be forced upward by injunctive/equitable relief sought, freezing (Mareva) or search (Anton Piller) orders, or an aggregated counterclaim, regardless of the primary claim's quantum.",
+      "sourceTitle": "Money disputes under $150,000 / $150,000 to $750,000 | Queensland Courts; Debt disputes | QCAT",
+      "sourceUrl": "https://www.courts.qld.gov.au/going-to-court/money-disputes/money-disputes-under-150000",
+      "fetchedAt": "2026-08-06"
+    },
+    {
+      "id": "legal-district-court-limit-pending-reform",
+      "heading": "PENDING (not in force): District Court limit rising to $1.5m",
+      "text": "The Justice and Other Legislation Amendment Bill 2026 (Qld), introduced 4 March 2026 by the Attorney-General, proposes to double the District Court's civil monetary jurisdiction from $750,000 to $1,500,000 by amending the District Court of Queensland Act 1967 (Qld). The Justice, Integrity and Community Safety Committee tabled its Report No. 30 on 17 April 2026. Commencement is intended for 1 January 2027, not yet in force. Stakeholders including the Australian Lawyers Alliance flagged that a successful District Court litigant in the newly-captured $750k-$1.5m band will recover materially less of their costs than under the Supreme Court costs scale, unless costs-recovery reform accompanies the change. Until commencement, the $750,000 line governs District/Supreme forum choice — re-verify the Bill's status before relying on the higher figure for any live matter.",
+      "sourceTitle": "Justice and Other Legislation Amendment Bill 2026 — Committee Briefing Paper & Report No. 30 | Queensland Parliament",
+      "sourceUrl": "https://documents.parliament.qld.gov.au/com/JICSC-CD82/JOLAB2026-60DA/DoJ_Committee%20Briefing%20Paper%20-%20Justice%20and%20Other%20Legislation%20Amendment%20Bill%202026.pdf",
+      "fetchedAt": "2026-08-06"
+    },
+    {
+      "id": "legal-limitation-periods",
+      "heading": "Limitation of Actions Act 1974 (Qld) — key periods",
+      "text": "Under the Limitation of Actions Act 1974 (Qld): simple contract, quasi-contract and non-personal-injury tort actions must be brought within 6 years of accrual (s10(1)(a)); an action on a judgment within 12 years of it becoming enforceable (s10(4)); personal injury actions within 3 years (s11); defamation within 1 year, extendable (s10AA); actions to recover land within 12 years; and there is no limitation period for child abuse actions (s11A). Always check the accrual date (breach vs damage vs discoverability), any acknowledgement/part-payment that resets time, fraud/concealment/mistake postponement, and any contractual notice-of-claim clause that bites earlier than the statute — a missed limitation date is the fastest way to destroy an otherwise good claim, so check it first on every matter.",
+      "sourceTitle": "Limitation of Actions Act 1974 (Qld), current in-force version",
+      "sourceUrl": "https://www.legislation.qld.gov.au/view/pdf/inforce/current/act-1974-075",
+      "fetchedAt": "2026-08-06"
+    },
+    {
+      "id": "legal-deed-limitation-trap",
+      "heading": "Deed limitation trap — 12 years to 6 years",
+      "text": "Historically a deed (specialty) carried a 12-year limitation period in Queensland. The Property Law Act 2023 (Qld), commenced 1 August 2025, reduced the deed limitation to 6 years under the Limitation of Actions Act 1974 (Qld) s10(3), aligning it with simple contract. A transitional provision (s51 of the Limitation Act) governs deeds entered before commencement, and there is live, unresolved uncertainty in commentary about whether the former 12-year period survives for a pre-1-August-2025 deed that is varied on or after that date. Never assume 12 years for a deed without dating it, checking s51, and — for a post-commencement variation — obtaining specialist confirmation.",
+      "sourceTitle": "Property Law Act 2023 to commence 1 August 2025 | Herbert Smith Freehills Kramer; Limitation of Actions Act 1974 (Qld)",
+      "sourceUrl": "https://www.legislation.qld.gov.au/view/pdf/inforce/current/act-1974-075",
+      "fetchedAt": "2026-08-06"
+    },
+    {
+      "id": "legal-ppsr-vesting-unperfected",
+      "heading": "PPSA s267 — unperfected security interests vest in the grantor on insolvency",
+      "text": "Under s267 of the Personal Property Securities Act 2009 (Cth), if a security interest granted by a company is unperfected (most commonly, not registered on the Personal Property Securities Register) at the time the grantor enters administration, liquidation or bankruptcy, the security interest automatically vests in the grantor — the secured party is left with only an unsecured claim, losing the collateral entirely. Perfection is most commonly achieved by registration on the PPSR; a perfected interest ordinarily has priority over an unperfected one. On any secured-position question, the first move is a PPSR search checking registration date, the exact grantor identifier (ACN for a company, full legal name for an individual), and the collateral class against the security agreement — a wrong grantor identifier can itself render a registration seriously misleading and so ineffective.",
+      "sourceTitle": "Personal Property Securities Act 2009 (Cth) s267 | AustLII; Which security interest has priority? | PPSR",
+      "sourceUrl": "https://classic.austlii.edu.au/au/legis/cth/consol_act/ppsa2009356/s267.html",
+      "fetchedAt": "2026-08-06"
+    },
+    {
+      "id": "legal-ethics-duty-to-court",
+      "heading": "Paramount duty to the court — Australian Solicitors' Conduct Rules",
+      "text": "The Australian Solicitors' Conduct Rules 2023 commenced in Queensland on 27 September 2024 (adopted by the Queensland Law Society, retaining the 2012 wording for a small number of provisions). The Rules provide that a solicitor's duty to the court and the administration of justice is paramount and prevails to the extent of any inconsistency with any other duty — including the client's instructions or interests. This is a hard boundary on strategy: no drafting or advice toward misleading the court or a regulator, a claim or defence without proper basis, suppression or destruction of evidence (a litigation hold applies once litigation is reasonably anticipated), abuse of process, or improper pressure. Legal professional privilege and without-prejudice protection are to be preserved and flagged, never waived by accident.",
+      "sourceTitle": "Australian Solicitors' Conduct Rules | Queensland Law Society",
+      "sourceUrl": "https://www.qls.com.au/practising-law-in-qld/ethics/australian-solicitors-conduct-rules",
+      "fetchedAt": "2026-08-06"
+    }
+  ]
+}

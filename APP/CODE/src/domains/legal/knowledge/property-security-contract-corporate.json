@@ -1,0 +1,54 @@
+{
+  "id": "legal-property-security-contract-corporate",
+  "displayName": "Property, Security, Contract/ACL & Corporate Litigation Substantive Law",
+  "chunks": [
+    {
+      "id": "legal-pla2023-seller-disclosure",
+      "heading": "Property Law Act 2023 (Qld) — mandatory seller disclosure regime",
+      "text": "The Property Law Act 2023 (Qld) replaced the Property Law Act 1974 (Qld) and commenced on 1 August 2025. It introduces a mandatory seller-disclosure regime applying to contracts of sale, options and related agreements for residential and commercial property (and vacant land) entered into on or after 1 August 2025: before a buyer signs, the seller must give a seller disclosure statement (Form 2) plus prescribed certificates under the Property Law Regulation 2024, with only limited exceptions, and parties cannot contract out of the regime. For any Queensland land contract signed on or after 1 August 2025, disclosure compliance — the Form 2, the certificates, and correct timing/service — is a first-order issue to check before anything else in a sale dispute; for pre-commencement contracts, the 1974 Act and general-law misrepresentation principles apply instead.",
+      "sourceTitle": "Seller disclosure scheme | Queensland Government",
+      "sourceUrl": "https://www.qld.gov.au/law/housing-and-neighbours/buying-and-selling-a-property/seller-disclosure-scheme",
+      "fetchedAt": "2026-08-06"
+    },
+    {
+      "id": "legal-ppsa-overview-perfection",
+      "heading": "Personal Property Securities Act 2009 (Cth) — perfection and priority",
+      "text": "The Personal Property Securities Act 2009 (Cth) established a single national online Personal Property Securities Register (PPSR), operational since 30 January 2012. A security interest is created when a secured party takes an interest in a grantor's personal property (goods, inventory, receivables, shares) as security for an obligation, or supplies secured finance. The most common way to perfect a security interest is registration on the PPSR (perfection can also occur by possession or control in some cases); a perfected security interest ordinarily has priority over an unperfected one, and priority as between competing perfected interests is generally determined by registration time. A purchase-money security interest (PMSI) not registered within the applicable time limit loses its super-priority ranking. This framework governs loan/facility security, retention-of-title supply terms, and equipment/inventory finance alike.",
+      "sourceTitle": "Personal Property Securities Act 2009 | Federal Register of Legislation; Personal Property Securities Register",
+      "sourceUrl": "https://www.legislation.gov.au/C2009A00130/latest/text",
+      "fetchedAt": "2026-08-06"
+    },
+    {
+      "id": "legal-guarantee-surety-spouse-garcia",
+      "heading": "Surety-spouse protection — Yerkey v Jones / Garcia v National Australia Bank",
+      "text": "Garcia v National Australia Bank Ltd [1998] HCA 48 is the leading Australian authority on setting aside a guarantee given by a spouse acting as a volunteer (deriving no benefit from the transaction) who did not understand its purport and effect, where the creditor left explanation of the transaction to the debtor spouse and took no step to explain it independently or ensure independent advice was obtained. The High Court reaffirmed the earlier principle from Yerkey v Jones as a distinct rule of equity applying because of the trust and confidence typically between spouses, not dependent on a presumption of undue influence. This is high-value in a commercial-guarantee dispute wherever a director's spouse or another non-benefiting family member has guaranteed company debt — check whether the creditor explained the transaction or ensured independent advice before treating the guarantee as secure; verify current scope and any post-1998 refinement before relying on it in a live matter.",
+      "sourceTitle": "Garcia v National Australia Bank Ltd [1998] HCA 48 | High Court of Australia",
+      "sourceUrl": "https://www.hcourt.gov.au/cases-and-judgments/judgments/judgments-1998-current/garcia-v-national-australia-bank-ltd",
+      "fetchedAt": "2026-08-06"
+    },
+    {
+      "id": "legal-acl-s18-misleading-deceptive",
+      "heading": "Australian Consumer Law s18 — misleading or deceptive conduct",
+      "text": "Section 18 of the Australian Consumer Law (Schedule 2 to the Competition and Consumer Act 2010 (Cth)) provides that a person must not, in trade or commerce, engage in conduct that is misleading or deceptive or is likely to mislead or deceive. Liability does not depend on proving intent — conduct engaged in reasonably and honestly can still contravene s18 if it is likely to create a false impression, and the prohibition covers conduct broadly (representations, forecasts, and in some circumstances silence), not just express written statements. An s18 claim frequently runs alongside a contract claim in commercial disputes and, because parties cannot contract out of the ACL, it can bypass entire-agreement and exclusion clauses that would otherwise defeat a pure contract claim — check it in any commercial dispute involving pre-contractual representations.",
+      "sourceTitle": "Competition and Consumer Act 2010 (Cth), Schedule 2 (Australian Consumer Law) | AustLII",
+      "sourceUrl": "https://classic.austlii.edu.au/au/legis/cth/consol_act/caca2010265/sch2.html",
+      "fetchedAt": "2026-08-06"
+    },
+    {
+      "id": "legal-corporations-act-s180-director-duty",
+      "heading": "Corporations Act 2001 (Cth) s180 — director care and diligence, business judgment rule",
+      "text": "Section 180(1) of the Corporations Act 2001 (Cth) requires a director or officer to exercise their powers and discharge their duties with the degree of care and diligence a reasonable person would exercise in that office and those circumstances; it is a civil penalty provision. Section 180(2) provides the business judgment rule defence: a director who makes a business judgment is taken to meet the s180(1) standard if they make the judgment in good faith for a proper purpose, have no material personal interest in its subject matter, inform themselves about the subject matter to the extent they reasonably believe appropriate, and rationally believe the judgment is in the company's best interests. This sits alongside the good-faith/proper-purpose duty (s181), the no-improper-use-of-position duty (s182), and the no-improper-use-of-information duty (s183) as the core statutory director-duty suite engaged in any director conduct or related-party dispute.",
+      "sourceTitle": "Corporations Act 2001 (Cth) s180 — Care and diligence | AustLII",
+      "sourceUrl": "https://www8.austlii.edu.au/cgi-bin/viewdoc/au/legis/cth/consol_act/ca2001172/s180.html",
+      "fetchedAt": "2026-08-06"
+    },
+    {
+      "id": "legal-corporations-act-oppression",
+      "heading": "Corporations Act 2001 (Cth) ss232-233 — shareholder oppression remedy",
+      "text": "Section 232 of the Corporations Act 2001 (Cth) gives the court power to grant relief where the conduct of a company's affairs, or an actual or proposed act or omission by or on behalf of the company, is contrary to the interests of the members as a whole, or is oppressive to, unfairly prejudicial to, or unfairly discriminatory against a member or members — whether in that capacity or in any other capacity. Section 233 then gives the court a wide remedial menu, most commonly an order that a respondent purchase the aggrieved member's shares at a fair value, but extending to orders regulating the company's future conduct, restraining a proposed act, or winding the company up. This is the primary statutory lever in a director/shareholder deadlock or minority-oppression dispute, alongside the statutory derivative action (ss236-237) and winding up on the just-and-equitable ground (s461) for a genuine deadlock or loss of substratum.",
+      "sourceTitle": "Shareholder oppression remedies — section 232 of the Corporations Act 2001 | commentary summarising ss232-233",
+      "sourceUrl": "https://www.mondaq.com/australia/shareholders/1599164/shareholder-oppression-remedies-section-232-of-the-corporations-act-2001",
+      "fetchedAt": "2026-08-06"
+    }
+  ]
+}
